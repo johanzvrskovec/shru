@@ -88,10 +88,10 @@ edge [fontname = 'Helvetica',
   }
   
   # add edges
-  if(!is.null(edgesDf )) {
-    nEdge<-nrow(edgesDf)
+  if(!is.null(edgeDf )) {
+    nEdge<-nrow(edgeDf)
     for(iEdge in 1 : nEdge) {
-      cEdge<-edgesDf[iEdge,]
+      cEdge<-edgeDf[iEdge,]
       edgeString<-paste0("\'",cEdge[c("from")],"\'","->","\'",cEdge[c("to")],"\'"," [")
       
       if("id" %in% colnames(cEdge) && !is.na(cEdge[c("id")]))
