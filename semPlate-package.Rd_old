@@ -13,8 +13,7 @@
 The DESCRIPTION file:
 \packageDESCRIPTION{semPlate}
 \packageIndices{semPlate}
-~~ An overview of how to use the package, including ~~
-~~ the most important functions ~~
+Use parseSEMResult to get node and edge dataframes from your GSEM results. Use generateDOT to generate a template DOT code for the selected node and edge dataframes. USe printSEMResults to do everything in one step, parse GSEM results, generate DOT code, and print the results using grViz.
 }
 \author{
 \packageAuthor{semPlate}

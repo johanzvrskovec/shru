@@ -120,7 +120,7 @@ residual_self_loadings <- edges %>%
 
 edge_set <- combine_edfs(loadings, regressions, covariances, residual_loadings, residual_self_loadings)
 
-toReturn<-c(nodeDf=node_set, edgeDf=edge_set)
+toReturn<-list(nodeDf=node_set, edgeDf=edge_set)
 return(toReturn)
 
 }
