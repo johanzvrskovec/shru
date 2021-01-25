@@ -1,12 +1,11 @@
-Package: semPlate
+Package: shru
 Type: Package
-Title: Utilities for generating path diagrams from fitted SEM model results.
+Title: SHared R Utilities for behavioural genomics and beyond
 Version: 0.1.0
 Author: Johan Zvrskovec
 Maintainer: Johan Zvrskovec <johan.kallberg_zvrskovec@kcl.ac.uk>
-Description: Utilities for generating path diagrams from fitted SEM model results.
-    More coming later.
-License: GPL-3.0
+Description: SHared R Utilities for behavioural genomics and beyond. Includes the previous semplate package utilities for generating path diagrams from fitted SEM model results. More coming later.
+License: MIT
 Encoding: UTF-8
 LazyData: true
 Imports: tidyverse,dplyr,DiagrammeR
