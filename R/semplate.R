@@ -1,4 +1,170 @@
 semplate <-c()
+semplate$powers.of.two32bit <- 2^(0:(32 - 1))
+semplate$bit.one<-intToBits(1)[1]
+semplate$bit.zero<-intToBits(0)[1]
+semplate$generateIndicatorLoadingPatterns<-function(nFactors, nIndicators, indicatorLocksDf=c(),indicatorLocks=NULL, searchBitValues=c(0)){
+  
+  #for test
+  #nFactors=3
+  #nIndicators=7
+  
+  # indicatorLocksDf<-as.data.frame(matrix(data=0, nrow = nIndicators, ncol = nFactors))
+  # indicatorLocksDf[2,]<-c(1,1,0)
+  # indicatorLocksDf[3,]<-c(0,1,1)
+  
+  #searchBitValues=c(0)
+  
+  if(is.null(indicatorLocks)){
+    
+    
+    indicatorLocks<-c()
+    #tIndicatorLocksDf<-as.data.frame(t(indicatorLocksDf))
+    for(nCol in 1:ncol(indicatorLocksDf)){
+      indicatorLocks<-c(indicatorLocks,indicatorLocksDf[,nCol])
+    }
+  }
+  
+  
+  bitLength<-nFactors*nIndicators
+  #maxInt=2^bitLength
+  
+  #indicatorLocks<-sort(indicatorLocks)
+  lockBits<-intToBits(x = 0)
+  
+  for (cLock in 1:length(indicatorLocks)) {
+    if(indicatorLocks[cLock]==1){
+      lockBits[cLock]=semplate$bit.one
+    }
+  }
+  total.length<-length(lockBits)
+  searchBitLength<-(bitLength-length(indicatorLocks))
+  #maxInt=2^searchBitLength
+  
+  num<-length(searchBitValues)
+  totalBitValues<-c()
+  totalBitIndicatorLoadings<-data.frame(matrix(NA, nrow = num, ncol = bitLength))
+  colnames(totalBitIndicatorLoadings)<-NA
+  
+  #test
+  #nSearchBitValue=1
+  
+  for(nSearchBitValue in 1:num){
+    searchBitValue<-searchBitValues[nSearchBitValue]
+    searchBits<-intToBits(x = searchBitValue)
+    totalBits<-intToBits(0)
+    #add locks
+    nSearch=1
+    for (nTotal in 1:total.length) {
+      if(lockBits[nTotal]==semplate$bit.one){
+        totalBits[nTotal]<-semplate$bit.one
+      } else {
+        totalBits[nTotal]<-searchBits[nSearch]
+        nSearch<-nSearch+1
+      }
+    }
+    
+    totalBitIndicatorLoadings[nSearchBitValue,]<-as.integer(totalBits[1:bitLength])
+    totalBitsValue = as.integer(head(totalBits,32)) %*% semplate$powers.of.two
+    totalBitValues <-c(totalBitValues,totalBitsValue[1])
+  }
+  
+  return (list(searchBitValues=searchBitValues,
+               totalBitValues=totalBitValues,
+               indicatorLoadings=totalBitIndicatorLoadings,
+               indicatorLoadingsMatrix=apply(totalBitIndicatorLoadings, 1, function(iv){list(matrix(data=iv,ncol = nFactors))}),
+               indicatorLocks=indicatorLocks))
+}
+
+semplate$generateLavaanCFAModel<-function(code.indicator, allow_loading.table.indicator_factor, fix_loading.table.indicator_factor=NULL, special.orthogonal=FALSE){
+  #lavaan definition string
+  lds<-""
+  lds.factorSelf=""
+  lds.factorOther=""
+  
+  nFactors<-ncol(allow_loading.table.indicator_factor)
+  nIndicators<-nrow(allow_loading.table.indicator_factor)
+  
+  #factor loadings, factor variances
+  for(iFactor in 1:nFactors){
+    lds.factor=paste0("
+                      F",iFactor," =~ ")
+    
+    hasFactor=FALSE
+    for(iIndicator in 1:nIndicators){
+      if(allow_loading.table.indicator_factor[iIndicator,iFactor]==TRUE){
+        
+        if(hasFactor==TRUE)
+          lds.factor=paste0(lds.factor,"+")
+        
+        if(is.null(fix_loading.table.indicator_factor)==FALSE) {
+          #use fixed loadings
+          if(fix_loading.table.indicator_factor[iIndicator,iFactor]==TRUE) {
+            vFixLoading="1*" #show this for both cases for clarity
+          } else {
+            if(hasFactor==TRUE)
+              vFixLoading="" else
+                vFixLoading="NA*"
+          }
+        } else {
+          #do not use fixed loadings
+          if(hasFactor==TRUE)
+            vFixLoading="" else
+              vFixLoading="NA*"
+        }
+        
+        lds.factor=paste0(lds.factor,vFixLoading,code.indicator[iIndicator])
+        hasFactor=TRUE
+      }
+    }
+    if(hasFactor==TRUE){
+      lds=paste0(lds,lds.factor)
+      lds.factorSelf=paste0(lds.factorSelf,"
+                            F",iFactor,"~~1*F",iFactor)
+    }
+  }
+  
+  indexFactor<-data.frame(index=c(1:nFactors))
+  indexFactor<-indexFactor %>%
+    inner_join(indexFactor, by = character())
+  
+  
+  lds.factorOther=""
+  
+  for(iComb in 1:nrow(indexFactor)) {
+    row<-indexFactor[iComb,]
+    if(row$index.x==row$index.y || row$index.y < row$index.x)
+      next()
+    
+    if(special.orthogonal)
+      lds.factorOther=paste0(lds.factorOther,"
+                           F",row$index.x,"~~0*F",row$index.y) else
+                             lds.factorOther=paste0(lds.factorOther,"
+                           F",row$index.x,"~~F",row$index.y)
+  }
+  
+  return(paste0(lds,lds.factorSelf,lds.factorOther))
+  
+  
+}
+
+semplate$evaluateGenomicSEM<-function(covstruc, model, estimation="ML", code="defaultEvaluatedSEM", parseResults=FALSE, generateDOT=FALSE){
+  
+  uModel<-usermodel(covstruc = covstruc, estimation = estimation, model = model)
+  
+  uModel$results$Unstand_SE<-as.numeric(uModel$results$Unstand_SE)
+  uModel$results$STD_Genotype_SE<-as.numeric(uModel$results$STD_Genotype_SE)
+  
+  if(parseResults){
+    uModel$semResults<-semplate$parseGenomicSEMResult(resultDf = uModel$results)
+  }
+  
+  if(generateDOT){
+    uModel$path.graph.dot<-semplate$generateDOT(nodeDf = uModel$semResults$nodeDf, edgeDf = uModel$semResults$edgeDf)
+  }
+  
+  return(uModel)
+  
+}
 
 semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
   paths <- resultDf %>%
