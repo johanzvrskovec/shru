@@ -75,14 +75,48 @@ semplate$generateIndicatorLoadingPatterns<-function(nFactors, nIndicators, indic
                indicatorLocks=indicatorLocks))
 }
 
-semplate$generateLavaanCFAModel<-function(code.indicator, allow_loading.table.indicator_factor, fix_loading.table.indicator_factor=NULL, special.orthogonal=FALSE){
+semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, fix_loading.table.indicator_factor=NULL, orthogonal=FALSE, indicatorArgs=NULL, universalResidualLimitMin=0.001 ){
+  
+  #test
+  # allow_loading.table.indicator_factor=data.frame(
+  #   F1=c(TRUE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE),
+  #   F2=c(TRUE,FALSE,TRUE,FALSE,FALSE,TRUE,FALSE),
+  #   F3=c(FALSE,TRUE,FALSE,TRUE,TRUE,FALSE,TRUE)
+  #   )
+  # 
+  # row.names(allow_loading.table.indicator_factor)<-project$sumstats.sel$code
+  # 
+  # fix_loading.table.indicator_factor=NULL
+  # orthogonal=FALSE
+  #indicatorArgs = data.frame(code=project$sumstats.sel$code,residualSizeLimit=NA)
+  
   #lavaan definition string
   lds<-""
+  lds.residuals="
+  "
   lds.factorSelf=""
   lds.factorOther=""
   
+  cond = "
+  "
+  
+  
+  
   nFactors<-ncol(allow_loading.table.indicator_factor)
   nIndicators<-nrow(allow_loading.table.indicator_factor)
+  
+  if(is.null(indicatorArgs)){
+    indicatorArgs=data.frame(code=row.names(allow_loading.table.indicator_factor), residualSizeLimitMax=NA_real_)
+  }
+  
+  if(is.null(indicatorArgs$code)){indicatorArgs$code=row.names(allow_loading.table.indicator_factor)}
+  if(is.null(indicatorArgs$residualSizeLimitMax)){indicatorArgs$residualSizeLimitMax=NA_real_}
+  if(is.null(indicatorArgs$residualLimitMin)){indicatorArgs$residualLimitMin=universalResidualLimitMin}
+  
+  indicatorArgs[which(is.na(indicatorArgs$residualLimitMin)),c("residualLimitMin")]<-universalResidualLimitMin
+  
+  indicatorResidualPatternCoefficientLabels=c()
+  indicatorResidualPatternCoefficientLabelDefinitions=c()
   
   #factor loadings, factor variances
   for(iFactor in 1:nFactors){
@@ -112,7 +146,7 @@ semplate$generateLavaanCFAModel<-function(code.indicator, allow_loading.table.in
               vFixLoading="NA*"
         }
         
-        lds.factor=paste0(lds.factor,vFixLoading,code.indicator[iIndicator])
+        lds.factor=paste0(lds.factor,vFixLoading,indicatorArgs$code[iIndicator])
         hasFactor=TRUE
       }
     }
@@ -121,6 +155,14 @@ semplate$generateLavaanCFAModel<-function(code.indicator, allow_loading.table.in
       lds.factorSelf=paste0(lds.factorSelf,"
                             F",iFactor,"~~1*F",iFactor)
     }
+  }
+  
+  for(iIndicator in 1:nIndicators){
+    indicatorResidualPatternCoefficientLabels[iIndicator]=paste0('r',iIndicator)
+    #indicatorResidualPatternCoefficientLabelDefinitions[iIndicator]=paste0('label(',indicatorResidualPatternCoefficientLabels[iIndicator],')')
+    
+    lds.residuals=paste0(lds.residuals,indicatorArgs$code[iIndicator],"~~",indicatorResidualPatternCoefficientLabels[iIndicator],"*",indicatorArgs$code[iIndicator],"
+                         ")
   }
   
   indexFactor<-data.frame(index=c(1:nFactors))
@@ -135,21 +177,37 @@ semplate$generateLavaanCFAModel<-function(code.indicator, allow_loading.table.in
     if(row$index.x==row$index.y || row$index.y < row$index.x)
       next()
     
-    if(special.orthogonal)
+    if(orthogonal)
       lds.factorOther=paste0(lds.factorOther,"
                            F",row$index.x,"~~0*F",row$index.y) else
                              lds.factorOther=paste0(lds.factorOther,"
                            F",row$index.x,"~~F",row$index.y)
   }
   
-  return(paste0(lds,lds.factorSelf,lds.factorOther))
+  cond.residualSizeLimit=""
+  for(iIndicator in 1:nIndicators){
+    if(!is.na(indicatorArgs$residualSizeLimitMax[iIndicator])){
+    #cond.residualSizeLimit=paste0(cond.residualSizeLimit,'abs(',indicatorResidualPatternCoefficientLabels[iIndicator],')','<',indicatorArgs$residualSizeLimit[iIndicator],'
+              #                    ')
+      cond.residualSizeLimit=paste0(cond.residualSizeLimit,'abs(',indicatorResidualPatternCoefficientLabels[iIndicator],')','<',indicatorArgs$residualSizeLimitMax[iIndicator],'
+                          ')
+    }
+    
+    if(!is.na(indicatorArgs$residualLimitMin[iIndicator])){
+      cond.residualSizeLimit=paste0(cond.residualSizeLimit,indicatorResidualPatternCoefficientLabels[iIndicator],">",indicatorArgs$residualLimitMin[iIndicator],"
+                                    ")
+    }
+  }
   
+  cond=paste0(cond,cond.residualSizeLimit)
+  
+  return(paste0(lds,lds.residuals,lds.factorSelf,lds.factorOther,cond))
   
 }
 
-semplate$evaluateGenomicSEM<-function(covstruc, model, estimation="ML", code="defaultEvaluatedSEM", parseResults=FALSE, generateDOT=FALSE){
+semplate$evaluateGenomicSEM<-function(covstruc, model, estimation="ML", parseResults=FALSE, generateDOT=FALSE, fixResid=FALSE){
   
-  uModel<-usermodel(covstruc = covstruc, estimation = estimation, model = model)
+  uModel<-usermodel(covstruc = covstruc, estimation = estimation, model = model, fix_resid = fixResid)
   
   uModel$results$Unstand_SE<-as.numeric(uModel$results$Unstand_SE)
   uModel$results$STD_Genotype_SE<-as.numeric(uModel$results$STD_Genotype_SE)
