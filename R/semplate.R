@@ -205,24 +205,25 @@ semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, 
   
 }
 
-semplate$evaluateGenomicSEM<-function(covstruc, model, estimation="ML", parseResults=FALSE, generateDOT=FALSE, fixResid=FALSE){
-  
-  uModel<-usermodel(covstruc = covstruc, estimation = estimation, model = model, fix_resid = fixResid)
-  
-  uModel$results$Unstand_SE<-as.numeric(uModel$results$Unstand_SE)
-  uModel$results$STD_Genotype_SE<-as.numeric(uModel$results$STD_Genotype_SE)
-  
-  if(parseResults){
-    uModel$semResults<-semplate$parseGenomicSEMResult(resultDf = uModel$results)
-  }
-  
-  if(generateDOT){
-    uModel$path.graph.dot<-semplate$generateDOT(nodeDf = uModel$semResults$nodeDf, edgeDf = uModel$semResults$edgeDf)
-  }
-  
-  return(uModel)
-  
-}
+#deprecated
+# semplate$evaluateGenomicSEM<-function(covstruc, model, estimation="ML", parseResults=FALSE, generateDOT=FALSE, fixResid=FALSE){
+#   
+#   uModel<-usermodel(covstruc = covstruc, estimation = estimation, model = model, fix_resid = fixResid)
+#   
+#   uModel$results$Unstand_SE<-as.numeric(uModel$results$Unstand_SE)
+#   uModel$results$STD_Genotype_SE<-as.numeric(uModel$results$STD_Genotype_SE)
+#   
+#   if(parseResults & !is.null(uModel$results)){
+#     uModel$results.parsed<-semplate$parseGenomicSEMResult(resultDf = uModel$results)
+#   }
+#   
+#   if(generateDOT & !is.null(uModel$results.parsed)){
+#     uModel$path.graph.dot<-semplate$generateDOT(nodeDf = uModel$results.parsed$nodeDf, edgeDf = uModel$results.parsed$edgeDf)
+#   }
+#   
+#   return(uModel)
+#   
+# }
 
 semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
   paths <- resultDf %>%
