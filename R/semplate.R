@@ -245,7 +245,7 @@ semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
            fontname = 'Garamond',
            fontsize = '10',
            fixedsize = 'true',
-           width = '1',
+           width = '1.2',
            fillcolor = 'moccasin',
            rank = 'min'
     )
@@ -525,7 +525,7 @@ semplate$parseAndPrintGenomicSEMResult <- function(resultDf = NULL){
   return(dot)
 }
 
-# Needs and depends on the Genomic SEM package currently loaded
+# Needs and depends on the Genomic SEM package currently loaded - NOT FINISHED!
 semplate$factorGWAS<-function(modelDefinitionDf, covstruc, SNPs, estimation="ML", GC){
   modelDefinitionAndResults<-modelDefinitionDf
   nModelDefinition<-nrow(modelDefinitionAndResults)

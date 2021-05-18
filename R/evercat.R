@@ -12,26 +12,20 @@ evercat<-setRefClass("evercat",
                      },
                      
                      # Persistent program print message, evercat
-                     print=function(message,new=FALSE,end=FALSE)
+                     cat=function(message,new=FALSE,end=FALSE)
                      {
-                       if(new){
-                         previous.message.length<<-0
-                         cat("\n")
-                         cat(message)
+                       if(new | previous.message.length<1){
+                        base::cat(message)
                        }
                        else {
-                         cat(
-                           paste(rep("\b", previous.message.length+1),collapse=""),
-                           message)
+                         base::cat(paste0(rep("\b", previous.message.length),collapse=""),message)
                        }
                        
                        if(end){
                          previous.message.length<<-0
-                         cat("\n")
                        } else {
                          previous.message.length<<-nchar(message)
                        }
-                       
                      }
                    )
 )
