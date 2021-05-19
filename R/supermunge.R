@@ -42,7 +42,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissing=T, warnOnMultiple=T,
     if(!any(columnNames=="A1")) stop("Could not find the 'A1' column.")
     if(!any(columnNames=="A2")) stop("Could not find the 'A2' column.")
     if(!any(columnNames=="EFFECT")) stop("Could not find the 'EFFECT' column.")
-    if(!any(columnNames=="MAF")) stop("Could not find the 'MAF' column.")
+    #if(!any(columnNames=="MAF")) stop("Could not find the 'MAF' column.")
   }
   
   if(warnOnMultiple){
@@ -79,7 +79,7 @@ supermunge <- function(filePaths,refFilePath=NULL,trait.names=NULL,N=NULL,path.d
     filePaths<-filePaths[1:num]
   }
   
-  cat("\n\n\nS U P E R * M U N G E\n", end = T)
+  cat("\n\n\nS U P E R * M U N G E\n")
   
   ref<-NULL
   if(!is.null(refFilePath)){
@@ -272,7 +272,7 @@ supermunge <- function(filePaths,refFilePath=NULL,trait.names=NULL,N=NULL,path.d
     }
     
     ## N
-    if(!is.null(N)) {
+    if(!is.null(N) & length(N)>=iFile) {
       cat("\nUsing the explicitly specified N for the whole dataset:",N[iFile])
       cSumstats$N<-N[iFile]
     } else if(any(colnames(cSumstats)=="N_CAS") && any(colnames(cSumstats)=="N_CON")) {
@@ -281,7 +281,6 @@ supermunge <- function(filePaths,refFilePath=NULL,trait.names=NULL,N=NULL,path.d
       cSumstats$N <- cSumstats$N_CAS + cSumstats$N_CON
     } else if(!("N" %in% colnames(cSumstats))){
       cSumstats$N<-NA_integer_
-      warning("\nNo N detected. The following computations may fail.")
     }
     
     # Some validity checks before the Z-score calculation
@@ -292,28 +291,35 @@ supermunge <- function(filePaths,refFilePath=NULL,trait.names=NULL,N=NULL,path.d
     }
     
     # Compute Z score (standardised beta)
+    cat("\nComputing Z score (standardised beta)")
     if("EFFECT" %in% colnames(cSumstats)) {
       cSumstats$Z <- sign(cSumstats$EFFECT) * sqrt(qchisq(cSumstats$P,1,lower=F))
     }
     
     #output.colnames<- c("SNP","N","Z","A1","A2")
     output.colnames<- c("SNP")
-    if("N" %in% colnames(cSumstats)) {
-      output.colnames<- c(output.colnames,"N")
-    }
-    if("Z" %in% colnames(cSumstats)) {
-      output.colnames<- c(output.colnames,"Z")
-    }
-    output.colnames<- c(output.colnames,c("A1","A2"))
+    if("N" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N")
+    if("Z" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"Z")
+    output.colnames<- c(output.colnames,c("A1","A2","A1_REF","A2_REF"))
+    if("CHR" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"CHR")
+    if("BP" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"BP")
+    if("MAF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"MAF")
+    output.colnames<- c(output.colnames,c("P"))
+    if("EFFECT" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"EFFECT")
+    if("SE" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"SE")
+    if("N_CAS" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CAS")
+    if("N_CON" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CON")
+    
     output.colnames.more<-colnames(cSumstats)[!(colnames(cSumstats) %in% output.colnames)]
-    cSumstats<-cSumstats[,c(output.colnames,output.colnames.more)]
-    cat("\nSNPs left after munge:",nrow(cSumstats))
+    output.colnames.all<-c(output.colnames,output.colnames.more)
+    cSumstats<-subset(cSumstats,select = output.colnames.all)
+    cat("\nSNPs left after munge:\t\t",nrow(cSumstats))
     
     nfilepath<-file.path(path.dir.output,trait.names[iFile])
     if(!doChrSplit){
       write.table(x = cSumstats,file = nfilepath,sep="\t", quote = FALSE, row.names = F)
       nfilepath.gzip<-gzip(nfilepath)
-      cat(print(paste("\nThe file is saved as", nfilepath.gzip, "in the specified outoput directory.")),file=log.file,sep="\n",append=TRUE)
+      cat("\nThe file is saved as", nfilepath.gzip, "in the specified output directory.")
     }
     
     #addition: producing per-chromosome files in a folder, as RAISS columns
@@ -333,7 +339,7 @@ supermunge <- function(filePaths,refFilePath=NULL,trait.names=NULL,N=NULL,path.d
     sumstats[[iFile]]<-cSumstats
     
     timeStop.ds <- Sys.time()
-    timeDiff <- difftime(time1=timeStart.ds,time2=timeStop.ds,units="sec")
+    timeDiff <- difftime(time1=timeStop.ds,time2=timeStart.ds,units="sec")
     timeDiff.minutes <- floor(floor(timeDiff)/60)
     timeDiff.seconds <- timeDiff-timeDiff.minutes*60
     
@@ -342,11 +348,11 @@ supermunge <- function(filePaths,refFilePath=NULL,trait.names=NULL,N=NULL,path.d
   }
   
   timeStop <- Sys.time()
-  timeDiff <- difftime(time1=timeStart,time2=timeStop,units="sec")
+  timeDiff <- difftime(time1=timeStop,time2=timeStart,units="sec")
   timeDiff.minutes <- floor(floor(timeDiff)/60)
   timeDiff.seconds <- timeDiff-timeDiff.minutes*60
   
-  cat("\n(☞ﾟヮﾟ)☞ Supermunge of all datasets is done in",timeDiff.minutes, "minutes and",timeDiff.seconds,"seconds.")
+  cat("\nSupermunge of all datasets is done in",timeDiff.minutes, "minutes and",timeDiff.seconds,"seconds.")
   
   return(sumstats.metadata)
   
