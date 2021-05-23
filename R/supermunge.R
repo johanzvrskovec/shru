@@ -75,7 +75,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
   
   ref<-NULL
   if(!is.null(refFilePath)){
-    ever$cat(paste0("\nReading reference file..."))
+    ever$cat(paste0("\nReading reference file...\n"))
     ref <- read.table(refFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
     ever$cat("...",append = T)
     #rename reference columns as to distinguish them from the dataset columns
@@ -379,11 +379,11 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     
     cat("\nDataset columns interpreted as:\n",cSumstats.names.string)
     cat("\nData processing results:\n")
-    print(readr::format_delim(as.data.frame(cSumstats.meta),delim = "\t",col_names = F,quote_escape = F, eol = "\n"))
+    #print(readr::format_delim(as.data.frame(cSumstats.meta),delim = "\t",col_names = F,quote_escape = F, eol = "\n"))
+    apply(cSumstats.meta, MARGIN = 1, FUN = function(x){
+     cat(as.character(x[1]),"\t\t\t",as.character(x[2]),"\n")
+    })
     
-    #apply(cSumstats.meta, MARGIN = 1, FUN = function(x){
-     # cat(as.character(x[1]),"\t\t\t",as.character(x[2]),"\n")
-     # })
     if(length(cSumstats.warnings)>0){
       cat("\nShowing warnings below.\n")
       warning(cSumstats.warnings)
