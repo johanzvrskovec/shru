@@ -2,44 +2,11 @@ semplate <-c()
 semplate$powers.of.two32bit <- 2^(0:(32 - 1))
 semplate$bit.one<-intToBits(1)[1]
 semplate$bit.zero<-intToBits(0)[1]
-semplate$generateIndicatorLoadingPatterns<-function(nFactors, nIndicators, indicatorLocksDf=c(),indicatorLocks=NULL, searchBitValues=c(0)){
+semplate$generateIndicatorLoadingPatterns<-function(indicatorFactorLockTemplate=c(), searchBitValues=c(0)){
   
-  #for test
-  #nFactors=3
-  #nIndicators=7
-  
-  # indicatorLocksDf<-as.data.frame(matrix(data=0, nrow = nIndicators, ncol = nFactors))
-  # indicatorLocksDf[2,]<-c(1,1,0)
-  # indicatorLocksDf[3,]<-c(0,1,1)
-  
-  #searchBitValues=c(0)
-  
-  if(is.null(indicatorLocks)){
-    
-    
-    indicatorLocks<-c()
-    #tIndicatorLocksDf<-as.data.frame(t(indicatorLocksDf))
-    for(nCol in 1:ncol(indicatorLocksDf)){
-      indicatorLocks<-c(indicatorLocks,indicatorLocksDf[,nCol])
-    }
-  }
-  
-  
-  bitLength<-nFactors*nIndicators
-  #maxInt=2^bitLength
-  
-  #indicatorLocks<-sort(indicatorLocks)
-  lockBits<-intToBits(x = 0)
-  
-  for (cLock in 1:length(indicatorLocks)) {
-    if(indicatorLocks[cLock]==1){
-      lockBits[cLock]=semplate$bit.one
-    }
-  }
-  total.length<-length(lockBits)
-  searchBitLength<-(bitLength-length(indicatorLocks))
-  #maxInt=2^searchBitLength
-  
+  bitLength<-ncol(indicatorFactorLockTemplate)*nrow(indicatorFactorLockTemplate)
+  searchBitLength<-(bitLength-sum(indicatorFactorLockTemplate))
+
   num<-length(searchBitValues)
   totalBitValues<-c()
   totalBitIndicatorLoadings<-data.frame(matrix(NA, nrow = num, ncol = bitLength))
@@ -50,45 +17,30 @@ semplate$generateIndicatorLoadingPatterns<-function(nFactors, nIndicators, indic
   
   for(nSearchBitValue in 1:num){
     searchBitValue<-searchBitValues[nSearchBitValue]
-    searchBits<-intToBits(x = searchBitValue)
-    totalBits<-intToBits(0)
+    searchBits<-as.logical(intToBits(x = searchBitValue))
     #add locks
     nSearch=1
-    for (nTotal in 1:total.length) {
-      if(lockBits[nTotal]==semplate$bit.one){
-        totalBits[nTotal]<-semplate$bit.one
+    #nTotal<-1 #test
+    for (nTotal in 1:bitLength) {
+      if(indicatorFactorLockTemplate[nTotal]){
+        totalBitIndicatorLoadings[nSearchBitValue,nTotal]<-T
       } else {
-        totalBits[nTotal]<-searchBits[nSearch]
+        totalBitIndicatorLoadings[nSearchBitValue,nTotal]<-searchBits[nSearch]
         nSearch<-nSearch+1
       }
     }
     
-    totalBitIndicatorLoadings[nSearchBitValue,]<-as.integer(totalBits[1:bitLength])
-    totalBitsValue = as.integer(head(totalBits,32)) %*% semplate$powers.of.two
-    totalBitValues <-c(totalBitValues,totalBitsValue[1])
+    totalBitsValue = packBits(x = as.logical(c(totalBitIndicatorLoadings[nSearchBitValue,],rep(FALSE, times=256-bitLength))),type = c("integer"))
+    totalBitValues[nSearchBitValue]<-list(totalBitsValue)
   }
   
   return (list(searchBitValues=searchBitValues,
                totalBitValues=totalBitValues,
-               indicatorLoadings=totalBitIndicatorLoadings,
-               indicatorLoadingsMatrix=apply(totalBitIndicatorLoadings, 1, function(iv){list(matrix(data=iv,ncol = nFactors))}),
-               indicatorLocks=indicatorLocks))
+               indicatorLoadings=apply(X = totalBitIndicatorLoadings, MARGIN = 1, FUN = function(iv){list(matrix(data=iv,ncol = nFactors))}),
+               indicatorFactorLockTemplate=indicatorFactorLockTemplate))
 }
 
 semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, fix_loading.table.indicator_factor=NULL, orthogonal=FALSE, indicatorArgs=NULL, universalResidualLimitMin=0.001 ){
-  
-  #test
-  # allow_loading.table.indicator_factor=data.frame(
-  #   F1=c(TRUE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE),
-  #   F2=c(TRUE,FALSE,TRUE,FALSE,FALSE,TRUE,FALSE),
-  #   F3=c(FALSE,TRUE,FALSE,TRUE,TRUE,FALSE,TRUE)
-  #   )
-  # 
-  # row.names(allow_loading.table.indicator_factor)<-project$sumstats.sel$code
-  # 
-  # fix_loading.table.indicator_factor=NULL
-  # orthogonal=FALSE
-  #indicatorArgs = data.frame(code=project$sumstats.sel$code,residualSizeLimit=NA)
   
   #lavaan definition string
   lds<-""
@@ -99,9 +51,6 @@ semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, 
   
   cond = "
   "
-  
-  
-  
   nFactors<-ncol(allow_loading.table.indicator_factor)
   nIndicators<-nrow(allow_loading.table.indicator_factor)
   
@@ -204,26 +153,6 @@ semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, 
   return(paste0(lds,lds.residuals,lds.factorSelf,lds.factorOther,cond))
   
 }
-
-#deprecated
-# semplate$evaluateGenomicSEM<-function(covstruc, model, estimation="ML", parseResults=FALSE, generateDOT=FALSE, fixResid=FALSE){
-#   
-#   uModel<-usermodel(covstruc = covstruc, estimation = estimation, model = model, fix_resid = fixResid)
-#   
-#   uModel$results$Unstand_SE<-as.numeric(uModel$results$Unstand_SE)
-#   uModel$results$STD_Genotype_SE<-as.numeric(uModel$results$STD_Genotype_SE)
-#   
-#   if(parseResults & !is.null(uModel$results)){
-#     uModel$results.parsed<-semplate$parseGenomicSEMResult(resultDf = uModel$results)
-#   }
-#   
-#   if(generateDOT & !is.null(uModel$results.parsed)){
-#     uModel$path.graph.dot<-semplate$generateDOT(nodeDf = uModel$results.parsed$nodeDf, edgeDf = uModel$results.parsed$edgeDf)
-#   }
-#   
-#   return(uModel)
-#   
-# }
 
 semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
   paths <- resultDf %>%
@@ -351,7 +280,6 @@ semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
   return(toReturn)
   
 }
-
 
 
 semplate$generateDOT <- function(nodeDf = NULL, edgeDf = NULL) {
