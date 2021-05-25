@@ -36,7 +36,7 @@ semplate$generateIndicatorLoadingPatterns<-function(indicatorFactorLockTemplate=
   
   return (list(searchBitValues=searchBitValues,
                totalBitValues=totalBitValues,
-               indicatorLoadings=apply(X = totalBitIndicatorLoadings, MARGIN = 1, FUN = function(iv){list(matrix(data=iv,ncol = nFactors))}),
+               indicatorLoadings=apply(X = totalBitIndicatorLoadings, MARGIN = 1, FUN = function(iv){list(matrix(data=iv,ncol = ncol(indicatorFactorLockTemplate)))}),
                indicatorFactorLockTemplate=indicatorFactorLockTemplate))
 }
 
