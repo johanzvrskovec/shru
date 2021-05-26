@@ -356,11 +356,19 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     }
     ever$cat("..",append = T)
     
+    # Fix A1 and A2 to reflect the reference
+    cSumstats$A1_ORIG<-cSumstats$A1
+    cSumstats$A2_ORIG<-cSumstats$A2
+    cSumstats$A1<-cSumstats$A1_REF
+    cSumstats$A2<-cSumstats$A2_REF
+    
+    #cSumstats<-cSumstats[,-which(names(cSumstats) %in% c("A1_REF","A2_REF"))]
+    
     #output.colnames<- c("SNP","N","Z","A1","A2")
     output.colnames<- c("SNP")
     if("N" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N")
     if("Z" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"Z")
-    output.colnames<- c(output.colnames,c("A1","A2","A1_REF","A2_REF"))
+    output.colnames<- c(output.colnames,c("A1","A2","A1_ORIG","A2_ORIG"))
     if("CHR" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"CHR")
     if("BP" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"BP")
     if("MAF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"MAF")

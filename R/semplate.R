@@ -2,10 +2,11 @@ semplate <-c()
 semplate$powers.of.two32bit <- 2^(0:(32 - 1))
 semplate$bit.one<-intToBits(1)[1]
 semplate$bit.zero<-intToBits(0)[1]
-semplate$generateIndicatorLoadingPatterns<-function(indicatorFactorLockTemplate=c(), searchBitValues=c(0)){
+semplate$generateIndicatorLoadingPatterns<-function(searchBitValues=c(0), indicatorLocks.include=c(), indicatorLocks.exclude=c()){
   
-  bitLength<-ncol(indicatorFactorLockTemplate)*nrow(indicatorFactorLockTemplate)
-  searchBitLength<-(bitLength-sum(indicatorFactorLockTemplate))
+  indicatorLocks<-(indicatorLocks.include | indicatorLocks.exclude)
+  bitLength<-ncol(indicatorLocks)*nrow(indicatorLocks)
+  searchBitLength<-(bitLength-sum(indicatorLocks))
 
   num<-length(searchBitValues)
   totalBitValues<-c()
@@ -22,8 +23,8 @@ semplate$generateIndicatorLoadingPatterns<-function(indicatorFactorLockTemplate=
     nSearch=1
     #nTotal<-1 #test
     for (nTotal in 1:bitLength) {
-      if(indicatorFactorLockTemplate[nTotal]){
-        totalBitIndicatorLoadings[nSearchBitValue,nTotal]<-T
+      if(indicatorLocks[nTotal]){
+        totalBitIndicatorLoadings[nSearchBitValue,nTotal]<-ifelse(indicatorLocks.include[nTotal],T,F)
       } else {
         totalBitIndicatorLoadings[nSearchBitValue,nTotal]<-searchBits[nSearch]
         nSearch<-nSearch+1
@@ -36,8 +37,11 @@ semplate$generateIndicatorLoadingPatterns<-function(indicatorFactorLockTemplate=
   
   return (list(searchBitValues=searchBitValues,
                totalBitValues=totalBitValues,
-               indicatorLoadings=apply(X = totalBitIndicatorLoadings, MARGIN = 1, FUN = function(iv){list(matrix(data=iv,ncol = ncol(indicatorFactorLockTemplate)))}),
-               indicatorFactorLockTemplate=indicatorFactorLockTemplate))
+               indicatorLoadings=apply(X = totalBitIndicatorLoadings, MARGIN = 1, FUN = function(iv){
+                 list(matrix(data=iv,ncol = ncol(indicatorLocks)))
+                 }
+                                       )
+               ))
 }
 
 semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, fix_loading.table.indicator_factor=NULL, orthogonal=FALSE, indicatorArgs=NULL, universalResidualLimitMin=0.001 ){
