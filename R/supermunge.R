@@ -432,8 +432,8 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     timeDiff.minutes <- floor(floor(timeDiff)/60)
     timeDiff.seconds <- timeDiff-timeDiff.minutes*60
     
-    cat("\nSupermunge of ",traitNames[iFile]," was done in",timeDiff.minutes, "minutes and",timeDiff.seconds," seconds.")
-    
+    cat("\nSupermunge of ",traitNames[iFile]," was done in",timeDiff.minutes, "minutes and",timeDiff.seconds," seconds.\n")
+    gc()
   }
   
   timeStop <- Sys.time()
