@@ -75,9 +75,9 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
   
   ref<-NULL
   if(!is.null(refFilePath)){
-    ever$cat(paste0("\nReading reference file...\n"))
+    cat(paste0("\nReading reference file...\n"))
     ref <- read.table(refFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
-    ever$cat("...",append = T)
+
     #rename reference columns as to distinguish them from the dataset columns
     names(ref)<-paste0(names(ref),"_REF")
     # Transform to data table
@@ -96,7 +96,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
       ref.keys<-c(ref.keys,'BP_REF')
       }
     setkeyv(ref,cols = ref.keys)
-    ever$cat(paste0("\nRead reference file:\n",refFilePath), end = T)
+    cat(paste0("\nRead reference file:\n",refFilePath))
   } else {
     cat("\nRunning without reference.\n")
   }
@@ -110,18 +110,18 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     #iFile=1
     timeStart.ds <- Sys.time()
     cFilePath<-filePaths[iFile]
-    ever$cat(paste("\n\nSupermunging\t",traitNames[iFile],"\nFile:", cFilePath,"\n"),new = T, end = T)
-    ever$cat("Processing...")
+    cat(paste("\n\nSupermunging\t",traitNames[iFile],"\nFile:", cFilePath,"\n"))
+    cat("\nProcessing...")
     cSumstats.meta<-data.table(message=NA_character_,display=NA_character_)
     cSumstats.warnings<-list()
     cSumstats <- read.table(cFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
     cSumstats.nSNP.raw<-nrow(cSumstats)
     sumstats.meta[iFile,c("n_snp_raw")]<-cSumstats.nSNP.raw
-    cSumstats.meta[1,c("message","display")]<-list("Raw SNPs",as.character(cSumstats.nSNP.raw))
+    cSumstats.meta<-rbind(cSumstats.meta,list("Input SNPs",as.character(cSumstats.nSNP.raw)))
     if(!is.null(ref)) {
       cSumstats.meta<-rbind(cSumstats.meta,list("Reference SNPs",as.character(nrow(ref))))
     }
-    ever$cat("...",append = T)
+    cat("...")
     
     # Rename current sumstats with new standardised column names
     
@@ -133,18 +133,15 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     }
     names(cSumstats) <- cSumstats.names$std
    
-    ever$cat(".",append = T)
+    cat(".")
     
     # Transform to data table
     cSumstats <- setDT(cSumstats)
     # Column harmonisation
     cSumstats.keys<-c('SNP')
     cSumstats$SNP <- as.character(toupper(cSumstats$SNP))
-    ever$cat(".",append = T)
     cSumstats$A1 <- as.character(toupper(cSumstats$A1))
-    ever$cat(".",append = T)
     cSumstats$A2 <- as.character(toupper(cSumstats$A2))
-    ever$cat(".",append = T)
     if('CHR' %in% names(cSumstats)) {
       cSumstats$CHR <- as.character(toupper(cSumstats$CHR))
       cSumstats.keys<-c(cSumstats.keys,'CHR') 
@@ -154,7 +151,8 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
       cSumstats.keys<-c(cSumstats.keys,'BP')
     }
     setkeyv(cSumstats,cols = cSumstats.keys)
-    ever$cat("..",append = T)
+    cat("..")
+    
     
     # QC, and data management before merge with reference
     
@@ -164,7 +162,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
       cSumstats<-cSumstats[which(!is.na(cSumstats$P)),]
       cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; missing P",as.character(cSumstats.n-nrow(cSumstats))))
     }
-    ever$cat(".",append = T)
+    cat(".")
     
     ## Remove SNPs with missing effects
     if("EFFECT" %in% colnames(cSumstats)) {
@@ -172,7 +170,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
       cSumstats<-cSumstats[which(!is.na(cSumstats$EFFECT)),]
       cSumstats.meta<-rbind(list("Removed SNPs; missing EFFECT",as.character(cSumstats.n-nrow(cSumstats))))
     }
-    ever$cat(".",append = T)
+    cat(".")
     
     ## MAF
     if(any(colnames(cSumstats)=="MAF")) {
@@ -197,7 +195,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
       #### Add empty MAF here for consistency
       cSumstats$MAF<-NA_real_
     }
-    ever$cat("..",append = T)
+    cat("..")
     
     ##Alleles, deal with indels
     if(keepIndel == T){
@@ -210,7 +208,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
       cSumstats.meta<-rbind(cSumstats.meta,list("Discarded indels (A1)",as.character(count(is.na(cSumstats$A1)))))
       cSumstats.meta<-rbind(cSumstats.meta,list("Discarded indels (A2)",as.character(count(is.na(cSumstats$A2)))))
     }
-    ever$cat("..",append = T)
+    cat("..")
     
     if(!is.null(ref)){
       #Aligning and validating with reference file
@@ -226,7 +224,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
       #cSumstats <- merge(ref,cSumstats,by="SNP",all.x=F,all.y=F) #old
       cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; rsID not in ref",as.character(cSumstats.n-nrow(cSumstats.merged.snp))))
       #cat("\nRemoved SNPs with rsIDs not present in the reference:\t\t",cSumstats.n-nrow(cSumstats.merged.snp))
-      ever$cat("..",append = T)
+      cat("..")
       
       if('CHR' %in% names(cSumstats.merged.snp) && 'CHR_REF' %in% names(cSumstats.merged.snp))
       {
@@ -235,7 +233,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
         #cat("\nRemoved SNPs not matching the reference chromosome:\t\t",cSumstats.merged.snp.n-nrow(cSumstats.merged.snp))
         cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; CHR not matching ref",as.character(cSumstats.merged.snp.n-nrow(cSumstats.merged.snp))))
       }
-      ever$cat(".",append = T)
+      cat(".")
       
       if('BP' %in% names(cSumstats.merged.snp) && 'BP_REF' %in% names(cSumstats.merged.snp)){
         cSumstats.merged.snp.maxAlleleLength<-max(nchar(cSumstats.merged.snp$A1),nchar(cSumstats.merged.snp$A2),nchar(cSumstats.merged.snp$A1_REF),nchar(cSumstats.merged.snp$A2_REF))
@@ -244,7 +242,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
         #cat("\nRemoved SNPs outside the specified bp window +-bp",(cSumstats.merged.snp.maxAlleleLength + maxSNPDistanceBpPadding -1),"from the reference position:\t\t",cSumstats.merged.snp.n-nrow(cSumstats.merged.snp))
         cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed SNPs; outside bp window +-bp",as.character(cSumstats.merged.snp.maxAlleleLength + maxSNPDistanceBpPadding -1)),as.character(cSumstats.merged.snp.n-nrow(cSumstats.merged.snp))))
       }
-      ever$cat(".",append = T)
+      cat(".")
       
       #replace missing columns
       cSumstats.merged.snp$SNP<-cSumstats.merged.snp$SNP_REF
@@ -260,7 +258,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
         cSumstats.merged.pos$CHR<-cSumstats.merged.pos$CHR_REF
         cSumstats.merged.pos$BP<-cSumstats.merged.pos$BP_REF
       }
-      ever$cat("..",append = T)
+      cat("..")
       
       #using cSumstats to store the plain or merged result
       if(is.null(cSumstats.merged.pos)){
@@ -275,7 +273,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
       }
       cSumstats.merged.snp<-NULL
     }
-    ever$cat(".",append = T)
+    cat(".")
     
     # More QC and data management, after merge with reference
     
@@ -284,19 +282,19 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     cSumstats<-cSumstats[which(!(cSumstats$A1 != (cSumstats$A1_REF)  & cSumstats$A1 != (cSumstats$A2_REF))), ]
     #cat("\nRemoved SNPs where the effect allele (A1) did not match any reference allele:\t\t",cSumstats.n-nrow(cSumstats))
     cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; A1 not matching ref",as.character(cSumstats.n-nrow(cSumstats))))
-    ever$cat(".",append = T)
+    cat(".")
     
     cSumstats.n<-nrow(cSumstats)
     cSumstats<-cSumstats[which(!(cSumstats$A2 != (cSumstats$A1_REF)  & cSumstats$A2 != (cSumstats$A2_REF))), ]
     #cat("\nRemoved SNPs where the other allele (A2) did not match any reference allele:\t\t",cSumstats.n-nrow(cSumstats))
-    cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; A1 not matching ref",as.character(cSumstats.n-nrow(cSumstats))))
-    ever$cat(".",append = T)
+    cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; A2 not matching ref",as.character(cSumstats.n-nrow(cSumstats))))
+    cat(".")
     
     ## Invert effect to match the allele order in the reference
     cond<-((cSumstats$A1 != (cSumstats$A1_REF) & cSumstats$A1 == (cSumstats$A2_REF)) | (cSumstats$A2 != (cSumstats$A2_REF) & cSumstats$A2 == (cSumstats$A1_REF)))
     cSumstats.meta<-rbind(cSumstats.meta,list("Modified SNPs; inverted effects",as.character(sum(cond))))
     cSumstats$EFFECT<-ifelse(cond,cSumstats$EFFECT*-1,cSumstats$EFFECT)
-    ever$cat(".",append = T)
+    cat(".")
     
     ## Determine effect type, and set effect to log(EFFECT) if odds ratio
     if("EFFECT" %in% colnames(cSumstats)) {
@@ -321,23 +319,23 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
         }
       }
     }
-    ever$cat(".",append = T)
+    cat(".")
     
     ## N
-    if(!is.null(N) & length(N)>=iFile) {
-      #cat("\nUsing the explicitly specified N for the whole dataset:",N[iFile])
-      cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Explicitly specified as ",N[iFile])))
-      cSumstats$N<-N[iFile]
-    } else if(any(colnames(cSumstats)=="N_CAS") && any(colnames(cSumstats)=="N_CON")) {
+    if(any(colnames(cSumstats)=="N_CAS") && any(colnames(cSumstats)=="N_CON")) {
       ### Calculate total N from number of cases and number of controls if they are present. Overwrite any specific total N.
       cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("N_CAS + N_CON")))
       cSumstats$N <- cSumstats$N_CAS + cSumstats$N_CON
-    } else if(!("N" %in% colnames(cSumstats))){
-      cSumstats.warnings<-c(cSumstats.warnings,"\nNo N column detected.")
-      cSumstats.meta<-rbind(cSumstats.meta,list("N","Not detected!"))
+    } else if(!is.null(N) & length(N)>=iFile) {
+      #cat("\nUsing the explicitly specified N for the whole dataset:",N[iFile])
+      cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Explicitly specified as ",N[iFile])))
+      cSumstats$N<-N[iFile]
+    } else if(!("N" %in% colnames(cSumstats))) {
+      cSumstats.warnings<-c(cSumstats.warnings,"\nNo N column detected!")
+      cSumstats.meta<-rbind(cSumstats.meta,list("N","Warning: Not detected!"))
       cSumstats$N<-NA_integer_
     }
-    ever$cat(".",append = T)
+    cat(".")
     
     # Some validity checks before the Z-score calculation
     
@@ -345,7 +343,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     if((sum(cSumstats$P > 1) + sum(cSumstats$P < 0)) > 100){
       cSumstats.warnings<-c(cSumstats.warnings,"\nThe P column contains numerous values outside of the expected bounds [0,1]. This can indicate that the column is misinterpreted.")
     }
-    ever$cat(".",append = T)
+    cat(".")
     
     # Compute Z score (standardised beta)
     if("EFFECT" %in% colnames(cSumstats) & "P" %in% colnames(cSumstats)) {
@@ -354,7 +352,10 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     } else {
       cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT calculated since no P or EFFECT"))
     }
-    ever$cat("..",append = T)
+    cat("..")
+    
+    # Set SNP to lower case since this seems to be more common
+    cSumstats$SNP<-tolower(cSumstats$SNP)
     
     # Fix A1 and A2 to reflect the reference
     cSumstats$A1_ORIG<-cSumstats$A1
@@ -383,7 +384,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     cSumstats<-subset(cSumstats,select = output.colnames.all)
     cSumstats.meta<-rbind(cSumstats.meta,list("SNPs after supermunge",as.character(nrow(cSumstats))))
     
-    ever$cat("Processing done!\n\n",end = T)
+    cat("\nProcessing done!\n\n")
     
     cat("\nDataset columns interpreted as:\n",cSumstats.names.string)
     cat("\nData processing results:\n")
@@ -401,15 +402,15 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     
     nfilepath<-file.path(pathDirOutput,traitNames[iFile])
     if(!doChrSplit){
-      ever$cat("\nSaving supermunged dataset...\n\n",new=T)
+      cat("\nSaving supermunged dataset...\n\n")
       write.table(x = cSumstats,file = nfilepath,sep="\t", quote = FALSE, row.names = F)
       nfilepath.gzip<-gzip(nfilepath)
-      ever$cat(paste("\nSupermunged dataset saved as", nfilepath.gzip, "in the specified output directory."), end=T)
+      cat(paste("\nSupermunged dataset saved as", nfilepath.gzip, "in the specified output directory."))
     }
     
     #addition: producing per-chromosome files in a folder, as RAISS columns
     if(doChrSplit) {
-      ever$cat("\nSaving supermunged dataset...\n\n",new=T)
+      cat("\nSaving supermunged dataset...\n\n")
       if("CHR" %in% colnames(cSumstats)){
         dir.create(paste0(nfilepath,".chr"), showWarnings = FALSE)
         validChromosomes<-c(1:22,"X","Y","XY","MT") #as per Plink standard
@@ -420,7 +421,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
         }
       } else stop("\nSplit by chromosome specified, but the dataset does not have a CHR column.")
       
-      ever$cat(paste("\nOne file per chromosome have been saved under", paste0(nfilepath,".chr"), "in the specified output directory."), end=T)
+      cat(paste("\nOne file per chromosome have been saved under", paste0(nfilepath,".chr"), "in the specified output directory."))
       
     }
     
