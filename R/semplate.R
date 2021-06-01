@@ -2,6 +2,36 @@ semplate <-c()
 semplate$powers.of.two32bit <- 2^(0:(32 - 1))
 semplate$bit.one<-intToBits(1)[1]
 semplate$bit.zero<-intToBits(0)[1]
+
+semplate$generateIndicatorLoadingPatternsFromFactorLoadings<-function(factorLoadings, increment, forceOneIndicatorLoading=T){
+  nrow<-nrow(factorLoadings)
+  ncol<-ncol(factorLoadings)
+  
+  indicatorLoadingPatterns<-c()
+  factorLoadings<-abs(factorLoadings)
+  
+  if(forceOneIndicatorLoading){
+    forced<-as.vector(apply(factorLoadings,MARGIN = 1,FUN = which.max))
+  }
+  
+  cValue<-0
+  while(cValue < max(factorLoadings)){
+    toadd<-(factorLoadings>cValue)
+    #if(!all(toadd) | !any(toadd)){
+    if(forceOneIndicatorLoading) {
+        for(iIndicator in 1 : nrow){
+          toadd[iIndicator,forced[iIndicator]]<-TRUE
+      }
+    }
+    
+    #indicatorLoadingPatterns<-rbind(indicatorLoadingPatterns,list(unlist(as.data.frame(toadd)),use.names = F))
+    indicatorLoadingPatterns<-rbind(indicatorLoadingPatterns,as.vector(x = unlist(as.data.frame(toadd)), mode = 'logical'))
+    cValue<-(cValue+increment)
+  }
+  
+  return(unique(indicatorLoadingPatterns))
+}
+
 semplate$generateIndicatorLoadingPatterns<-function(searchBitValues=c(0), indicatorLocks.include=c(), indicatorLocks.exclude=c()){
   
   indicatorLocks<-(indicatorLocks.include | indicatorLocks.exclude)

@@ -186,6 +186,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
         cSumstats.meta<-rbind(cSumstats.meta,list("Modified SNPs; MAF to (1 - MAF)",as.character(convertedMAF)))
         sumstats.meta[iFile,c("converted_MAF")]<-convertedMAF
         cSumstats$MAF<-ifelse(cond, (1-cSumstats$MAF), cSumstats$MAF)
+        #TODO consider changing effect sign here also
       }
     } else {
       ### Does not have MAF
@@ -291,6 +292,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     cat(".")
     
     ## Invert effect to match the allele order in the reference
+    #TODO Investigate this. Is this the cause of gc differences compared to the gSEM implementation?
     cond<-((cSumstats$A1 != (cSumstats$A1_REF) & cSumstats$A1 == (cSumstats$A2_REF)) | (cSumstats$A2 != (cSumstats$A2_REF) & cSumstats$A2 == (cSumstats$A1_REF)))
     cSumstats.meta<-rbind(cSumstats.meta,list("Modified SNPs; inverted effects",as.character(sum(cond))))
     cSumstats$EFFECT<-ifelse(cond,cSumstats$EFFECT*-1,cSumstats$EFFECT)
@@ -433,7 +435,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     timeDiff.seconds <- timeDiff-timeDiff.minutes*60
     
     cat("\nSupermunge of ",traitNames[iFile]," was done in",timeDiff.minutes, "minutes and",timeDiff.seconds," seconds.\n")
-    gc()
+    gc() #do garbage collect if this can help with out of memory issues.
   }
   
   timeStop <- Sys.time()
