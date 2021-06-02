@@ -8,7 +8,7 @@ semplate$generateIndicatorLoadingPatternsFromFactorLoadings<-function(factorLoad
   ncol<-ncol(factorLoadings)
   
   indicatorLoadingPatterns<-c()
-  factorLoadings<-abs(factorLoadings)
+  factorLoadings<-base::abs(factorLoadings)
   
   if(forceOneIndicatorLoading){
     forced<-as.vector(apply(factorLoadings,MARGIN = 1,FUN = which.max))
@@ -115,12 +115,13 @@ semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, 
         
         if(is.null(fix_loading.table.indicator_factor)==FALSE) {
           #use fixed loadings
-          if(fix_loading.table.indicator_factor[iIndicator,iFactor]==TRUE) {
-            vFixLoading="1*" #show this for both cases for clarity
-          } else {
+          if(!is.na(fix_loading.table.indicator_factor[iIndicator,iFactor])) {
+            #vFixLoading="1*" #show this for both cases for clarity - old setting for booleanarguments
+            vFixLoading=paste0("(",as.character(fix_loading.table.indicator_factor[iIndicator,iFactor]),")*")
+            } else {
             if(hasFactor==TRUE)
               vFixLoading="" else
-                vFixLoading="NA*"
+                vFixLoading="NA*" #Use NA loading for the first indicator
           }
         } else {
           #do not use fixed loadings
@@ -129,7 +130,7 @@ semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, 
               vFixLoading="NA*"
         }
         
-        lds.factor=paste0(lds.factor,vFixLoading,indicatorArgs$code[iIndicator])
+        lds.factor=paste0(lds.factor, vFixLoading,indicatorArgs$code[iIndicator])
         hasFactor=TRUE
       }
     }
