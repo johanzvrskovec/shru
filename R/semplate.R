@@ -130,7 +130,7 @@ semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, 
               vFixLoading="NA*"
         }
         
-        lds.factor=paste0(lds.factor, vFixLoading,indicatorArgs$code[iIndicator])
+        lds.factor=paste0(lds.factor,vFixLoading,indicatorArgs$code[iIndicator])
         hasFactor=TRUE
       }
     }
@@ -199,28 +199,135 @@ semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
   paths$p_value<-as.numeric(paths$p_value)
   
   # Latent variables: left-hand side of "=~" paths
-  latent <- paths %>%
+  var.latent <- paths %>%
     filter(op == "=~") %>%
     select(nodes = lhs) %>%
     distinct %>%
-    mutate(type="latent",
+    mutate(type="latent")
+  
+  # Manifest variables: not latent variables
+  `%not_in%` <- Negate(`%in%`)
+  var.manifest <- paths %>%
+    filter(op != "~1", lhs %not_in% var.latent$nodes) %>%
+    select(nodes = lhs) %>%
+    distinct %>%
+    mutate(type="manifest")
+  
+  # Residuals: "~~" paths with 
+  var.residual <- paths %>%
+    filter(op == "~~", lhs==rhs, lhs %in% var.manifest$nodes) %>%
+    select(nodes = lhs) %>%
+    distinct %>%
+    mutate(type="residual")
+  
+  #all_nodes <- DiagrammeR::combine_edfs(var.latent, var.manifest, var.residual)
+  variable <- rbind(var.latent, var.manifest, var.residual) %>%
+    mutate(id=row_number())
+  
+  # Edges, labeled by the factor loading estimates
+  edges <- paths %>%
+    filter(op != "~1") %>%
+    left_join(variable[,c("nodes","id")],by = c("lhs" = "nodes")) %>%
+    mutate(from=id) %>%
+    select(-id) %>%
+    left_join(variable[,c("nodes","id")],by = c("rhs" = "nodes")) %>%
+    mutate(to=id) %>%
+    select(-id) %>%
+    filter(from %not_in% variable$id[which(variable$type=="residual")]) %>%
+    filter(to %not_in% variable$id[which(variable$type=="residual")]) %>%
+    left_join(variable[which(variable$type=="residual"),c("nodes","id")],by = c("lhs" = "nodes")) %>%
+    mutate(tofrom.residual=id) %>%
+    select(-id) #%>%
+    #select(-Unstand_Est)
+  
+  #may need more filters here
+  # factor loadings
+  pattern <- edges %>%
+    filter(op == "=~") %>%
+    distinct %>%
+    mutate(type="pattern")
+  
+  # Regressions: "~" lines
+  regression <- edges %>%
+    filter(op == "~") %>%
+    distinct %>%
+    mutate(type="regression")
+  
+  # Covariances: ~~ for non manifest variable residuals
+  covariance <- edges %>%
+    filter(op == "~~") %>%
+    filter(is.na(tofrom.residual)) %>%
+    distinct %>%
+    mutate(type="covariance")
+  
+  # Residual loadings: ~~ for non manifest variable residuals
+  residual <- edges %>%
+    filter(op == "~~") %>%
+    filter(!is.na(tofrom.residual)) %>%
+    distinct %>%
+    mutate(type="residual")
+  
+  # Residual self loadings: ~~ for non manifest variable residuals
+  # residual_self_loading <- edges %>%
+  #   filter(op == "~~") %>%
+  #   filter(!is.na(tofrom.residual))
+  
+  loading<-rbind(pattern, regression, covariance, residual) %>%
+    mutate(id=row_number())
+  
+  toReturn<-list(variable=variable, loading=loading)
+  return(toReturn)
+  
+}
+
+semplate$parseGenomicSEMResultAsMatrices <- function(resultDf){
+  gsemResult<-semplate$parseGenomicSEMResult(resultDf)
+  factors<-gsemResult$variable[which(gsemResult$variable$type=="latent"),]
+  manifestVariables<-gsemResult$variable[which(gsemResult$variable$type=="manifest"),]
+  patternCoefficients<-gsemResult$loading[which(gsemResult$loading$type=="pattern"),]
+  
+  nFactors<-nrow(factors)
+  nManifestVariables<-nrow(manifestVariables)
+  factorPatternCoefficients<-matrix(data = NA_real_, nrow = nManifestVariables, ncol = nFactors)
+  
+  for(nFactor in 1:nFactors){
+    #nFactor<-1
+    factor.from<-factors$id[nFactor]
+    for(nManifestVariable in 1:nManifestVariables) {
+      #nManifestVariable<-1
+      manifestVariable.to<-manifestVariables$id[nManifestVariable]
+      toadd<-patternCoefficients[which(patternCoefficients$from==factor.from & patternCoefficients$to==manifestVariable.to),c("STD_Genotype")]
+      if(!is.null(toadd)&length(toadd)>0) factorPatternCoefficients[nManifestVariable,nFactor]<-toadd
+    }
+  }
+  
+  rownames(factorPatternCoefficients)<-manifestVariables$nodes
+  colnames(factorPatternCoefficients)<-factors$nodes
+  
+  return(list(patternCoefficients=factorPatternCoefficients))
+}
+
+
+semplate$parseGenomicSEMResultAsDOTDataframes <- function(resultDf = NULL) {
+  
+  gsemResult<-semplate$parseGenomicSEMResult(resultDf)
+  
+  # Latent variables: left-hand side of "=~" paths
+  latent <- gsemResult$variable[which(gsemResult$variable$type=="latent"),] %>%
+    mutate(
            shape = "oval",
            label = nodes,
            fontname = 'Garamond',
            fontsize = '10',
            fixedsize = 'true',
-           width = '1.2',
+           width = '1.7',
            fillcolor = 'moccasin',
            rank = 'min'
     )
   
   # Manifest variables: not latent variables
-  `%not_in%` <- Negate(`%in%`)
-  manifest <- paths %>%
-    filter(op != "~1", lhs %not_in% latent$nodes) %>%
-    select(nodes = lhs) %>%
-    distinct %>%
-    mutate(type="manifest",
+  manifest <- gsemResult$variable[which(gsemResult$variable$type=="manifest"),] %>%
+    mutate(
            shape = "circle", #since already not original measurements
            label = nodes,
            fontname = 'Garamond',
@@ -232,59 +339,32 @@ semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
     )
   
   # Residuals: "~~" paths with 
-  residual <- paths %>%
-    filter(op == "~~", lhs==rhs, lhs %in% manifest$nodes) %>%
-    select(nodes = lhs) %>%
-    #distinct %>%
-    mutate(type="residual",
-           shape = "circle",
-           label = paste0("U(",nodes,")"),
-           fontname = 'Garamond',
-           fontsize = '8',
-           fixedsize = 'true',
-           width = '0.6',
-           fillcolor = 'aliceblue',
-           rank = 'max'
+  residual <- gsemResult$variable[which(gsemResult$variable$type=="residual"),]  %>%
+    mutate(
+      shape = "circle",
+     label = paste0("U(",nodes,")"),
+     fontname = 'Garamond',
+     fontsize = '8',
+     fixedsize = 'true',
+     width = '0.6',
+     fillcolor = 'aliceblue',
+     rank = 'max'
     )
   
   # Nodes are prepared
   node_set <- combine_edfs(latent, manifest, residual)
   
-  # Edges, labeled by the factor loading estimates
-  edges <- paths %>%
-    filter(op != "~1") %>%
-    mutate(
-      values = round(STD_Genotype, 2),
-      values.se = round(STD_Genotype_SE, 2),
-      label = paste0(values," (",values.se,")")) %>%
-    left_join(node_set[,c("nodes","id")],by = c("lhs" = "nodes")) %>%
-    mutate(from=id) %>%
-    select(-id) %>%
-    left_join(node_set[,c("nodes","id")],by = c("rhs" = "nodes")) %>%
-    mutate(to=id) %>%
-    select(-id) %>%
-    filter(from %not_in% node_set$id[which(node_set$type=="residual")]) %>%
-    filter(to %not_in% node_set$id[which(node_set$type=="residual")]) %>%
-    left_join(node_set[which(node_set$type=="residual"),c("nodes","id")],by = c("lhs" = "nodes")) %>%
-    mutate(tofrom.residual=id, style = if_else(p_value<0.05, "solid","dashed")) %>%
-    select(-id) %>%
-    select(-Unstand_Est)
   
-  #may need more filters here
-  
-  loadings <- edges %>%
-    filter(op == "=~") %>%
+  # factor loadings
+  loadings <- gsemResult$loading[which(gsemResult$variable$type=="pattern"),] %>%
     mutate(type="loading", dir="forward", rel = "leading_to", minlen="5", headport="n", weight="2")
   
   # Regressions: "~" lines
-  regressions <- edges %>%
-    filter(op == "~") %>%
+  regressions <- gsemResult$loading[which(gsemResult$variable$type=="regression"),] %>%
     mutate(type="regression", dir="forward", rel = "leading_to", headport="n", weight="2")
   
   # Covariances: ~~ for non manifest variable residuals
-  covariances <- edges %>%
-    filter(op == "~~") %>%
-    filter(is.na(tofrom.residual)) %>%
+  covariances <- gsemResult$loading[which(gsemResult$variable$type=="covariance"),] %>%
     mutate(type="covariance", rel = "related", dir="both")
   
   # Set longer length between latent factors
@@ -297,25 +377,26 @@ semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
   
   
   # Residual loadings: ~~ for non manifest variable residuals
-  residual_loadings <- edges %>%
-    filter(op == "~~") %>%
-    filter(!is.na(tofrom.residual)) %>%
+  residual_loadings <- gsemResult$loading[which(gsemResult$variable$type=="residual"),] %>%
     mutate(type="residual_loading", rel = "related", dir="forward", from=tofrom.residual, label="1", headport="s", tailport="n")
   
   # Residual self loadings: ~~ for non manifest variable residuals
-  residual_self_loadings <- edges %>%
-    filter(op == "~~") %>%
-    filter(!is.na(tofrom.residual)) %>%
+  residual_self_loadings <- gsemResult$loading[which(gsemResult$variable$type=="residual"),] %>%
     mutate(type="residual_loading", rel = "related", dir="both", from=tofrom.residual, to=tofrom.residual, headport="s", tailport="s")
   
+  edge_set <- combine_edfs(loadings, regressions, covariances, residual_loadings, residual_self_loadings) %>% mutate(
+    values = round(STD_Genotype, 2),
+    values.se = round(STD_Genotype_SE, 2),
+    label = paste0(values," (",values.se,")")) %>%
+    mutate(
+      tofrom.residual=id, 
+      style = if_else(p_value<0.05, "solid","dashed")
+      )
   
-  edge_set <- combine_edfs(loadings, regressions, covariances, residual_loadings, residual_self_loadings)
-  
-  toReturn<-list(manifestVar=manifest, latentVar=latent, residualVar=residual, loadingPath=loadings, regressionPath=regressions, covariancePath=covariances, nodeDf=node_set, edgeDf=edge_set)
+  toReturn<-list(nodeDf=node_set, edgeDf=edge_set)
   return(toReturn)
   
 }
-
 
 semplate$generateDOT <- function(nodeDf = NULL, edgeDf = NULL) {
   out<-c("digraph {")
@@ -324,8 +405,8 @@ semplate$generateDOT <- function(nodeDf = NULL, edgeDf = NULL) {
        outputorder = 'nodesfirst',
        bgcolor = 'white',
        splines = 'line',
-       ranksep = '0.2',
-       nodesep = '0.2']
+       ranksep = '0.5',
+       nodesep = '0.3']
 
 node [fontname = 'Garamond',
       fontsize = '10',
@@ -482,7 +563,7 @@ edge [fontname = 'Helvetica',
 }
 
 semplate$parseAndPrintGenomicSEMResult <- function(resultDf = NULL){
-  parsedSEMResult<-semplate$parseGenomicSEMResult(resultDf)
+  parsedSEMResult<-semplate$parseGenomicSEMResultAsDOTDataframes(resultDf)
   dot<-semplate$generateDOT(nodeDf=parsedSEMResult$nodeDf, edgeDf=parsedSEMResult$edgeDf)
   grViz(dot)
   return(dot)
