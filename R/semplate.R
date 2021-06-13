@@ -74,7 +74,7 @@ semplate$generateIndicatorLoadingPatterns<-function(searchBitValues=c(0), indica
                ))
 }
 
-semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, fix_loading.table.indicator_factor=NULL, orthogonal=FALSE, indicatorArgs=NULL, universalResidualLimitMin=0.001 ){
+semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, fix_loading.table.indicator_factor=NULL, fix_loading.table.residual_variance=NULL,orthogonal=FALSE, indicatorArgs=NULL, universalResidualLimitMin=0.001 ){
   
   #lavaan definition string
   lds<-""
@@ -142,11 +142,16 @@ semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, 
   }
   
   for(iIndicator in 1:nIndicators){
+    if(is.null(fix_loading.table.residual_variance)){
     indicatorResidualPatternCoefficientLabels[iIndicator]=paste0('r',iIndicator)
     #indicatorResidualPatternCoefficientLabelDefinitions[iIndicator]=paste0('label(',indicatorResidualPatternCoefficientLabels[iIndicator],')')
     
     lds.residuals=paste0(lds.residuals,indicatorArgs$code[iIndicator],"~~",indicatorResidualPatternCoefficientLabels[iIndicator],"*",indicatorArgs$code[iIndicator],"
                          ")
+    } else {
+      lds.residuals=paste0(lds.residuals,indicatorArgs$code[iIndicator],"~~(",fix_loading.table.residual_variance[iIndicator],")*",indicatorArgs$code[iIndicator],"
+                         ")
+    }
   }
   
   indexFactor<-data.frame(index=c(1:nFactors))
@@ -168,22 +173,24 @@ semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, 
                            F",row$index.x,"~~F",row$index.y)
   }
   
-  cond.residualSizeLimit=""
-  for(iIndicator in 1:nIndicators){
-    if(!is.na(indicatorArgs$residualSizeLimitMax[iIndicator])){
-    #cond.residualSizeLimit=paste0(cond.residualSizeLimit,'abs(',indicatorResidualPatternCoefficientLabels[iIndicator],')','<',indicatorArgs$residualSizeLimit[iIndicator],'
-              #                    ')
-      cond.residualSizeLimit=paste0(cond.residualSizeLimit,'abs(',indicatorResidualPatternCoefficientLabels[iIndicator],')','<',indicatorArgs$residualSizeLimitMax[iIndicator],'
-                          ')
-    }
-    
-    if(!is.na(indicatorArgs$residualLimitMin[iIndicator])){
-      cond.residualSizeLimit=paste0(cond.residualSizeLimit,indicatorResidualPatternCoefficientLabels[iIndicator],">",indicatorArgs$residualLimitMin[iIndicator],"
-                                    ")
-    }
-  }
   
-  cond=paste0(cond,cond.residualSizeLimit)
+  if(is.null(fix_loading.table.residual_variance)){
+    cond.residualSizeLimit=""
+    for(iIndicator in 1:nIndicators){
+      if(!is.na(indicatorArgs$residualSizeLimitMax[iIndicator])){
+      #cond.residualSizeLimit=paste0(cond.residualSizeLimit,'abs(',indicatorResidualPatternCoefficientLabels[iIndicator],')','<',indicatorArgs$residualSizeLimit[iIndicator],'
+                #                    ')
+        cond.residualSizeLimit=paste0(cond.residualSizeLimit,'abs(',indicatorResidualPatternCoefficientLabels[iIndicator],')','<',indicatorArgs$residualSizeLimitMax[iIndicator],'
+                            ')
+      }
+      
+      if(!is.na(indicatorArgs$residualLimitMin[iIndicator])){
+        cond.residualSizeLimit=paste0(cond.residualSizeLimit,indicatorResidualPatternCoefficientLabels[iIndicator],">",indicatorArgs$residualLimitMin[iIndicator],"
+                                      ")
+      }
+    }
+    cond=paste0(cond,cond.residualSizeLimit)
+  }
   
   return(paste0(lds,lds.residuals,lds.factorSelf,lds.factorOther,cond))
   
@@ -284,11 +291,14 @@ semplate$parseGenomicSEMResultAsMatrices <- function(resultDf){
   gsemResult<-semplate$parseGenomicSEMResult(resultDf)
   factors<-gsemResult$variable[which(gsemResult$variable$type=="latent"),]
   manifestVariables<-gsemResult$variable[which(gsemResult$variable$type=="manifest"),]
+  residualVariables<-gsemResult$variable[which(gsemResult$variable$type=="residual"),]
+  
   patternCoefficients<-gsemResult$loading[which(gsemResult$loading$type=="pattern"),]
+  residualVaraiances<-gsemResult$loading[which(gsemResult$loading$type=="residual"),]
   
   nFactors<-nrow(factors)
   nManifestVariables<-nrow(manifestVariables)
-  factorPatternCoefficients<-matrix(data = NA_real_, nrow = nManifestVariables, ncol = nFactors)
+  patternCoefficients.matrix<-matrix(data = NA_real_, nrow = nManifestVariables, ncol = nFactors)
   
   for(nFactor in 1:nFactors){
     #nFactor<-1
@@ -297,14 +307,19 @@ semplate$parseGenomicSEMResultAsMatrices <- function(resultDf){
       #nManifestVariable<-1
       manifestVariable.to<-manifestVariables$id[nManifestVariable]
       toadd<-patternCoefficients[which(patternCoefficients$from==factor.from & patternCoefficients$to==manifestVariable.to),c("STD_Genotype")]
-      if(!is.null(toadd)&length(toadd)>0) factorPatternCoefficients[nManifestVariable,nFactor]<-toadd
+      if(!is.null(toadd)&length(toadd)>0) patternCoefficients.matrix[nManifestVariable,nFactor]<-toadd
     }
   }
+  rownames(patternCoefficients.matrix)<-manifestVariables$nodes
+  colnames(patternCoefficients.matrix)<-factors$nodes
   
-  rownames(factorPatternCoefficients)<-manifestVariables$nodes
-  colnames(factorPatternCoefficients)<-factors$nodes
+  manifestOrder<-row_number(manifestVariables$id[which(manifestVariables$id==residualVaraiances$from)])
+  residualVaraiances<-residualVaraiances[manifestOrder,]
+  residualVaraiances[,c("residualVariable")]<-residualVariables$nodes[which(residualVariables$id==residualVaraiances$tofrom.residual)]
+  residualVaraiances.matrix<-as.matrix(residualVaraiances[,c("STD_Genotype")])
+  rownames(residualVaraiances.matrix)<-residualVaraiances$residualVariable
   
-  return(list(patternCoefficients=factorPatternCoefficients))
+  return(list(patternCoefficients=patternCoefficients.matrix, residualVariances=residualVaraiances.matrix))
 }
 
 
