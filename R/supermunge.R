@@ -1,12 +1,12 @@
 #WORK IN PROGRESS
 #Based on the amazing work by Grotzinger, A. D. et al. Nat. Hum. Behav. 3, 513–525 (2019) and Bulik-Sullivan, B. K. et al. Nat. Genet. 47, 291–295 (2015).
 
-stdGwasColumnNames <- function(columnNames, stopOnMissing=T, warnOnMultiple=T,
+stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T, warnOnMultiple=T,
      c.SNP = c("SNP","SNPID","RSID","RS_NUMBER","RS_NUMBERS","MARKERNAME","ID","PREDICTOR","RS"),
      c.A1 = c("A1", "ALLELE1","ALLELE_1","EFFECT_ALLELE","INC_ALLELE","REFERENCE_ALLELE","EA","REF"),
      c.A2 = c("A2","ALLELE2","ALLELE_2","ALLELE0","OTHER_ALLELE","NON_EFFECT_ALLELE","DEC_ALLELE","OA","NEA","ALT"),
      c.EFFECT = c("EFFECT","OR","B","BETA","LOG_ODDS","EFFECTS","SIGNED_SUMSTAT","Z","ZSCORE","Z-SCORE","EST","ZSTAT","ZSTATISTIC","GC_ZSCORE"),
-     c.INFO = c("INFO"),
+     c.INFO = c("INFO","IMPINFO"),
      c.P = c("P","PVALUE","PVAL","P_VALUE","P-VALUE","P.VALUE","P_VAL","GC_PVALUE","WALD_P"),
      c.N = c("N","WEIGHT","NCOMPLETESAMPLES","TOTALSAMPLESIZE","TOTALN","TOTAL_N","N_COMPLETE_SAMPLES"),
      c.N_CAS = c("N_CAS","NCASE","N_CASE","N_CASES","NCAS","NCA"),
@@ -35,13 +35,13 @@ stdGwasColumnNames <- function(columnNames, stopOnMissing=T, warnOnMultiple=T,
   columnNames[columnNames.upper %in% c.CHR] <- c.CHR[1]
   columnNames[columnNames.upper %in% c.BP] <- c.BP[1]
   
-  if(stopOnMissing){
+  if(stopOnMissingEssential){
     # Stop if any of these columns are not found
     if(!any(columnNames=="SNP")) stop("Could not find the 'SNP' column.")
     if(!any(columnNames=="P")) stop("Could not find the P-value column. Standard is 'P'.")
     if(!any(columnNames=="A1")) stop("Could not find the 'A1' column.")
     if(!any(columnNames=="A2")) stop("Could not find the 'A2' column.")
-    #if(!any(columnNames=="EFFECT")) stop("Could not find the 'EFFECT' column.")
+    if(!any(columnNames=="EFFECT")) stop("Could not find the 'EFFECT' column.")
     #if(!any(columnNames=="MAF")) stop("Could not find the 'MAF' column.")
   }
   
@@ -58,7 +58,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissing=T, warnOnMultiple=T,
   return(data.frame(std=columnNames,orig=columnNames.orig))
 }
 
-supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDirOutput=".",keepIndel=T,doChrSplit=F,doStatistics=F, num=NULL, stopOnMissing=T, maxSNPDistanceBpPadding=0){
+supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDirOutput=".",keepIndel=T,doChrSplit=F,doStatistics=F, mask=NULL, stopOnMissingEssential=T, maxSNPDistanceBpPadding=0){
   
   timeStart <- Sys.time()
   
@@ -66,8 +66,9 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     traitNames<-basename(filePaths)
   }
   
-  if(!is.null(num)){
-    filePaths<-filePaths[1:num]
+  if(!is.null(mask)){
+    filePaths<-filePaths[mask]
+    if(!is.null(traitNames)) traitNames<-traitNames[mask]
   }
   
   
@@ -125,7 +126,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     
     # Rename current sumstats with new standardised column names
     
-    cSumstats.names <- stdGwasColumnNames(columnNames = names(cSumstats), stopOnMissing = stopOnMissing, warnOnMultiple = F)
+    cSumstats.names <- stdGwasColumnNames(columnNames = names(cSumstats), stopOnMissingEssential = stopOnMissingEssential)
     cSumstats.names.string <-""
     #apply(cSumstats.names, MARGIN = 1, FUN = function(c){cat(c[2],"\t-> ",c[1],"\n")})
     for(iName in 1:nrow(cSumstats.names)){
@@ -292,10 +293,10 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     cat(".")
     
     ## Invert effect to match the allele order in the reference
-    #TODO Investigate this. Is this the cause of gc differences compared to the gSEM implementation?
-    cond<-((cSumstats$A1 != (cSumstats$A1_REF) & cSumstats$A1 == (cSumstats$A2_REF)) | (cSumstats$A2 != (cSumstats$A2_REF) & cSumstats$A2 == (cSumstats$A1_REF)))
-    cSumstats.meta<-rbind(cSumstats.meta,list("Modified SNPs; inverted effects",as.character(sum(cond))))
-    cSumstats$EFFECT<-ifelse(cond,cSumstats$EFFECT*-1,cSumstats$EFFECT)
+    #TODO Investigate this further. Is it the cause of gc differences compared to the gSEM implementation?
+    cond<-(cSumstats$A2 == (cSumstats$A2_REF))
+    cSumstats.meta<-rbind(cSumstats.meta,list("Modified SNPs; inverted effects",as.character(nrow(cSumstats)-sum(cond))))
+    cSumstats$EFFECT<-ifelse(cond,cSumstats$EFFECT,cSumstats$EFFECT*-1)
     cat(".")
     
     ## Determine effect type, and set effect to log(EFFECT) if odds ratio
