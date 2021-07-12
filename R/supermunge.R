@@ -64,6 +64,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T, warnOnMult
 # traitNames = project$munge$traitNamesToUse
 # N = project$munge$NToUse
 # pathDirOutput = project$folderpath.data.sumstats.munged
+# mask<-c(F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,T,T,T,T,T)
 
 supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDirOutput=".",keepIndel=T,doChrSplit=F,doStatistics=F, mask=NULL, stopOnMissingEssential=T, maxSNPDistanceBpPadding=0){
   
