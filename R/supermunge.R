@@ -66,7 +66,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T, warnOnMult
 # pathDirOutput = project$folderpath.data.sumstats.munged
 # mask<-c(F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,T,T,T,T,T)
 
-supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDirOutput=".",keepIndel=T,doChrSplit=F,doStatistics=F, mask=NULL, stopOnMissingEssential=T, maxSNPDistanceBpPadding=0){
+supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NULL,linprob=NULL,pathDirOutput=".",changeEffectDirectionOnAlleleFlip=T,keepIndel=T,harmoniseAllelesToReference=F,doChrSplit=F,doStatistics=F, mask=NULL, stopOnMissingEssential=T, maxSNPDistanceBpPadding=0){
   
   timeStart <- Sys.time()
   
@@ -79,6 +79,23 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     if(!is.null(traitNames)) traitNames<-traitNames[mask]
   }
   
+  filePaths.length <- length(filePaths)
+  
+  if(is.null(OLS)){
+    OLS<-rep(FALSE,filePaths.length)
+  }
+  
+  if(is.null(linprob)){
+    linprob<-rep(FALSE,filePaths.length)
+  }
+  
+  if(is.null(traitNames)){
+    names.beta <- paste0("beta.",1:filePaths.length)
+    names.se <- paste0("se.",1:filePaths.length)
+  }else{
+    names.beta <- paste0("beta.",traitNames)
+    names.se <- paste0("se.",traitNames)
+  }
   
   cat("\n\n\nS U P E R * M U N G E\n")
   
@@ -113,7 +130,6 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
   sumstats.meta<-data.table(name=traitNames,file_path=filePaths,n_snp_raw=NA_integer_,n_snp_res=NA_integer_)
   
   sumstats<-c()
-  filePaths.length <- length(filePaths)
   for(iFile in 1:filePaths.length){
     #for testing!
     #iFile=1
@@ -131,6 +147,9 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
       cSumstats.meta<-rbind(cSumstats.meta,list("Reference SNPs",as.character(nrow(ref))))
     }
     cat("...")
+    
+    # select supporting info for the current dataset
+    cOLS<-OLS[iFile]
     
     # Rename current sumstats with new standardised column names
     
@@ -281,13 +300,13 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
       cond.invertedAlleleOrder<-(cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF)
       #cond.invertedAlleleOrder<-((cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF) | (cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF))
     } else if(any(colnames(cSumstats)=="FRQ")){
-      cond.invertedAlleleOrder<- cSumstats$FRQ > .5
+      cond.invertedAlleleOrder<- cSumstats$FRQ > .55
     }
     cat(".")
     
     ## EFFECT
     if("EFFECT" %in% colnames(cSumstats)) {
-      if(!is.null(cond.invertedAlleleOrder)) cSumstats$EFFECT<-ifelse(cond.invertedAlleleOrder,(cSumstats$EFFECT*-1),cSumstats$EFFECT)
+      if(!is.null(cond.invertedAlleleOrder) & changeEffectDirectionOnAlleleFlip) cSumstats$EFFECT<-ifelse(cond.invertedAlleleOrder,(cSumstats$EFFECT*-1),cSumstats$EFFECT)
     } else {
       ### Does not have EFFECT
       #### Note that EFFECT is not present
@@ -302,22 +321,19 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     #cond.invertedFRQ<-NULL
     if(any(colnames(cSumstats)=="FRQ")) {
       ### Has FRQ
-      ### Invert FRQ based on the previous reference matching
+      
       
       #### Check if value is within limits [0,0.5] [0,1]
       if(any(cSumstats$FRQ>1) || any(cSumstats$FRQ<0)) {
         stop(paste0('\nThere are FRQ values larger than 1 (',sum(cSumstats$FRQ>1),') or less than 0 (',sum(cSumstats$FRQ<0),') which is outside of the possible FRQ range.'))
       }
-      # if(any(cSumstats$FRQ>0.5)){
-      #   cond.invertedFRQ<-cSumstats$FRQ > .5
-      #   convertedFRQ<-sum(cond)
-      #   cSumstats.warnings<-c(cSumstats.warnings,paste("\nThere are",convertedFRQ,"FRQ values larger than 0.5. These will now be converted to 1-VALUE."))
-      #   cSumstats.meta<-rbind(cSumstats.meta,list("Modified SNPs; FRQ to (1 - FRQ)",as.character(convertedFRQ)))
-      #   sumstats.meta[iFile,c("converted_FRQ")]<-convertedFRQ
-      #   cSumstats$FRQ<-ifelse(cond.invertedFRQ, (1-cSumstats$FRQ), cSumstats$FRQ)
-      # }
       
+      ### Invert FRQ based on the previous reference matching
       if(!is.null(cond.invertedAlleleOrder)) cSumstats$FRQ<-ifelse(cond.invertedAlleleOrder, (1-cSumstats$FRQ), cSumstats$FRQ)
+      
+      ### Compute MAF
+      cond.invertedMAF<-cSumstats$FRQ > .5
+      cSumstats$MAF<-ifelse(cond.invertedMAF,1-cSumstats$FRQ,cSumstats$FRQ)
       
     } else {
       ### Does not have FRQ
@@ -331,7 +347,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     
     if(!is.null(cond.invertedAlleleOrder)) cSumstats.meta<-rbind(cSumstats.meta,list("Modified SNPs (EFFECT & FRQ); inverted allele order",as.character(sum(cond.invertedAlleleOrder))))
     
-    if(!is.null(ref)){
+    if(!is.null(ref) & harmoniseAllelesToReference){
       # Fix A1 and A2 to reflect the reference alleles
       cSumstats$A1<-cSumstats$A1_REF
       cSumstats$A2<-cSumstats$A2_REF
@@ -400,16 +416,24 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     # Set SNP to lower case since this seems to be more common
     cSumstats$SNP<-tolower(cSumstats$SNP)
     
+    
+    #TODO Adapt summary statistics to be used for latent factor GWAS - NOT DONE!!!!!!!!
+    
+    
+    # output handling below
+    
     #cSumstats<-cSumstats[,-which(names(cSumstats) %in% c("A1_REF","A2_REF"))]
     
     #output.colnames<- c("SNP","N","Z","A1","A2")
     output.colnames<- c("SNP")
     if("N" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N")
     if("Z" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"Z")
-    output.colnames<- c(output.colnames,c("A1","A2","A1_ORIG","A2_ORIG"))
+    output.colnames<- c(output.colnames,c("A1","A2"))
+    #output.colnames<- c(output.colnames,c("A1","A2","A1_ORIG","A2_ORIG"))
     if("CHR" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"CHR")
     if("BP" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"BP")
     if("FRQ" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"FRQ")
+    if("MAF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"MAF")
     output.colnames<- c(output.colnames,c("P"))
     if("EFFECT" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"EFFECT")
     if("SE" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"SE")
