@@ -278,7 +278,8 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,pathDir
     
     cond.invertedAlleleOrder<-NULL
     if(!is.null(ref)){
-      cond.invertedAlleleOrder<-((cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF) | (cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF))
+      cond.invertedAlleleOrder<-(cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF)
+      #cond.invertedAlleleOrder<-((cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF) | (cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF))
     } else if(any(colnames(cSumstats)=="FRQ")){
       cond.invertedAlleleOrder<- cSumstats$FRQ > .5
     }
