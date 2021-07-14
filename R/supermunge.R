@@ -304,6 +304,11 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     }
     cat(".")
     
+    ## Invert alleles
+    if(!is.null(cond.invertedAlleleOrder)) cSumstats$A1<-ifelse(cond.invertedAlleleOrder, cSumstats$A2_ORIG, cSumstats$A1)
+    if(!is.null(cond.invertedAlleleOrder)) cSumstats$A2<-ifelse(cond.invertedAlleleOrder, cSumstats$A1_ORIG, cSumstats$A2)
+    cat(".")
+    
     ## EFFECT
     if("EFFECT" %in% colnames(cSumstats)) {
       if(!is.null(cond.invertedAlleleOrder) & changeEffectDirectionOnAlleleFlip) cSumstats$EFFECT<-ifelse(cond.invertedAlleleOrder,(cSumstats$EFFECT*-1),cSumstats$EFFECT)
