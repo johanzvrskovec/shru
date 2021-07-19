@@ -66,7 +66,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T, warnOnMult
 # pathDirOutput = project$folderpath.data.sumstats.munged
 # mask<-c(F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,T,T,T,T,T)
 
-supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NULL,linprob=NULL,pathDirOutput=".",changeEffectDirectionOnAlleleFlip=T,keepIndel=T,harmoniseAllelesToReference=F,doChrSplit=F,doStatistics=F, mask=NULL, stopOnMissingEssential=T, maxSNPDistanceBpPadding=0){
+supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NULL,linprob=NULL,pathDirOutput=".",changeEffectDirectionOnAlleleFlip=NULL,keepIndel=T,harmoniseAllelesToReference=F,doChrSplit=F,doStatistics=F, mask=NULL, stopOnMissingEssential=T, maxSNPDistanceBpPadding=0){
   
   timeStart <- Sys.time()
   
@@ -97,7 +97,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     names.se <- paste0("se.",traitNames)
   }
   
-  cat("\n\n\nS U P E R * M U N G E\n")
+  cat("\n\n\nS U P E R ★ M U N G E\n")
   
   ref<-NULL
   if(!is.null(refFilePath)){
@@ -183,6 +183,8 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     
     
     # QC, and data management before merge with reference
+    
+    cSumstats.meta<-rbind(cSumstats.meta,list("SNPs before supermunge",as.character(nrow(cSumstats))))
     
     ## Remove SNPs with missing P
     if("P" %in% colnames(cSumstats)) {
@@ -297,12 +299,20 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     
     cond.invertedAlleleOrder<-NULL
     if(!is.null(ref)){
-      cond.invertedAlleleOrder<-(cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF)
-      #cond.invertedAlleleOrder<-((cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF) | (cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF))
+      #cond.invertedAlleleOrder<-(cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF)
+      cond.invertedAlleleOrder<-((cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF) | (cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF))
     } else if(any(colnames(cSumstats)=="FRQ")){
       cond.invertedAlleleOrder<- cSumstats$FRQ > .55
     }
     cat(".")
+    
+    #compare hypothesised inverted allele effects with non-inverted allele effects for validity
+    if(!is.null(cond.invertedAlleleOrder) & is.null(changeEffectDirectionOnAlleleFlip)){
+      meffects.a<-mean(cSumstats$EFFECT[cond.invertedAlleleOrder])
+      meffects.b<-mean(cSumstats$EFFECT[!cond.invertedAlleleOrder])
+      meffects.b.inverted<-meffects.b*-1
+      if(abs(meffects.a-meffects.b.inverted)>abs(meffects.a-meffects.b) & abs(meffects.a-meffects.b.inverted) > 0.1*abs(meffects.a)) changeEffectDirectionOnAlleleFlip<-F #inactivate the correction of effect direction on allele flip because of less credible new effect mean.
+    }
     
     ## Invert alleles
     if(!is.null(cond.invertedAlleleOrder)) cSumstats$A1<-ifelse(cond.invertedAlleleOrder, cSumstats$A2_ORIG, cSumstats$A1)
@@ -310,6 +320,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     cat(".")
     
     ## EFFECT
+    if(is.null(changeEffectDirectionOnAlleleFlip)) changeEffectDirectionOnAlleleFlip<-F
     if("EFFECT" %in% colnames(cSumstats)) {
       if(!is.null(cond.invertedAlleleOrder) & changeEffectDirectionOnAlleleFlip) cSumstats$EFFECT<-ifelse(cond.invertedAlleleOrder,(cSumstats$EFFECT*-1),cSumstats$EFFECT)
     } else {
@@ -350,7 +361,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     }
     cat(".")
     
-    if(!is.null(cond.invertedAlleleOrder)) cSumstats.meta<-rbind(cSumstats.meta,list("Modified SNPs (EFFECT & FRQ); inverted allele order",as.character(sum(cond.invertedAlleleOrder))))
+    if(!is.null(cond.invertedAlleleOrder)) cSumstats.meta<-rbind(cSumstats.meta,list(paste0("Modified SNPs; inverted allele order [",ifelse(any(colnames(cSumstats)=="FRQ"),"FRQ",""),",",ifelse(changeEffectDirectionOnAlleleFlip,"EFFECT",""),"]"),as.character(sum(cond.invertedAlleleOrder))))
     
     if(!is.null(ref) & harmoniseAllelesToReference){
       # Fix A1 and A2 to reflect the reference alleles
