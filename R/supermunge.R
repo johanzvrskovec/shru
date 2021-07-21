@@ -132,7 +132,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
   sumstats<-c()
   for(iFile in 1:filePaths.length){
     #for testing!
-    #iFile=1
+    #iFile=3
     timeStart.ds <- Sys.time()
     cFilePath<-filePaths[iFile]
     cat(paste("\n\nSupermunging\t",traitNames[iFile],"\nFile:", cFilePath,"\n"))
@@ -299,6 +299,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     
     cond.invertedAlleleOrder<-NULL
     if(!is.null(ref)){
+      #cond.invertedAlleleOrder<-(cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF) #the same condition as i GenomicSEM munge.
       #cond.invertedAlleleOrder<-(cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF)
       cond.invertedAlleleOrder<-((cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF) | (cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF))
     } else if(any(colnames(cSumstats)=="FRQ")){
@@ -306,12 +307,26 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     }
     cat(".")
     
-    #compare hypothesised inverted allele effects with non-inverted allele effects for validity
-    if(!is.null(cond.invertedAlleleOrder) & is.null(changeEffectDirectionOnAlleleFlip)){
-      meffects.a<-mean(cSumstats$EFFECT[cond.invertedAlleleOrder])
-      meffects.b<-mean(cSumstats$EFFECT[!cond.invertedAlleleOrder])
-      meffects.b.inverted<-meffects.b*-1
-      if(abs(meffects.a-meffects.b.inverted)>abs(meffects.a-meffects.b) & abs(meffects.a-meffects.b.inverted) > 0.1*abs(meffects.a)) changeEffectDirectionOnAlleleFlip<-F #inactivate the correction of effect direction on allele flip because of less credible new effect mean.
+    #compare hypothesised inverted allele effects with non-inverted allele effects for validation
+    if(!is.null(cond.invertedAlleleOrder)){
+      meffects.reference<-mean(cSumstats$EFFECT[!cond.invertedAlleleOrder])
+      meffects.candidate<-mean(cSumstats$EFFECT[cond.invertedAlleleOrder])
+      meffects.candidate.inverted<-meffects.candidate*-1
+      sdeffects.reference<-sd(cSumstats$EFFECT[!cond.invertedAlleleOrder])
+      cSumstats.meta<-rbind(cSumstats.meta,list("Mean reference effect",as.character(round(meffects.reference,digits = 5))))
+      cSumstats.meta<-rbind(cSumstats.meta,list("Flipped SNPs mean effect diff; plain",as.character(round(abs(meffects.reference-meffects.candidate),digits = 5))))
+      cSumstats.meta<-rbind(cSumstats.meta,list("Flipped SNPs mean effect diff; inverted",as.character(round(abs(meffects.reference-meffects.candidate.inverted),digits = 5))))
+      if(abs(meffects.reference-meffects.candidate.inverted)>abs(meffects.reference-meffects.candidate)+2*sdeffects.reference) {
+        if(is.null(changeEffectDirectionOnAlleleFlip)){
+            changeEffectDirectionOnAlleleFlip<-F #inactivate the correction of effect direction on allele flip because of less credible new effect mean.
+            cSumstats.warnings<-c(cSumstats.warnings,"\nInactivated correction of effect direction as he mean effect difference between untouched and inverted variants is much larger than between untouched and non-inverted.")
+        } else if(changeEffectDirectionOnAlleleFlip){
+          cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip specified, but the mean effect difference between untouched and inverted variants is much larger than between untouched and non-inverted.")
+        }
+        
+      } else if(!is.null(changeEffectDirectionOnAlleleFlip)){
+        if(changeEffectDirectionOnAlleleFlip==F) cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip inactivated, but the mean effect difference between untouched and inverted variants is much smaller than between untouched and non-inverted, indicating that inverted effects for these variants may still be valid.")
+      }
     }
     
     ## Invert alleles
@@ -320,7 +335,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     cat(".")
     
     ## EFFECT
-    if(is.null(changeEffectDirectionOnAlleleFlip)) changeEffectDirectionOnAlleleFlip<-F
+    if(is.null(changeEffectDirectionOnAlleleFlip)) changeEffectDirectionOnAlleleFlip<-T
     if("EFFECT" %in% colnames(cSumstats)) {
       if(!is.null(cond.invertedAlleleOrder) & changeEffectDirectionOnAlleleFlip) cSumstats$EFFECT<-ifelse(cond.invertedAlleleOrder,(cSumstats$EFFECT*-1),cSumstats$EFFECT)
     } else {
@@ -339,7 +354,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
       ### Has FRQ
       
       
-      #### Check if value is within limits [0,0.5] [0,1]
+      #### Check if value is within limits [0,1]
       if(any(cSumstats$FRQ>1) || any(cSumstats$FRQ<0)) {
         stop(paste0('\nThere are FRQ values larger than 1 (',sum(cSumstats$FRQ>1),') or less than 0 (',sum(cSumstats$FRQ<0),') which is outside of the possible FRQ range.'))
       }
@@ -361,7 +376,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     }
     cat(".")
     
-    if(!is.null(cond.invertedAlleleOrder)) cSumstats.meta<-rbind(cSumstats.meta,list(paste0("Modified SNPs; inverted allele order [",ifelse(any(colnames(cSumstats)=="FRQ"),"FRQ",""),",",ifelse(changeEffectDirectionOnAlleleFlip,"EFFECT",""),"]"),as.character(sum(cond.invertedAlleleOrder))))
+    if(!is.null(cond.invertedAlleleOrder)) cSumstats.meta<-rbind(cSumstats.meta,list(paste0("Modified SNPs; flipped allele order [",ifelse(any(colnames(cSumstats)=="FRQ"),"FRQ",""),",",ifelse(changeEffectDirectionOnAlleleFlip,"EFFECT",""),"]"),as.character(sum(cond.invertedAlleleOrder))))
     
     if(!is.null(ref) & harmoniseAllelesToReference){
       # Fix A1 and A2 to reflect the reference alleles
@@ -431,7 +446,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     
     # Set SNP to lower case since this seems to be more common
     cSumstats$SNP<-tolower(cSumstats$SNP)
-    
+    cat(".")
     
     #TODO Adapt summary statistics to be used for latent factor GWAS - NOT DONE!!!!!!!!
     
@@ -472,7 +487,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     
     if(length(cSumstats.warnings)>0){
       cat("\nShowing warnings below.\n")
-      warning(cSumstats.warnings)
+      lapply(X = cSumstats.warnings, FUN = cat)
     } else {
       cat("\nNo warnings detected.\n")
     }
