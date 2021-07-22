@@ -6,12 +6,14 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T, warnOnMult
      c.A1 = c("A1", "ALLELE1","ALLELE_1","EFFECT_ALLELE","INC_ALLELE","EA"),
      c.A2 = c("A2","ALLELE2","ALLELE_2","ALLELE0","OTHER_ALLELE","NON_EFFECT_ALLELE","DEC_ALLELE","OA","NEA","ALT","REFERENCE_ALLELE","REF"),
      c.EFFECT = c("EFFECT","OR","B","BETA","LOG_ODDS","EFFECTS","SIGNED_SUMSTAT","Z","ZSCORE","Z-SCORE","EST","ZSTAT","ZSTATISTIC","GC_ZSCORE"),
+     c.SE = c("SE","STDER"),
+     c.Z = c("Z","ZSCORE","Z-SCORE","ZSTAT","ZSTATISTIC"),
      c.INFO = c("INFO","IMPINFO"),
      c.P = c("P","PVALUE","PVAL","P_VALUE","P-VALUE","P.VALUE","P_VAL","GC_PVALUE","WALD_P"),
      c.N = c("N","WEIGHT","NCOMPLETESAMPLES","TOTALSAMPLESIZE","TOTALN","TOTAL_N","N_COMPLETE_SAMPLES"),
      c.N_CAS = c("N_CAS","NCASE","N_CASE","N_CASES","NCAS","NCA"),
      c.N_CON = c("N_CON","NCONTROL","N_CONTROL","N_CONTROLS","N_CON","CONTROLS_N","NCON","NCO"),
-     c.FRQ = c("FRQ","MAF","CEUAF","FREQ","FREQ1","EAF", "FREQ1.HAPMAP", "FREQALLELE1HAPMAPCEU", "FREQ.ALLELE1.HAPMAPCEU", "EFFECT_ALLELE_FREQ","FREQ.A1","FRQ_U","F_U"),
+     c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF", "FREQ1.HAPMAP", "FREQALLELE1HAPMAPCEU", "FREQ.ALLELE1.HAPMAPCEU", "EFFECT_ALLELE_FREQ","FREQ.A1","FRQ_U","F_U"),
      c.CHR = c("CHR", "CH", "CHROMOSOME", "CHROM"),
      c.BP = c("BP", "ORIGBP")
                                        ){
@@ -26,6 +28,8 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T, warnOnMult
   columnNames[columnNames.upper %in% c.A1] <- c.A1[1]
   columnNames[columnNames.upper %in% c.A2] <- c.A2[1]
   columnNames[columnNames.upper %in% c.EFFECT] <- c.EFFECT[1]
+  columnNames[columnNames.upper %in% c.SE] <- c.SE[1]
+  columnNames[columnNames.upper %in% c.Z] <- c.Z[1]
   columnNames[columnNames.upper %in% c.INFO] <- c.INFO[1]
   columnNames[columnNames.upper %in% c.P] <- c.P[1]
   columnNames[columnNames.upper %in% c.N] <- c.N[1]
@@ -57,6 +61,31 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T, warnOnMult
   
   return(data.frame(std=columnNames,orig=columnNames.orig))
 }
+
+
+parseSNPColumnAsRSNumber <- function(text){
+  #decide if BGENIE SNP format using top 1000 SNPs
+  #TODO this condition may be fixed to not rely on the number of variants being >1000
+  if(sum(grepl(pattern = "^\\d+:\\w+_\\w+_\\w+", x= head(x = text, n=1000)))>995){
+    #extract and format rs-no
+    indexesLengths<-regexec(pattern = "^\\d+:(\\w+)_\\w+_\\w+", text=text)
+    matches<-regmatches(text,indexesLengths)
+    return(lapply(X = matches, FUN = function(x)paste0("RS",x[2])))
+  }
+  
+  return(text)
+}
+
+# parseCHRColumn <- function(text){
+#   text<-cSumstats$CHR
+#   #decide if formatting needed
+#   if(sum(grepl(pattern = "0\\w|[\\W]", x= head(x = text, n=1000)))>995){
+#     noleadingzero<-gsub(pattern = "0(\\w)", replacement = "\\2_" text=text)
+#     return(noleadingzero)
+#   }
+#   
+#   return(text)
+# }
 
 #test
 # filePaths = project$munge$filesToUse
@@ -132,7 +161,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
   sumstats<-c()
   for(iFile in 1:filePaths.length){
     #for testing!
-    #iFile=3
+    #iFile=1
     timeStart.ds <- Sys.time()
     cFilePath<-filePaths[iFile]
     cat(paste("\n\nSupermunging\t",traitNames[iFile],"\nFile:", cFilePath,"\n"))
@@ -170,6 +199,10 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     cSumstats$SNP <- as.character(toupper(cSumstats$SNP))
     cSumstats$A1 <- as.character(toupper(cSumstats$A1))
     cSumstats$A2 <- as.character(toupper(cSumstats$A2))
+    
+    #parse SNP if needed
+    cSumstats$SNP<-parseSNPColumnAsRSNumber(cSumstats$SNP)
+    
     if('CHR' %in% names(cSumstats)) {
       cSumstats$CHR <- as.character(toupper(cSumstats$CHR))
       cSumstats.keys<-c(cSumstats.keys,'CHR') 
@@ -252,6 +285,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
       #replace missing columns
       cSumstats.merged.snp$SNP<-cSumstats.merged.snp$SNP_REF
       
+      cSumstats.merged.pos<-NULL
       if('CHR' %in% names(cSumstats) && 'BP' %in% names(cSumstats) && 'CHR_REF' %in% names(ref) && 'BP_REF' %in% names(ref)) {
         #Join with reference on position rather than rsID
         #cSumstats.merged.pos<-ref[cSumstats, on=c(CHR_REF='CHR' , 'BP' < BP_REF + cSumstats.merged.snp.maxAlleleLength + maxSNPDistanceBpPadding & 'BP' > BP_REF - cSumstats.merged.snp.maxAlleleLength - maxSNPDistanceBpPadding)]
@@ -288,8 +322,8 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
       cond.removeNonmatching<-(cSumstats$A1 != (cSumstats$A1_REF) & cSumstats$A1 != (cSumstats$A2_REF)) & (cSumstats$A2 != (cSumstats$A1_REF)  & cSumstats$A2 != (cSumstats$A2_REF))
       cSumstats<-cSumstats[which(!cond.removeNonmatching), ]
       cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; A1 or A2 not matching any ref allele",as.character(sum(cond.removeNonmatching))))
-      cat(".")
     }
+    cat(".")
     
     ## Establish allele order from the reference
     #store original allele order and frequency info
@@ -309,10 +343,10 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     
     #compare hypothesised inverted allele effects with non-inverted allele effects for validation
     if(!is.null(cond.invertedAlleleOrder)){
-      meffects.reference<-mean(cSumstats$EFFECT[!cond.invertedAlleleOrder])
-      meffects.candidate<-mean(cSumstats$EFFECT[cond.invertedAlleleOrder])
+      meffects.reference<-mean(cSumstats$EFFECT[!cond.invertedAlleleOrder],na.rm = T)
+      meffects.candidate<-mean(cSumstats$EFFECT[cond.invertedAlleleOrder],na.rm = T)
       meffects.candidate.inverted<-meffects.candidate*-1
-      sdeffects.reference<-sd(cSumstats$EFFECT[!cond.invertedAlleleOrder])
+      sdeffects.reference<-sd(cSumstats$EFFECT[!cond.invertedAlleleOrder],na.rm = T)
       cSumstats.meta<-rbind(cSumstats.meta,list("Mean reference effect",as.character(round(meffects.reference,digits = 5))))
       cSumstats.meta<-rbind(cSumstats.meta,list("Flipped SNPs mean effect diff; plain",as.character(round(abs(meffects.reference-meffects.candidate),digits = 5))))
       cSumstats.meta<-rbind(cSumstats.meta,list("Flipped SNPs mean effect diff; inverted",as.character(round(abs(meffects.reference-meffects.candidate.inverted),digits = 5))))
@@ -328,6 +362,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
         if(changeEffectDirectionOnAlleleFlip==F) cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip inactivated, but the mean effect difference between untouched and inverted variants is much smaller than between untouched and non-inverted, indicating that inverted effects for these variants may still be valid.")
       }
     }
+    cat(".")
     
     ## Invert alleles
     if(!is.null(cond.invertedAlleleOrder)) cSumstats$A1<-ifelse(cond.invertedAlleleOrder, cSumstats$A2_ORIG, cSumstats$A1)
