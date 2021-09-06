@@ -65,7 +65,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T, warnOnMult
 
 parseSNPColumnAsRSNumber <- function(text){
   #decide if BGENIE SNP format using top 1000 SNPs
-  #TODO this condition may be fixed to not rely on the number of variants being >1000
+  #TODO this condition may be improved to not rely on the number of variants being >1000
   if(sum(grepl(pattern = "^\\d+:\\w+_\\w+_\\w+", x= head(x = text, n=1000)))>995){
     #extract and format rs-no
     indexesLengths<-regexec(pattern = "^\\d+:(\\w+)_\\w+_\\w+", text=text)
@@ -98,7 +98,21 @@ parseSNPColumnAsRSNumber <- function(text){
 # pathDirOutput = project$folderpath.data.sumstats.munged
 # mask<-c(F,T,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F)
 
-supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NULL,linprob=NULL,pathDirOutput=".",keepIndel=T,harmoniseAllelesToReference=F,doChrSplit=F,doStatistics=F, mask=NULL, stopOnMissingEssential=T, maxSNPDistanceBpPadding=0){
+supermunge <- function(filePaths,
+                       refFilePath=NULL,
+                       traitNames=NULL,
+                       setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
+                       N=NULL,
+                       OLS=NULL,
+                       linprob=NULL,
+                       pathDirOutput=".",
+                       keepIndel=T,
+                       harmoniseAllelesToReference=F,
+                       doChrSplit=F,
+                       doStatistics=F,
+                       mask=NULL,
+                       stopOnMissingEssential=T,
+                       maxSNPDistanceBpPadding=0){
   
   timeStart <- Sys.time()
   
@@ -135,6 +149,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
   cat("\nkeepIndel=",keepIndel)
   cat("\nharmoniseAllelesToReference=",harmoniseAllelesToReference)
   cat("\nmaxSNPDistanceBpPadding=",maxSNPDistanceBpPadding)
+  cat("\nchangeEffectDirectionOnAlleleFlip=",changeEffectDirectionOnAlleleFlip)
   cat("\n--------------------------------\n")
   
   ref<-NULL
@@ -169,6 +184,13 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
   
   sumstats<-c()
   for(iFile in 1:filePaths.length){
+    
+    #set changeEffectDirectionOnAlleleFlip -this has to be reset for each file
+    changeEffectDirectionOnAlleleFlip<-NULL
+    if(!is.null(setChangeEffectDirectionOnAlleleFlip)){
+      changeEffectDirectionOnAlleleFlip<-setChangeEffectDirectionOnAlleleFlip
+    }
+    
     #for testing!
     #iFile=1
     timeStart.ds <- Sys.time()
@@ -342,6 +364,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
       cond.removeNonmatching<-(cSumstats$A1 != (cSumstats$A1_REF) & cSumstats$A1 != (cSumstats$A2_REF)) & (cSumstats$A2 != (cSumstats$A1_REF)  & cSumstats$A2 != (cSumstats$A2_REF))
       cSumstats<-cSumstats[which(!cond.removeNonmatching), ]
       cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; A1 or A2 not matching any ref allele",as.character(sum(cond.removeNonmatching))))
+      sumstats.meta[iFile,c("Removed, nonmatching ref alleles")]<-sum(cond.removeNonmatching)
     }
     cat(".")
     
@@ -355,35 +378,56 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     if(!is.null(ref)){
       #cond.invertedAlleleOrder<-(cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF) #the same condition as in GenomicSEM munge.
       #cond.invertedAlleleOrder<-(cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF)
-      cond.invertedAlleleOrder<-((cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF) | (cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF))
+      cond.invertedAlleleOrder<-((cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF) | (cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF)) #experimental - seems not to work
     } else if(any(colnames(cSumstats)=="FRQ")){
       cond.invertedAlleleOrder<- cSumstats$FRQ > .55
     }
     cat(".")
     
     #compare hypothesised inverted allele effects with non-inverted allele effects for validation
-    #set changeEffectDirectionOnAlleleFlip
-    changeEffectDirectionOnAlleleFlip<-NULL
     if(!is.null(cond.invertedAlleleOrder)){
       if(any(cond.invertedAlleleOrder)){
-        meffects.reference<-mean(cSumstats$EFFECT[!cond.invertedAlleleOrder],na.rm = T)
-        meffects.candidate<-mean(cSumstats$EFFECT[cond.invertedAlleleOrder],na.rm = T)
-       
+        sumstats.meta[iFile,c("Inverted allele order variants")]<-sum(cond.invertedAlleleOrder)
+        if(any(colnames(cSumstats)=="SE")){
+          cSumstats.meta<-rbind(cSumstats.meta,list("Mean effect","ivw"))
+          minv<-min(cSumstats$SE)^2
+          meffects.reference<-weighted.mean(cSumstats$EFFECT[!cond.invertedAlleleOrder], w = 1/(minv + cSumstats$SE[!cond.invertedAlleleOrder]^2), na.rm = T)
+          meffects.candidate<-weighted.mean(cSumstats$EFFECT[cond.invertedAlleleOrder], w = 1/(minv + cSumstats$SE[cond.invertedAlleleOrder]^2), na.rm = T)
+        } else {
+          cSumstats.meta<-rbind(cSumstats.meta,list("Mean effect","plain"))
+          meffects.reference<-mean(cSumstats$EFFECT[!cond.invertedAlleleOrder],na.rm = T)
+          meffects.candidate<-mean(cSumstats$EFFECT[cond.invertedAlleleOrder],na.rm = T)
+        }
+        
         meffects.candidate.inverted<-meffects.candidate*-1
         sdeffects.reference<-sd(cSumstats$EFFECT[!cond.invertedAlleleOrder],na.rm = T)
-        cSumstats.meta<-rbind(cSumstats.meta,list("Mean reference effect",paste0(as.character(round(meffects.reference,digits = 5)),"(",round(sdeffects.reference,digits = 5),")")))
-        cSumstats.meta<-rbind(cSumstats.meta,list("Flipped SNPs mean effect diff; plain",as.character(round(abs(meffects.reference-meffects.candidate),digits = 5))))
-        cSumstats.meta<-rbind(cSumstats.meta,list("Flipped SNPs mean effect diff; inverted",as.character(round(abs(meffects.reference-meffects.candidate.inverted),digits = 5))))
-        if(abs(meffects.reference-meffects.candidate.inverted)>(abs(meffects.reference-meffects.candidate)+2*sdeffects.reference)) {
-          cSumstats.meta<-rbind(cSumstats.meta,list("Effect diff","inverted > plain+2sd => do not invert effect"))
+        sdeffects.candidate<-sd(cSumstats$EFFECT[cond.invertedAlleleOrder],na.rm = T)
+        cSumstats.meta<-rbind(cSumstats.meta,list("Number variants, reference, candidate:",paste0(as.character(length(cSumstats$EFFECT[!cond.invertedAlleleOrder])),",",as.character(length(cSumstats$EFFECT[cond.invertedAlleleOrder])))))
+        cSumstats.meta<-rbind(cSumstats.meta,list("Mean reference effect (sd)",paste0(as.character(round(meffects.reference,digits = 5))," (",round(sdeffects.reference,digits = 5),")")))
+        cSumstats.meta<-rbind(cSumstats.meta,list("Mean candidate effect (sd)",paste0(as.character(round(meffects.candidate,digits = 5))," (",round(sdeffects.candidate,digits = 5),")")))
+        #cSumstats.meta<-rbind(cSumstats.meta,list("Mean candidate effect, inverted",as.character(round(abs(meffects.candidate.inverted),digits = 5))))
+        #cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect, plain",as.character(round(abs(meffects.reference-meffects.candidate),digits = 5))))
+        #cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect, inverted",as.character(round(abs(meffects.reference-meffects.candidate.inverted),digits = 5))))
+        
+        sumstats.meta[iFile,c("Reference variants")]<-length(cSumstats$EFFECT[!cond.invertedAlleleOrder])
+        sumstats.meta[iFile,c("Candidate variants")]<-length(cSumstats$EFFECT[cond.invertedAlleleOrder])
+        sumstats.meta[iFile,c("Mean reference effect")]<-round(meffects.reference,digits = 5)
+        sumstats.meta[iFile,c("Mean reference effect sd")]<-round(sdeffects.reference,digits = 5)
+        sumstats.meta[iFile,c("Mean candidate effect")]<-round(meffects.candidate,digits = 5)
+        sumstats.meta[iFile,c("Mean candidate effect sd")]<-round(sdeffects.candidate,digits = 5)
+        
+        if(abs(meffects.reference-meffects.candidate.inverted)>(abs(meffects.reference-meffects.candidate)+1*sdeffects.reference)) {
+          cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","inverted > plain+1sd"))
+          sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-T
           if(is.null(changeEffectDirectionOnAlleleFlip)){
               changeEffectDirectionOnAlleleFlip<-F #inactivate the correction of effect direction on allele flip because of less credible new effect mean.
           } else if(changeEffectDirectionOnAlleleFlip){
-            cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip specified, but the mean effect difference between untouched and inverted variants is much larger than between untouched and non-inverted.")
+            cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip specified, but the mean effect difference between plain and inverted variants is much larger than between plain and non-inverted, indicating that inverted effects may be invalid.")
           }
           
         } else {
-          cSumstats.meta<-rbind(cSumstats.meta,list("Effect diff","inverted < plain+2sd"))
+          cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect, relationship","inverted < plain+1sd"))
+          sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-F
           if(!is.null(changeEffectDirectionOnAlleleFlip)){
             if(!changeEffectDirectionOnAlleleFlip) cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip inactivated, but the mean effect difference between untouched and inverted variants is much smaller than between untouched and non-inverted, indicating that inverted effects for these variants may still be valid.")
           }
@@ -400,9 +444,39 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     ## EFFECT
     if(is.null(changeEffectDirectionOnAlleleFlip)) changeEffectDirectionOnAlleleFlip<-T
     if("EFFECT" %in% colnames(cSumstats)) {
+      
+      ## Determine effect type, and set effect to log(EFFECT) if odds ratio
+      if(round(median(cSumstats$EFFECT,na.rm=T)) == 1) {
+        #is odds ratio
+        cSumstats$EFFECT<-log(cSumstats$EFFECT)
+        sumstats.meta[iFile,c("effect_type")]<-"OR"
+        cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","OR  =>ln(OR)"))
+        if(!any(c("OR") %in% toupper(cSumstats.names$orig)) | any(c("B","BETA","LOG_ODDS","Z","ZSCORE","EST","ZSTAT","ZSTATISTIC") %in% toupper(cSumstats.names$orig))) {
+          cSumstats.warnings<-c(cSumstats.warnings,"\nThe effect format being an ODDS RATIO is not compatible with the original variable naming scheme!")
+          sumstats.meta[iFile,c("effect_type_warning")]<-T
+        }
+      } else {
+        #is NOT odds ratio
+        sumstats.meta[iFile,c("effect_type")]<-"non_OR"
+        cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","NON OR"))
+        if(any(c("OR") %in% toupper(cSumstats.names$orig)) | !any(c("B","BETA","LOG_ODDS","Z","ZSCORE","EST","ZSTAT","ZSTATISTIC") %in% toupper(cSumstats.names$orig))) {
+          cSumstats.warnings<-c(cSumstats.warnings,"\nThe effect format is not compatible with the original variable naming scheme!")
+          sumstats.meta[iFile,c("effect_type_warning")]<-T
+        }
+      }
+      
+      ##invert effect if inverted allele order
       if(!is.null(cond.invertedAlleleOrder) & changeEffectDirectionOnAlleleFlip) {
         if(any(cond.invertedAlleleOrder)) cSumstats$EFFECT<-ifelse(cond.invertedAlleleOrder,(cSumstats$EFFECT*-1),cSumstats$EFFECT)
-        }
+          if(any(colnames(cSumstats)=="SE")){
+            meffects.new<-weighted.mean(cSumstats$EFFECT, w = 1/(minv + cSumstats$SE^2), na.rm = T)
+            cSumstats.meta<-rbind(cSumstats.meta,list("New effect mean",as.character(meffects.new)))
+          } else {
+            meffects.new<-mean(cSumstats$EFFECT,na.rm = T)
+            cSumstats.meta<-rbind(cSumstats.meta,list("New effect mean",as.character(meffects.new)))
+          }
+      }
+      
     } else {
       ### Does not have EFFECT
       #### Note that EFFECT is not present
@@ -411,7 +485,9 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
       #### Add empty EFFECT here for consistency
       cSumstats$EFFECT<-NA_real_
     }
-    cat(".")
+    cat("..")
+    
+    sumstats.meta[iFile,c("changeEffectDirectionOnAlleleFlip")]<-changeEffectDirectionOnAlleleFlip
     
     ## FRQ
     #cond.invertedFRQ<-NULL
@@ -439,7 +515,11 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
     }
     cat(".")
     
-    if(!is.null(cond.invertedAlleleOrder)) cSumstats.meta<-rbind(cSumstats.meta,list(paste0("Modified SNPs; flipped allele order [",ifelse(any(colnames(cSumstats)=="FRQ"),"FRQ",""),",",ifelse(changeEffectDirectionOnAlleleFlip,"EFFECT",""),"]"),as.character(sum(cond.invertedAlleleOrder))))
+    if(!is.null(cond.invertedAlleleOrder)) cSumstats.meta<-rbind(cSumstats.meta,list(
+      paste0(
+        "Modified SNPs; inverted allele order [",ifelse(any(colnames(cSumstats)=="FRQ"),"FRQ",""),",",
+        ifelse(changeEffectDirectionOnAlleleFlip,"EFFECT",""),"]"),
+      as.character(sum(cond.invertedAlleleOrder))))
     
     if(!is.null(ref) & harmoniseAllelesToReference){
       # Fix A1 and A2 to reflect the reference alleles
@@ -447,30 +527,7 @@ supermunge <- function(filePaths,refFilePath=NULL,traitNames=NULL,N=NULL,OLS=NUL
       cSumstats$A2<-cSumstats$A2_REF
     }
     
-    ## Determine effect type, and set effect to log(EFFECT) if odds ratio
-    if("EFFECT" %in% colnames(cSumstats)) {
-      if(round(median(cSumstats$EFFECT,na.rm=T)) == 1) {
-        #is odds ratio
-        cSumstats$EFFECT<-log(cSumstats$EFFECT)
-        sumstats.meta[iFile,c("effect_type")]<-"OR"
-        #cat("\nThe EFFECT is determined to be an ODDS RATIO. It has been transformed to a natural logarithmic scale.")
-        cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","OR  =>ln(OR)"))
-        if(!any(c("OR") %in% toupper(cSumstats.names$orig)) | any(c("B","BETA","LOG_ODDS","Z","ZSCORE","EST","ZSTAT","ZSTATISTIC") %in% toupper(cSumstats.names$orig))) {
-          cSumstats.warnings<-c(cSumstats.warnings,"\nThe effect format being an ODDS RATIO is not compatible with the original variable naming scheme!")
-          sumstats.meta[iFile,c("effect_type_warning")]<-T
-        }
-      } else {
-        #is NOT odds ratio
-        sumstats.meta[iFile,c("effect_type")]<-"non_OR"
-        #cat("\nThe EFFECT is determined to NOT be an odds ratio.")
-        cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","NON OR"))
-        if(any(c("OR") %in% toupper(cSumstats.names$orig)) | !any(c("B","BETA","LOG_ODDS","Z","ZSCORE","EST","ZSTAT","ZSTATISTIC") %in% toupper(cSumstats.names$orig))) {
-          cSumstats.warnings<-c(cSumstats.warnings,"\nThe effect format is not compatible with the original variable naming scheme!")
-          sumstats.meta[iFile,c("effect_type_warning")]<-T
-        }
-      }
-    }
-    cat(".")
+    
     
     ## N
     if(any(colnames(cSumstats)=="N_CAS") && any(colnames(cSumstats)=="N_CON")) {
