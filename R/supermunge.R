@@ -149,7 +149,7 @@ supermunge <- function(filePaths,
   cat("\nkeepIndel=",keepIndel)
   cat("\nharmoniseAllelesToReference=",harmoniseAllelesToReference)
   cat("\nmaxSNPDistanceBpPadding=",maxSNPDistanceBpPadding)
-  cat("\nchangeEffectDirectionOnAlleleFlip=",changeEffectDirectionOnAlleleFlip)
+  cat("\nchangeEffectDirectionOnAlleleFlip=",setChangeEffectDirectionOnAlleleFlip)
   cat("\n--------------------------------\n")
   
   ref<-NULL
