@@ -15,7 +15,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T, warnOnMult
      c.N_CON = c("N_CON","NCONTROL","N_CONTROL","N_CONTROLS","N_CON","CONTROLS_N","NCON","NCO"),
      c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF", "FREQ1.HAPMAP", "FREQALLELE1HAPMAPCEU", "FREQ.ALLELE1.HAPMAPCEU", "EFFECT_ALLELE_FREQ","FREQ.A1","FRQ_U","F_U"),
      c.CHR = c("CHR", "CH", "CHROMOSOME", "CHROM"),
-     c.BP = c("BP", "ORIGBP")
+     c.BP = c("BP", "ORIGBP", "POS")
                                        ){
   #test
   #columnNames<-cSumstats.names
@@ -357,6 +357,12 @@ supermunge <- function(filePaths,
     cat(".")
     
     # More QC and data management, after merge with reference
+    
+    if(!is.null(ref)){
+      ## Add in chr and bp from ref if not present in datasets
+      if(!any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="CHR_REF"))cSumstats$CHR<-cSumstats$CHR_REF
+      if(!any(colnames(cSumstats)=="BP") & any(colnames(cSumstats)=="BP_REF"))cSumstats$BP<-cSumstats$BP_REF
+    }
     
     if(!is.null(ref)){
       ## Remove SNPs where alleles are not matching at least one of the reference alleles
