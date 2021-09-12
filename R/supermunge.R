@@ -112,7 +112,9 @@ supermunge <- function(filePaths,
                        doStatistics=F,
                        mask=NULL,
                        stopOnMissingEssential=T,
-                       maxSNPDistanceBpPadding=0){
+                       maxSNPDistanceBpPadding=0,
+                       invertEffectDirectionOn=NULL
+                       ){
   
   timeStart <- Sys.time()
   
@@ -468,6 +470,14 @@ supermunge <- function(filePaths,
         if(any(c("OR") %in% toupper(cSumstats.names$orig)) | !any(c("B","BETA","LOG_ODDS","Z","ZSCORE","EST","ZSTAT","ZSTATISTIC") %in% toupper(cSumstats.names$orig))) {
           cSumstats.warnings<-c(cSumstats.warnings,"\nThe effect format is not compatible with the original variable naming scheme!")
           sumstats.meta[iFile,c("effect_type_warning")]<-T
+        }
+      }
+      
+      ##invert overall effect if specified
+      if(!is.null(invertEffectDirectionOn)){
+        if(any(invertEffectDirectionOn==traitNames[iFile])){
+          cSumstats$EFFECT<-cSumstats$EFFECT*-1
+          cSumstats.meta<-rbind(cSumstats.meta,list("Inverted overall effect",as.character(length(cSumstats$EFFECT))))
         }
       }
       
