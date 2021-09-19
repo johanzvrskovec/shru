@@ -299,27 +299,78 @@ semplate$parseGenomicSEMResultAsMatrices <- function(resultDf){
   nFactors<-nrow(factors)
   nManifestVariables<-nrow(manifestVariables)
   patternCoefficients.matrix<-matrix(data = NA_real_, nrow = nManifestVariables, ncol = nFactors)
+  patternCoefficients.SE.matrix<-matrix(data = NA_real_, nrow = nManifestVariables, ncol = nFactors)
+  patternCoefficientsSTDGenotype.matrix<-matrix(data = NA_real_, nrow = nManifestVariables, ncol = nFactors)
+  patternCoefficientsSTDGenotype.SE.matrix<-matrix(data = NA_real_, nrow = nManifestVariables, ncol = nFactors)
+  patternCoefficients.p.matrix<-matrix(data = NA_real_, nrow = nManifestVariables, ncol = nFactors)
   
+  #read in matrix elements
   for(nFactor in 1:nFactors){
     #nFactor<-1
     factor.from<-factors$id[nFactor]
     for(nManifestVariable in 1:nManifestVariables) {
       #nManifestVariable<-1
       manifestVariable.to<-manifestVariables$id[nManifestVariable]
-      toadd<-patternCoefficients[which(patternCoefficients$from==factor.from & patternCoefficients$to==manifestVariable.to),c("STD_Genotype")]
+      
+      toadd<-patternCoefficients[which(patternCoefficients$from==factor.from & patternCoefficients$to==manifestVariable.to),c("Unstand_Est")]
       if(!is.null(toadd)&length(toadd)>0) patternCoefficients.matrix[nManifestVariable,nFactor]<-toadd
+      
+      toadd<-patternCoefficients[which(patternCoefficients$from==factor.from & patternCoefficients$to==manifestVariable.to),c("Unstand_SE")]
+      if(!is.null(toadd)&length(toadd)>0) patternCoefficients.SE.matrix[nManifestVariable,nFactor]<-toadd
+      
+      toadd<-patternCoefficients[which(patternCoefficients$from==factor.from & patternCoefficients$to==manifestVariable.to),c("STD_Genotype")]
+      if(!is.null(toadd)&length(toadd)>0) patternCoefficientsSTDGenotype.matrix[nManifestVariable,nFactor]<-toadd
+      
+      toadd<-patternCoefficients[which(patternCoefficients$from==factor.from & patternCoefficients$to==manifestVariable.to),c("STD_Genotype_SE")]
+      if(!is.null(toadd)&length(toadd)>0) patternCoefficientsSTDGenotype.SE.matrix[nManifestVariable,nFactor]<-toadd
+      
+      toadd<-patternCoefficients[which(patternCoefficients$from==factor.from & patternCoefficients$to==manifestVariable.to),c("p_value")]
+      if(!is.null(toadd)&length(toadd)>0) patternCoefficients.p.matrix[nManifestVariable,nFactor]<-toadd
     }
   }
   rownames(patternCoefficients.matrix)<-manifestVariables$nodes
   colnames(patternCoefficients.matrix)<-factors$nodes
+  rownames(patternCoefficients.SE.matrix)<-manifestVariables$nodes
+  colnames(patternCoefficients.SE.matrix)<-factors$nodes
+  rownames(patternCoefficientsSTDGenotype.matrix)<-manifestVariables$nodes
+  colnames(patternCoefficientsSTDGenotype.matrix)<-factors$nodes
+  rownames(patternCoefficientsSTDGenotype.SE.matrix)<-manifestVariables$nodes
+  colnames(patternCoefficientsSTDGenotype.SE.matrix)<-factors$nodes
+  rownames(patternCoefficients.p.matrix)<-manifestVariables$nodes
+  colnames(patternCoefficients.p.matrix)<-factors$nodes
   
   manifestOrder<-row_number(manifestVariables$id[which(manifestVariables$id==residualVaraiances$from)])
   residualVaraiances<-residualVaraiances[manifestOrder,]
   residualVaraiances[,c("residualVariable")]<-residualVariables$nodes[which(residualVariables$id==residualVaraiances$tofrom.residual)]
-  residualVaraiances.matrix<-as.matrix(residualVaraiances[,c("STD_Genotype")])
+  residualVaraiances.matrix<-as.matrix(residualVaraiances[,c("Unstand_Est")])
+  residualVaraiances.SE.matrix<-as.matrix(residualVaraiances[,c("Unstand_SE")])
+  residualVaraiancesSTDGenotype.matrix<-as.matrix(residualVaraiances[,c("STD_Genotype")])
+  residualVaraiancesSTDGenotype.SE.matrix<-as.matrix(residualVaraiances[,c("STD_Genotype_SE")])
+  residualVaraiances.p.matrix<-as.matrix(residualVaraiances[,c("p_value")])
   rownames(residualVaraiances.matrix)<-residualVaraiances$residualVariable
+  rownames(residualVaraiances.SE.matrix)<-residualVaraiances$residualVariable
+  rownames(residualVaraiancesSTDGenotype.matrix)<-residualVaraiances$residualVariable
+  rownames(residualVaraiancesSTDGenotype.SE.matrix)<-residualVaraiances$residualVariable
+  rownames(residualVaraiances.p.matrix)<-residualVaraiances$residualVariable
   
-  return(list(patternCoefficients=patternCoefficients.matrix, residualVariances=residualVaraiances.matrix))
+  #calculate variance explained by each latent factor and total
+  modelFit<-data.frame()
+  modelFit[1,c("totalVarianceExplained")]<-(1-mean(residualVaraiancesSTDGenotype.matrix))
+  
+  
+  return(list(
+    modelFit=modelFit,
+    patternCoefficients.matrix=patternCoefficients.matrix,
+    patternCoefficients.SE.matrix=patternCoefficients.SE.matrix,
+    patternCoefficientsSTDGenotype.matrix=patternCoefficientsSTDGenotype.matrix,
+    patternCoefficientsSTDGenotype.SE.matrix=patternCoefficientsSTDGenotype.SE.matrix,
+    patternCoefficients.p.matrix=patternCoefficients.p.matrix,
+    residualVaraiances.matrix=residualVaraiances.matrix,
+    residualVaraiances.SE.matrix=residualVaraiances.SE.matrix,
+    residualVaraiancesSTDGenotype.matrix=residualVaraiancesSTDGenotype.matrix,
+    residualVaraiancesSTDGenotype.SE.matrix=residualVaraiancesSTDGenotype.SE.matrix,
+    residualVaraiances.p.matrix=residualVaraiances.p.matrix
+    ))
 }
 
 

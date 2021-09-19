@@ -64,9 +64,11 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T, warnOnMult
 
 
 parseSNPColumnAsRSNumber <- function(text){
-  #decide if BGENIE SNP format using top 1000 SNPs
-  #TODO this condition may be improved to not rely on the number of variants being >1000
-  if(sum(grepl(pattern = "^\\d+:\\w+_\\w+_\\w+", x= head(x = text, n=1000)))>995){
+  #decide if BGENIE SNP format using top 100,000 SNPs
+  #TODO this condition may be improved to not rely on the number of variants being >100,000
+  #test
+  #text<-files[[i]]$SNP
+  if(sum(grepl(pattern = "^\\d+:\\w+_\\w+_\\w+", x= head(x = text, n=100000)))>90000){
     #extract and format rs-no
     indexesLengths<-regexec(pattern = "^\\d+:(\\w+)_\\w+_\\w+", text=text)
     matches<-regmatches(text,indexesLengths)
