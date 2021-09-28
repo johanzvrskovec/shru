@@ -13,6 +13,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T, warnOnMult
      c.N = c("N","WEIGHT","NCOMPLETESAMPLES","TOTALSAMPLESIZE","TOTALN","TOTAL_N","N_COMPLETE_SAMPLES"),
      c.N_CAS = c("N_CAS","NCASE","N_CASE","N_CASES","NCAS","NCA"),
      c.N_CON = c("N_CON","NCONTROL","N_CONTROL","N_CONTROLS","N_CON","CONTROLS_N","NCON","NCO"),
+     c.NEF = c("NEF","NEFF","NEFFECTIVE","NE"),
      c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF", "FREQ1.HAPMAP", "FREQALLELE1HAPMAPCEU", "FREQ.ALLELE1.HAPMAPCEU", "EFFECT_ALLELE_FREQ","FREQ.A1","FRQ_U","F_U"),
      c.CHR = c("CHR", "CH", "CHROMOSOME", "CHROM"),
      c.BP = c("BP", "ORIGBP", "POS")
@@ -35,6 +36,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T, warnOnMult
   columnNames[columnNames.upper %in% c.N] <- c.N[1]
   columnNames[columnNames.upper %in% c.N_CAS] <- c.N_CAS[1]
   columnNames[columnNames.upper %in% c.N_CON] <- c.N_CON[1]
+  columnNames[columnNames.upper %in% c.NEF] <- c.NEF[1]
   columnNames[columnNames.upper %in% c.FRQ] <- c.FRQ[1]
   columnNames[columnNames.upper %in% c.CHR] <- c.CHR[1]
   columnNames[columnNames.upper %in% c.BP] <- c.BP[1]
@@ -100,7 +102,19 @@ parseSNPColumnAsRSNumber <- function(text){
 # pathDirOutput = project$folderpath.data.sumstats.munged
 # mask<-c(F,T,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F)
 
-supermunge <- function(filePaths,
+
+#test2
+# list_df = lfGwasList
+# ref_df = ref
+# traitNames = paste0(cModel$code,".F",1:length(lfGwasList))
+# setChangeEffectDirectionOnAlleleFlip = T #T=same behaviour as genomic SEM
+# #N - precomputed for each SNP in the earlier processing step
+# pathDirOutput = project$folderpath.data.sumstats.munged
+
+supermunge <- function(
+                       list_df=NULL,
+                       filePaths=NULL,
+                       ref_df=NULL,
                        refFilePath=NULL,
                        traitNames=NULL,
                        setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
@@ -120,28 +134,43 @@ supermunge <- function(filePaths,
   
   timeStart <- Sys.time()
   
-  if(is.null(traitNames)){
-    traitNames<-basename(filePaths)
+  if(length(list_df)>0){
+    if(is.null(traitNames)){
+      traitNames<-names(list_df)
+    }
+    
+    if(!is.null(mask)){
+      list_df<-list_df[mask]
+      if(!is.null(traitNames)) traitNames<-traitNames[mask]
+    }
+    
+    ds.length <- length(list_df)
+  } else {
+    if(is.null(traitNames)){
+      traitNames<-basename(filePaths)
+    }
+    
+    if(!is.null(mask)){
+      filePaths<-filePaths[mask]
+      if(!is.null(traitNames)) traitNames<-traitNames[mask]
+    }
+    
+    ds.length <- length(filePaths)
   }
   
-  if(!is.null(mask)){
-    filePaths<-filePaths[mask]
-    if(!is.null(traitNames)) traitNames<-traitNames[mask]
-  }
   
-  filePaths.length <- length(filePaths)
   
   if(is.null(OLS)){
-    OLS<-rep(FALSE,filePaths.length)
+    OLS<-rep(FALSE,ds.length)
   }
   
   if(is.null(linprob)){
-    linprob<-rep(FALSE,filePaths.length)
+    linprob<-rep(FALSE,ds.length)
   }
   
   if(is.null(traitNames)){
-    names.beta <- paste0("beta.",1:filePaths.length)
-    names.se <- paste0("se.",1:filePaths.length)
+    names.beta <- paste0("beta.",1:ds.length)
+    names.se <- paste0("se.",1:ds.length)
   }else{
     names.beta <- paste0("beta.",traitNames)
     names.se <- paste0("se.",traitNames)
@@ -154,13 +183,22 @@ supermunge <- function(filePaths,
   cat("\nharmoniseAllelesToReference=",harmoniseAllelesToReference)
   cat("\nmaxSNPDistanceBpPadding=",maxSNPDistanceBpPadding)
   cat("\nchangeEffectDirectionOnAlleleFlip=",setChangeEffectDirectionOnAlleleFlip)
+  if(length(invertEffectDirectionOn)>0){
+    cat("\ninvertEffectDirectionOn=", paste(invertEffectDirectionOn,sep = ","))
+  }
   cat("\n--------------------------------\n")
   
   ref<-NULL
-  if(!is.null(refFilePath)){
+  if(!is.null(ref_df)){
+    ref<-ref_df
+    cat(paste0("\nUsing reference from provided dataframe.\n"))
+  } else if(!is.null(refFilePath)){
     cat(paste0("\nReading reference file...\n"))
     ref <- read.table(refFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
-
+    cat(paste0("\nRead reference file:\n",refFilePath))
+  } 
+  
+  if(!is.null(ref)){
     #rename reference columns as to distinguish them from the dataset columns
     names(ref)<-paste0(names(ref),"_REF")
     # Transform to data table
@@ -177,9 +215,8 @@ supermunge <- function(filePaths,
     if('BP_REF' %in% names(ref)) {
       ref$BP_REF <- as.integer(ref$BP_REF)
       ref.keys<-c(ref.keys,'BP_REF')
-      }
+    }
     setkeyv(ref,cols = ref.keys)
-    cat(paste0("\nRead reference file:\n",refFilePath))
   } else {
     warning("\nRunning without reference.\n")
   }
@@ -187,23 +224,31 @@ supermunge <- function(filePaths,
   sumstats.meta<-data.table(name=traitNames,file_path=filePaths,n_snp_raw=NA_integer_,n_snp_res=NA_integer_)
   
   sumstats<-c()
-  for(iFile in 1:filePaths.length){
+  for(iFile in 1:ds.length){
+    #for testing!
+    #iFile=1
     
-    #set changeEffectDirectionOnAlleleFlip -this has to be reset for each file
+    #set changeEffectDirectionOnAlleleFlip -this has to be reset for each file/dataset
     changeEffectDirectionOnAlleleFlip<-NULL
     if(!is.null(setChangeEffectDirectionOnAlleleFlip)){
       changeEffectDirectionOnAlleleFlip<-setChangeEffectDirectionOnAlleleFlip
     }
     
-    #for testing!
-    #iFile=1
     timeStart.ds <- Sys.time()
-    cFilePath<-filePaths[iFile]
-    cat(paste("\n\nSupermunging\t",traitNames[iFile],"\nFile:", cFilePath,"\n"))
+    
+    
+    if(!is.null(list_df)){
+      cat(paste("\n\nSupermunging\t",traitNames[iFile],"\n @ dataset", iFile,"\n"))
+      cSumstats <- list_df[[iFile]]
+    } else {
+      cFilePath<-filePaths[iFile]
+      cat(paste("\n\nSupermunging\t",traitNames[iFile],"\nFile:", cFilePath,"\n"))
+      cSumstats <- read.table(cFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
+    }
     cat("\nProcessing...")
+    
     cSumstats.meta<-data.table(message=NA_character_,display=NA_character_)
     cSumstats.warnings<-list()
-    cSumstats <- read.table(cFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
     cSumstats.nSNP.raw<-nrow(cSumstats)
     sumstats.meta[iFile,c("n_snp_raw")]<-cSumstats.nSNP.raw
     cSumstats.meta<-rbind(cSumstats.meta,list("Input SNPs",as.character(cSumstats.nSNP.raw)))
@@ -394,13 +439,17 @@ supermunge <- function(filePaths,
     }
     cat(".")
     
+    #compute minimum SE for later calculations
+    if(any(colnames(cSumstats)=="SE")){
+      minv<-min(cSumstats$SE, na.rm = T)^2
+    }
+    
     #compare hypothesised inverted allele effects with non-inverted allele effects for validation
     if(!is.null(cond.invertedAlleleOrder)){
       if(any(cond.invertedAlleleOrder)){
         sumstats.meta[iFile,c("Inverted allele order variants")]<-sum(cond.invertedAlleleOrder)
         if(any(colnames(cSumstats)=="SE")){
           cSumstats.meta<-rbind(cSumstats.meta,list("Mean effect","ivw"))
-          minv<-min(cSumstats$SE)^2
           meffects.reference<-weighted.mean(cSumstats$EFFECT[!cond.invertedAlleleOrder], w = 1/(minv + cSumstats$SE[!cond.invertedAlleleOrder]^2), na.rm = T)
           meffects.candidate<-weighted.mean(cSumstats$EFFECT[cond.invertedAlleleOrder], w = 1/(minv + cSumstats$SE[cond.invertedAlleleOrder]^2), na.rm = T)
         } else {
@@ -554,7 +603,7 @@ supermunge <- function(filePaths,
       cSumstats$N <- cSumstats$N_CAS + cSumstats$N_CON
     } else if(!is.null(N) & length(N)>=iFile) {
       #cat("\nUsing the explicitly specified N for the whole dataset:",N[iFile])
-      cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Explicitly specified as ",N[iFile])))
+      cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Explicitly set to ",N[iFile])))
       cSumstats$N<-N[iFile]
     } else if(!("N" %in% colnames(cSumstats))) {
       cSumstats.warnings<-c(cSumstats.warnings,"\nNo N column detected!")
