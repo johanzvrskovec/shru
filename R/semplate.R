@@ -74,7 +74,10 @@ semplate$generateIndicatorLoadingPatterns<-function(searchBitValues=c(0), indica
                ))
 }
 
-semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, fix_loading.table.indicator_factor=NULL, fix_loading.table.residual_variance=NULL,orthogonal=FALSE, indicatorArgs=NULL, universalResidualLimitMin=0.001 ){
+
+semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, fix_loading.table.indicator_factor=NULL, fixResidualVariance_v=NULL,orthogonal=FALSE, indicatorArgs=NULL, universalResidualLimitMin=0.001, universalCorrelationLimitMax=NA ){
+  #allow_loading.table.indicator_factor<-cIndicatorLoadings
+  
   
   #lavaan definition string
   lds<-""
@@ -98,8 +101,10 @@ semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, 
   
   indicatorArgs[which(is.na(indicatorArgs$residualLimitMin)),c("residualLimitMin")]<-universalResidualLimitMin
   
+  correlationPatternCoefficientLabels=c()
+  
   indicatorResidualPatternCoefficientLabels=c()
-  indicatorResidualPatternCoefficientLabelDefinitions=c()
+  #indicatorResidualPatternCoefficientLabelDefinitions=c()
   
   #factor loadings, factor variances
   for(iFactor in 1:nFactors){
@@ -142,14 +147,14 @@ semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, 
   }
   
   for(iIndicator in 1:nIndicators){
-    if(is.null(fix_loading.table.residual_variance)){
+    if(is.null(fixResidualVariance_v)){
     indicatorResidualPatternCoefficientLabels[iIndicator]=paste0('r',iIndicator)
     #indicatorResidualPatternCoefficientLabelDefinitions[iIndicator]=paste0('label(',indicatorResidualPatternCoefficientLabels[iIndicator],')')
     
     lds.residuals=paste0(lds.residuals,indicatorArgs$code[iIndicator],"~~",indicatorResidualPatternCoefficientLabels[iIndicator],"*",indicatorArgs$code[iIndicator],"
                          ")
     } else {
-      lds.residuals=paste0(lds.residuals,indicatorArgs$code[iIndicator],"~~(",fix_loading.table.residual_variance[iIndicator],")*",indicatorArgs$code[iIndicator],"
+      lds.residuals=paste0(lds.residuals,indicatorArgs$code[iIndicator],"~~(",fixResidualVariance_v[iIndicator],")*",indicatorArgs$code[iIndicator],"
                          ")
     }
   }
@@ -161,20 +166,35 @@ semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, 
   
   lds.factorOther=""
   
+  iCorrelationPatternCoefficient<-0
   for(iComb in 1:nrow(indexFactor)) {
+    
     row<-indexFactor[iComb,]
     if(row$index.x==row$index.y || row$index.y < row$index.x)
       next()
     
-    if(orthogonal)
+    if(orthogonal){
       lds.factorOther=paste0(lds.factorOther,"
-                           F",row$index.x,"~~0*F",row$index.y) else
-                             lds.factorOther=paste0(lds.factorOther,"
-                           F",row$index.x,"~~F",row$index.y)
+                           F",row$index.x,"~~0*F",row$index.y) 
+    } else {
+      iCorrelationPatternCoefficient<-iCorrelationPatternCoefficient+1
+      correlationPatternCoefficientLabels[iCorrelationPatternCoefficient]<-paste0('c',iComb)
+      lds.factorOther=paste0(lds.factorOther,"
+                           F",row$index.x,"~~",ifelse(is.na(universalCorrelationLimitMax),"",paste0(correlationPatternCoefficientLabels[iCorrelationPatternCoefficient],"*")),"F",row$index.y)
+    }
+  }
+  
+  cond.correlationSizeLimit=""
+  if(length(correlationPatternCoefficientLabels)>0 & !is.na(universalCorrelationLimitMax)){
+    for(iCorrelationPatternCoefficient in 1:length(correlationPatternCoefficientLabels)){
+      cond.correlationSizeLimit=paste0(cond.correlationSizeLimit,correlationPatternCoefficientLabels[iCorrelationPatternCoefficient],"<",universalCorrelationLimitMax,"
+                                        ")
+    }
+    cond=paste0(cond,cond.correlationSizeLimit)
   }
   
   
-  if(is.null(fix_loading.table.residual_variance)){
+  if(is.null(fixResidualVariance_v)){
     cond.residualSizeLimit=""
     for(iIndicator in 1:nIndicators){
       if(!is.na(indicatorArgs$residualSizeLimitMax[iIndicator])){
@@ -287,6 +307,9 @@ semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
   
 }
 
+#test
+#resultDf<-project$test$gwasResults$results
+
 semplate$parseGenomicSEMResultAsMatrices <- function(resultDf){
   gsemResult<-semplate$parseGenomicSEMResult(resultDf)
   factors<-gsemResult$variable[which(gsemResult$variable$type=="latent"),]
@@ -294,7 +317,8 @@ semplate$parseGenomicSEMResultAsMatrices <- function(resultDf){
   residualVariables<-gsemResult$variable[which(gsemResult$variable$type=="residual"),]
   
   patternCoefficients<-gsemResult$loading[which(gsemResult$loading$type=="pattern"),]
-  residualVaraiances<-gsemResult$loading[which(gsemResult$loading$type=="residual"),]
+  coVariances<-gsemResult$loading[which(gsemResult$loading$type=="covariance"),]
+  residualVariances<-gsemResult$loading[which(gsemResult$loading$type=="residual"),]
   
   nFactors<-nrow(factors)
   nManifestVariables<-nrow(manifestVariables)
@@ -303,11 +327,40 @@ semplate$parseGenomicSEMResultAsMatrices <- function(resultDf){
   patternCoefficientsSTDGenotype.matrix<-matrix(data = NA_real_, nrow = nManifestVariables, ncol = nFactors)
   patternCoefficientsSTDGenotype.SE.matrix<-matrix(data = NA_real_, nrow = nManifestVariables, ncol = nFactors)
   patternCoefficients.p.matrix<-matrix(data = NA_real_, nrow = nManifestVariables, ncol = nFactors)
+  covariances.matrix<-matrix(data = NA_real_, nrow = nFactors, ncol = nFactors)
+  covariances.SE.matrix<-matrix(data = NA_real_, nrow = nFactors, ncol = nFactors)
+  covariancesSTDGenotype.matrix<-matrix(data = NA_real_, nrow = nFactors, ncol = nFactors)
+  covariancesSTDGenotype.SE.matrix<-matrix(data = NA_real_, nrow = nFactors, ncol = nFactors)
+  covariancesSTDGenotype.p.matrix<-matrix(data = NA_real_, nrow = nFactors, ncol = nFactors)
   
   #read in matrix elements
   for(nFactor in 1:nFactors){
     #nFactor<-1
     factor.from<-factors$id[nFactor]
+    for(nFactor2 in 1:nFactors){
+      #nFactor2<-1
+      factor.to<-factors$id[nFactor2]
+      toadd<-coVariances[which(coVariances$from==factor.from & coVariances$to==factor.to),c("Unstand_Est")]
+      if(!is.null(toadd)&length(toadd)>0) covariances.matrix[nFactor2,nFactor]<-toadd
+      if(!is.null(toadd)&length(toadd)>0) covariances.matrix[nFactor,nFactor2]<-toadd
+      
+      toadd<-coVariances[which(coVariances$from==factor.from & coVariances$to==factor.to),c("Unstand_SE")]
+      if(!is.null(toadd)&length(toadd)>0) covariances.SE.matrix[nFactor2,nFactor]<-toadd
+      if(!is.null(toadd)&length(toadd)>0) covariances.SE.matrix[nFactor,nFactor2]<-toadd
+      
+      toadd<-coVariances[which(coVariances$from==factor.from & coVariances$to==factor.to),c("STD_Genotype")]
+      if(!is.null(toadd)&length(toadd)>0) covariancesSTDGenotype.matrix[nFactor2,nFactor]<-toadd
+      if(!is.null(toadd)&length(toadd)>0) covariancesSTDGenotype.matrix[nFactor,nFactor2]<-toadd
+      
+      toadd<-coVariances[which(coVariances$from==factor.from & coVariances$to==factor.to),c("STD_Genotype_SE")]
+      if(!is.null(toadd)&length(toadd)>0) covariancesSTDGenotype.SE.matrix[nFactor2,nFactor]<-toadd
+      if(!is.null(toadd)&length(toadd)>0) covariancesSTDGenotype.SE.matrix[nFactor,nFactor2]<-toadd
+      
+      toadd<-coVariances[which(coVariances$from==factor.from & coVariances$to==factor.to),c("p_value")]
+      if(!is.null(toadd)&length(toadd)>0) covariancesSTDGenotype.p.matrix[nFactor2,nFactor]<-toadd
+      if(!is.null(toadd)&length(toadd)>0) covariancesSTDGenotype.p.matrix[nFactor,nFactor2]<-toadd
+    }
+    
     for(nManifestVariable in 1:nManifestVariables) {
       #nManifestVariable<-1
       manifestVariable.to<-manifestVariables$id[nManifestVariable]
@@ -328,6 +381,17 @@ semplate$parseGenomicSEMResultAsMatrices <- function(resultDf){
       if(!is.null(toadd)&length(toadd)>0) patternCoefficients.p.matrix[nManifestVariable,nFactor]<-toadd
     }
   }
+  rownames(covariances.matrix)<-factors$nodes
+  colnames(covariances.matrix)<-factors$nodes
+  rownames(covariances.SE.matrix)<-factors$nodes
+  colnames(covariances.SE.matrix)<-factors$nodes
+  rownames(covariancesSTDGenotype.matrix)<-factors$nodes
+  colnames(covariancesSTDGenotype.matrix)<-factors$nodes
+  rownames(covariancesSTDGenotype.SE.matrix)<-factors$nodes
+  colnames(covariancesSTDGenotype.SE.matrix)<-factors$nodes
+  rownames(covariancesSTDGenotype.p.matrix)<-factors$nodes
+  colnames(covariancesSTDGenotype.p.matrix)<-factors$nodes
+  
   rownames(patternCoefficients.matrix)<-manifestVariables$nodes
   colnames(patternCoefficients.matrix)<-factors$nodes
   rownames(patternCoefficients.SE.matrix)<-manifestVariables$nodes
@@ -339,37 +403,50 @@ semplate$parseGenomicSEMResultAsMatrices <- function(resultDf){
   rownames(patternCoefficients.p.matrix)<-manifestVariables$nodes
   colnames(patternCoefficients.p.matrix)<-factors$nodes
   
-  manifestOrder<-row_number(manifestVariables$id[which(manifestVariables$id==residualVaraiances$from)])
-  residualVaraiances<-residualVaraiances[manifestOrder,]
-  residualVaraiances[,c("residualVariable")]<-residualVariables$nodes[which(residualVariables$id==residualVaraiances$tofrom.residual)]
-  residualVaraiances.matrix<-as.matrix(residualVaraiances[,c("Unstand_Est")])
-  residualVaraiances.SE.matrix<-as.matrix(residualVaraiances[,c("Unstand_SE")])
-  residualVaraiancesSTDGenotype.matrix<-as.matrix(residualVaraiances[,c("STD_Genotype")])
-  residualVaraiancesSTDGenotype.SE.matrix<-as.matrix(residualVaraiances[,c("STD_Genotype_SE")])
-  residualVaraiances.p.matrix<-as.matrix(residualVaraiances[,c("p_value")])
-  rownames(residualVaraiances.matrix)<-residualVaraiances$residualVariable
-  rownames(residualVaraiances.SE.matrix)<-residualVaraiances$residualVariable
-  rownames(residualVaraiancesSTDGenotype.matrix)<-residualVaraiances$residualVariable
-  rownames(residualVaraiancesSTDGenotype.SE.matrix)<-residualVaraiances$residualVariable
-  rownames(residualVaraiances.p.matrix)<-residualVaraiances$residualVariable
+  manifestOrder<-row_number(manifestVariables$id[which(manifestVariables$id==residualVariances$from)])
+  residualVariances<-residualVariances[manifestOrder,]
+  residualVariances[,c("residualVariable")]<-residualVariables$nodes[which(residualVariables$id==residualVariances$tofrom.residual)]
+  residualVariances.matrix<-as.matrix(residualVariances[,c("Unstand_Est")])
+  residualVariances.SE.matrix<-as.matrix(residualVariances[,c("Unstand_SE")])
+  residualVariancesSTDGenotype.matrix<-as.matrix(residualVariances[,c("STD_Genotype")])
+  residualVariancesSTDGenotype.SE.matrix<-as.matrix(residualVariances[,c("STD_Genotype_SE")])
+  residualVariances.p.matrix<-as.matrix(residualVariances[,c("p_value")])
+  rownames(residualVariances.matrix)<-residualVariances$residualVariable
+  rownames(residualVariances.SE.matrix)<-residualVariances$residualVariable
+  rownames(residualVariancesSTDGenotype.matrix)<-residualVariances$residualVariable
+  rownames(residualVariancesSTDGenotype.SE.matrix)<-residualVariances$residualVariable
+  rownames(residualVariances.p.matrix)<-residualVariances$residualVariable
   
   #calculate variance explained by each latent factor and total
+  factorVariance<-(patternCoefficients.matrix^2) #For latent factors with variance 1. Otherwise *Vfactor.
+  totalIndicatorVariance<-residualVariances.matrix+rowSums(factorVariance, na.rm = T)
+  relativeFactorVariance<-factorVariance/rep(totalIndicatorVariance,ncol(factorVariance))
+  meanRelativeFactorVariance <- colMeans(relativeFactorVariance, na.rm = T)
+  
+  
   modelFit<-data.frame()
-  modelFit[1,c("totalVarianceExplained")]<-(1-mean(residualVaraiancesSTDGenotype.matrix))
+  modelFit[1,c("totalVarianceExplained")]<-(1-mean(residualVariancesSTDGenotype.matrix))
   
   
   return(list(
-    modelFit=modelFit,
     patternCoefficients.matrix=patternCoefficients.matrix,
     patternCoefficients.SE.matrix=patternCoefficients.SE.matrix,
     patternCoefficientsSTDGenotype.matrix=patternCoefficientsSTDGenotype.matrix,
     patternCoefficientsSTDGenotype.SE.matrix=patternCoefficientsSTDGenotype.SE.matrix,
     patternCoefficients.p.matrix=patternCoefficients.p.matrix,
-    residualVaraiances.matrix=residualVaraiances.matrix,
-    residualVaraiances.SE.matrix=residualVaraiances.SE.matrix,
-    residualVaraiancesSTDGenotype.matrix=residualVaraiancesSTDGenotype.matrix,
-    residualVaraiancesSTDGenotype.SE.matrix=residualVaraiancesSTDGenotype.SE.matrix,
-    residualVaraiances.p.matrix=residualVaraiances.p.matrix
+    covariances.matrix=covariances.matrix,
+    covariances.SE.matrix=covariances.SE.matrix,
+    covariancesSTDGenotype.matrix=covariancesSTDGenotype.matrix,
+    covariancesSTDGenotype.SE.matrix=covariancesSTDGenotype.SE.matrix,
+    covariancesSTDGenotype.p.matrix=covariancesSTDGenotype.p.matrix,
+    residualVariances.matrix=residualVariances.matrix,
+    residualVariances.SE.matrix=residualVariances.SE.matrix,
+    residualVariancesSTDGenotype.matrix=residualVariancesSTDGenotype.matrix,
+    residualVariancesSTDGenotype.SE.matrix=residualVariancesSTDGenotype.SE.matrix,
+    residualVariances.p.matrix=residualVariances.p.matrix,
+    meanTotalRelativeVarianceExplained=(1-mean(residualVariancesSTDGenotype.matrix)),
+    relativeVarianceExplainedPerFactor=relativeFactorVariance,
+    meanRelativeVarianceExplainedPerFactor=meanRelativeFactorVariance
     ))
 }
 
@@ -633,39 +710,6 @@ semplate$parseAndPrintGenomicSEMResult <- function(resultDf = NULL){
   dot<-semplate$generateDOT(nodeDf=parsedSEMResult$nodeDf, edgeDf=parsedSEMResult$edgeDf)
   grViz(dot)
   return(dot)
-}
-
-# Needs and depends on the Genomic SEM package currently loaded - NOT FINISHED!
-semplate$factorGWAS<-function(modelDefinitionDf, covstruc, SNPs, estimation="ML", GC){
-  modelDefinitionAndResults<-modelDefinitionDf
-  nModelDefinition<-nrow(modelDefinitionAndResults)
-  for(iModelDefinition in 1:nModelDefinition){
-    cModelDefinition<-modelDefinitionAndResults[iModelDefinition,]
-    
-    modelDefinitionAndResults[iModelDefinition,"indexFactorGWAS"]<-iModelDefinition
-    
-    #Amend models without SNP effects with SNP effect factors, and construct sub
-    cSub<-c()
-    for(iLatentFactor in 1:cModelDefinition$nLatentFactor){
-      nSub<-paste0("F",iLatentFactor,"~SNP")
-      cSub<-c(cSub,nSub)
-      cModelDefinition$definition<-paste0(cModelDefinition$definition,"\n",nSub)
-    }
-    
-    modelDefinitionAndResults[iModelDefinition,"definition.full"]<-cModelDefinition$definition
-    
-    #uncomment this
-    #factorGWASResult<-userGWAS(covstruc = covstruc, SNPs = SNPs, estimation = estimation, model = cModelDefinition$definition, modelchi = FALSE, printwarn = TRUE, sub=cSub, GC=GC)
-    
-    #TEST
-    cat("Model ",iModelDefinition,":",cModelDefinition$definition)
-    
-    #modelDefinitionAndResults[iModelDefinition,"factorGWASResult"]<-list(factorGWASResult)
-    
-  }
-  
-  return(modelDefinitionAndResults)
-  
 }
 
 
