@@ -1,23 +1,28 @@
 #WORK IN PROGRESS
 #Based on the amazing work by Grotzinger, A. D. et al. Nat. Hum. Behav. 3, 513–525 (2019) and Bulik-Sullivan, B. K. et al. Nat. Genet. 47, 291–295 (2015).
 
-stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T, warnOnMultiple=T,
-     c.SNP = c("SNP","SNPID","RSID","RS_NUMBER","RS_NUMBERS","MARKERNAME","ID","PREDICTOR","RS"),
-     c.A1 = c("A1", "ALLELE1","ALLELE_1","EFFECT_ALLELE","INC_ALLELE","EA"),
-     c.A2 = c("A2","ALLELE2","ALLELE_2","ALLELE0","OTHER_ALLELE","NON_EFFECT_ALLELE","DEC_ALLELE","OA","NEA","ALT","REFERENCE_ALLELE","REF"),
-     c.EFFECT = c("EFFECT","OR","B","BETA","LOG_ODDS","EFFECTS","SIGNED_SUMSTAT","Z","ZSCORE","Z-SCORE","EST","ZSTAT","ZSTATISTIC","GC_ZSCORE"),
-     c.SE = c("SE","STDER"),
-     c.Z = c("Z","ZSCORE","Z-SCORE","ZSTAT","ZSTATISTIC"),
-     c.INFO = c("INFO","IMPINFO"),
-     c.P = c("P","PVALUE","PVAL","P_VALUE","P-VALUE","P.VALUE","P_VAL","GC_PVALUE","WALD_P"),
-     c.N = c("N","WEIGHT","NCOMPLETESAMPLES","TOTALSAMPLESIZE","TOTALN","TOTAL_N","N_COMPLETE_SAMPLES"),
-     c.N_CAS = c("N_CAS","NCASE","N_CASE","N_CASES","NCAS","NCA"),
-     c.N_CON = c("N_CON","NCONTROL","N_CONTROL","N_CONTROLS","N_CON","CONTROLS_N","NCON","NCO"),
-     c.NEF = c("NEF","NEFF","NEFFECTIVE","NE"),
-     c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF", "FREQ1.HAPMAP", "FREQALLELE1HAPMAPCEU", "FREQ.ALLELE1.HAPMAPCEU", "EFFECT_ALLELE_FREQ","FREQ.A1","FRQ_U","F_U"),
-     c.CHR = c("CHR", "CH", "CHROMOSOME", "CHROM"),
-     c.BP = c("BP", "ORIGBP", "POS")
-                                       ){
+
+
+stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
+                               c.SNP = c("SNP","PREDICTOR","SNPID","MARKERNAME","MARKER_NAME","SNPTESTID","ID_DBSNP49","RSID","ID","RS_NUMBER","MARKER", "RS", "RSNUMBER", "RS_NUMBERS", "SNP.NAME","SNP ID", "SNP_ID","LOCATIONALID","ASSAY_NAME"),
+                               c.A1 = c("A1","ALLELE1","ALLELE_1","INC_ALLELE","EA","A1_EFFECT","REF","EFFECT_ALLELE","RISK_ALLELE","EFFECTALLELE","EFFECT_ALL","REFERENCE_ALLELE","REF_ALLELE","REFERENCEALLELE","EA","ALLELE_1","INC_ALLELE","ALLELE1","A","A_1","CODED_ALLELE","TESTED_ALLELE"),
+                               c.A2 = c("A2","ALLELE2","ALLELE_2","OTHER_ALLELE","NON_EFFECT_ALLELE","DEC_ALLELE","OA","NEA","ALT","A2_OTHER","NONREF_ALLELE","NEFFECT_ALLELE","NEFFECTALLELE","NONEFFECT_ALLELE","OTHER_ALL","OTHERALLELE","NONEFFECTALLELE","ALLELE0","ALLELE_0","ALT_ALLELE","A_0","NONCODED_ALLELE"),
+                               #c.EFFECT = c("EFFECT","OR","B","BETA","LOG_ODDS","EFFECTS","SIGNED_SUMSTAT","EST"),
+                               c.BETA = c("BETA","B","EFFECT_BETA","EFFECT","EFFECTS","SIGNED_SUMSTAT","EST","GWAS_BETA","EFFECT_A1","EFFECTA1","EFFECT_NW"),
+                               c.OR = c("OR","LOG_ODDS","OR","ODDS-RATIO","ODDS_RATIO","ODDSRATIO","OR(MINALLELE)","OR.LOGISTIC","OR_RAN","OR(A1)"),
+                               c.SE = c("SE","STDER","STDERR","STD","STANDARD_ERROR","OR_SE","STANDARDERROR", "STDERR_NW","META.SE","SE_DGC","SE.2GC"),
+                               c.Z = c("Z","ZSCORE","Z-SCORE","ZSTAT","ZSTATISTIC","GC_ZSCORE","BETAZSCALE"),
+                               c.INFO = c("INFO","IMPINFO","IMPQUALITY", "INFO.PLINK", "INFO_UKBB"),
+                               c.P = c("P","PVALUE","PVAL","P_VALUE","GC_PVALUE","WALD_P","P.VAL","GWAS_P","P-VALUE","P-VAL","FREQUENTIST_ADD_PVALUE","P.VALUE","P_VAL","SCAN-P","P.LMM","META.PVAL","P_RAN","P.ADD","P_BOLT_LMM"),
+                               c.N = c("N","WEIGHT","NCOMPLETESAMPLES","TOTALSAMPLESIZE","TOTALN","TOTAL_N","N_COMPLETE_SAMPLES","N_TOTAL","N_SAMPLES","N_ANALYZED","NSAMPLES","SAMPLESIZE","SAMPLE_SIZE","TOTAL_SAMPLE_SIZE","TOTALSAMPLESIZE"),
+                               c.N_CAS = c("N_CAS","NCASE","N_CASE","N_CASES","NCAS","NCA","NCASES","CASES","CASES_N","FRQ_A"),
+                               c.N_CON = c("N_CON","NCONTROL","N_CONTROL","N_CONTROLS","NCON","NCO","N_CON","NCONTROLS","CONTROLS","CONTROLS_N","FRQ_U"),
+                               c.NEF = c("NEF","NEFF","NEFFECTIVE","NE"),
+                               #include FRQ_A?
+                               c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF","FREQ1.HAPMAP","FREQALLELE1HAPMAPCEU", "FREQ.ALLELE1.HAPMAPCEU","EFFECT_ALLELE_FREQ","FREQ.A1","F_A","F_U","FREQ_A","FREQ_U","MA_FREQ","MAF_NW","FREQ_A1","A1FREQ","CODED_ALLELE_FREQUENCY","FREQ_TESTED_ALLELE_IN_HRS","EAF_HRC"),
+                               c.CHR = c("CHR","CH","CHROMOSOME","CHROM","CHR_BUILD38","CHR_BUILD37","CHR_BUILD36","CHR_B38","CHR_B37","CHR_B36","CHR_ID","SCAFFOLD","HG19CHR","CHR.HG19","CHR_HG19","HG18CHR","CHR.HG18","CHR_HG18","CHR_BP_HG19B37","HG19CHRC"),
+                               c.BP = c("BP","ORIGBP","POS","POSITION","LOCATION","PHYSPOS","GENPOS","CHR_POSITION","POS_B38","POS_BUILD38","POS_B37","POS_BUILD37","BP_HG19B37","POS_B36","POS_BUILD36","POS.HG19","POS.HG18","POS_HG19","POS_HG18","BP_HG19","BP_HG18","BP.GRCH38","BP.GRCH37","POSITION(HG19)","POSITION(HG18)","POS(B38)","POS(B37)")
+){
   #test
   #columnNames<-cSumstats.names
   
@@ -28,9 +33,12 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T, warnOnMult
   columnNames[columnNames.upper %in% c.SNP] <- c.SNP[1]
   columnNames[columnNames.upper %in% c.A1] <- c.A1[1]
   columnNames[columnNames.upper %in% c.A2] <- c.A2[1]
-  columnNames[columnNames.upper %in% c.EFFECT] <- c.EFFECT[1]
+  #columnNames[columnNames.upper %in% c.EFFECT] <- c.EFFECT[1]
+  #if(any(columnNames==c.EFFECT[1])) columnNames[columnNames.upper %in% c.Z] <- c.Z[1] else columnNames[columnNames.upper %in% c.Z] <- c.EFFECT[1]
+  columnNames[columnNames.upper %in% c.BETA] <- c.BETA[1]
+  columnNames[columnNames.upper %in% c.OR] <- c.OR[1] 
+  columnNames[columnNames.upper %in% c.Z] <- c.Z[1] 
   columnNames[columnNames.upper %in% c.SE] <- c.SE[1]
-  columnNames[columnNames.upper %in% c.Z] <- c.Z[1]
   columnNames[columnNames.upper %in% c.INFO] <- c.INFO[1]
   columnNames[columnNames.upper %in% c.P] <- c.P[1]
   columnNames[columnNames.upper %in% c.N] <- c.N[1]
@@ -43,28 +51,32 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T, warnOnMult
   
   if(stopOnMissingEssential){
     # Stop if any of these columns are not found
-    if(!any(columnNames=="SNP")) stop("Could not find the 'SNP' column.")
-    if(!any(columnNames=="P")) warning("Could not find the P-value column. Standard is 'P'.")
-    if(!any(columnNames=="A1")) stop("Could not find the 'A1' column.")
-    if(!any(columnNames=="A2")) stop("Could not find the 'A2' column.")
-    if(!any(columnNames=="EFFECT")) warning("Could not find the 'EFFECT' column.")
-    if(!any(columnNames=="FRQ")) warning("Could not find the 'FRQ' column.")
+    if(!any(columnNames=="SNP")) stop("\nCould not find the 'SNP' column.\n")
+    if(!any(columnNames=="A1")) stop("\nCould not find the 'A1' column.\n")
+    if(!any(columnNames=="A2")) stop("\nCould not find the 'A2' column.\n")
   }
   
-  if(warnOnMultiple){
-    # Warn if multiple of these columns are found
-    if(sum(columnNames=="SNP")>1) warning("Multiple 'SNP' columns found!")
-    if(sum(columnNames=="P")>1) warning("Multiple 'P' columns found!")
-    if(sum(columnNames=="A1")>1) warning("Multiple 'A1' columns found!")
-    if(sum(columnNames=="A2")>1) warning("Multiple 'A2' columns found!")
-    if(sum(columnNames=="EFFECT")>1) warning("Multiple 'EFFECT' columns found!")
-    if(sum(columnNames=="FRQ")>1) warning("Multiple 'FRQ' columns found!")
-  }
+  if(!any(columnNames=="P")) warning("\nCould not find the P-value column. Standard is 'P'.\n")
+  if(!any(columnNames=="BETA") & !any(columnNames=="OR" & !any(columnNames=="Z"))) warning("Could not find any effect column.\n")
+  if(!any(columnNames=="SNP")) warning("\nCould not find the 'SNP' column.\n")
+  if(!any(columnNames=="A1")) warning("\nCould not find the 'A1' column.\n")
+  if(!any(columnNames=="A2")) warning("\nCould not find the 'A2' column.\n")
+  if(!any(columnNames=="FRQ")) warning("\nCould not find the 'FRQ' column.\n")
+  
+  # Warn if multiple of these columns are found
+  if(sum(columnNames=="SNP")>1) warning("\nMultiple 'SNP' columns found!\n")
+  if(sum(columnNames=="P")>1) warning("\nMultiple 'P' columns found!\n")
+  if(sum(columnNames=="A1")>1) warning("\nMultiple 'A1' columns found!\n")
+  if(sum(columnNames=="A2")>1) warning("\nMultiple 'A2' columns found!\n")
+  if(sum(columnNames=="BETA")>1) warning("\nMultiple 'BETA' columns found!\n")
+  if(sum(columnNames=="OR")>1) warning("\nMultiple 'OR' columns found!\n")
+  if(sum(columnNames=="Z")>1) warning("\nMultiple 'Z' columns found!\n")
+  if(sum(columnNames=="FRQ")>1) warning("\nMultiple 'FRQ' columns found!\n")
   
   return(data.frame(std=columnNames,orig=columnNames.orig))
 }
 
-
+#ref, plink chromosome numbering: https://zzz.bwh.harvard.edu/plink/data.shtml
 parseSNPColumnAsRSNumber <- function(text){
   #decide if BGENIE SNP format using top 100,000 SNPs
   #TODO this condition may be improved to not rely on the number of variants being >100,000
@@ -74,22 +86,28 @@ parseSNPColumnAsRSNumber <- function(text){
     #extract and format rs-no
     indexesLengths<-regexec(pattern = "^\\d+:(\\w+)_\\w+_\\w+", text=text)
     matches<-regmatches(text,indexesLengths)
-    return(lapply(X = matches, FUN = function(x)paste0("RS",x[2])))
+    return(lapply(X = matches, FUN = function(x)paste0("rs",x[2])))
   }
+  
+  text<-sub(pattern = "^XY",replacement = "25",x = text)
+  text<-sub(pattern = "^X",replacement = "23",x = text)
+  text<-sub(pattern = "^Y",replacement = "24",x = text)
+  text<-sub(pattern = "^MT",replacement = "26",x = text)
+  text<-sub(pattern = "^chr",replacement = "",x = text)
+  text<-sub(pattern = "_",replacement = ":",x = text)
   
   return(text)
 }
 
-# parseCHRColumn <- function(text){
-#   text<-cSumstats$CHR
-#   #decide if formatting needed
-#   if(sum(grepl(pattern = "0\\w|[\\W]", x= head(x = text, n=1000)))>995){
-#     noleadingzero<-gsub(pattern = "0(\\w)", replacement = "\\2_" text=text)
-#     return(noleadingzero)
-#   }
-#   
-#   return(text)
-# }
+parseCHRColumn <- function(text){
+  text<-sub(pattern = "^XY",replacement = "25",x = text)
+  text<-sub(pattern = "^X",replacement = "23",x = text)
+  text<-sub(pattern = "^Y",replacement = "24",x = text)
+  text<-sub(pattern = "^MT",replacement = "26",x = text)
+  text<-sub(pattern = "^chr",replacement = "",x = text)
+  text<-sub(pattern = "_",replacement = ":",x = text)
+  return(text)
+}
 
 #test
 # filePaths = project$munge$filesToUse
@@ -205,11 +223,11 @@ supermunge <- function(
     ref <- setDT(ref)
     # Column harmonisation
     ref.keys<-c('SNP_REF')
-    ref$SNP_REF <- as.character(toupper(ref$SNP_REF))
-    ref$A1_REF <- as.character(toupper(ref$A1_REF))
-    ref$A2_REF <- as.character(toupper(ref$A2_REF))
+    ref$SNP_REF <- as.character(ref$SNP_REF)
+    ref$A1_REF <- toupper(as.character(ref$A1_REF))
+    ref$A2_REF <- toupper(as.character(ref$A2_REF))
     if('CHR_REF' %in% names(ref)) {
-      ref$CHR_REF <- as.character(toupper(ref$CHR_REF))
+      ref$CHR_REF <- toupper(as.character(ref$CHR_REF))
       ref.keys<-c(ref.keys,'CHR_REF') 
     }
     if('BP_REF' %in% names(ref)) {
@@ -275,15 +293,15 @@ supermunge <- function(
     cSumstats <- setDT(cSumstats)
     # Column harmonisation
     cSumstats.keys<-c('SNP')
-    cSumstats$SNP <- as.character(toupper(cSumstats$SNP))
-    cSumstats$A1 <- as.character(toupper(cSumstats$A1))
-    cSumstats$A2 <- as.character(toupper(cSumstats$A2))
+    cSumstats$SNP <- as.character(cSumstats$SNP)
+    cSumstats$A1 <- toupper(as.character(cSumstats$A1))
+    cSumstats$A2 <- toupper(as.character(cSumstats$A2))
     
     #parse SNP if needed
-    cSumstats$SNP<-parseSNPColumnAsRSNumber(cSumstats$SNP)
+    cSumstats$SNP<-tolower(parseSNPColumnAsRSNumber(cSumstats$SNP))
     
     if('CHR' %in% names(cSumstats)) {
-      cSumstats$CHR <- as.character(toupper(cSumstats$CHR))
+      cSumstats$CHR <- toupper(parseCHRColumn(as.character(cSumstats$CHR)))
       cSumstats.keys<-c(cSumstats.keys,'CHR') 
     }
     if('BP' %in% names(cSumstats)) {
@@ -297,6 +315,13 @@ supermunge <- function(
     # QC, and data management before merge with reference
     
     cSumstats.meta<-rbind(cSumstats.meta,list("SNPs before supermunge",as.character(nrow(cSumstats))))
+    
+    #TODO Fix according to new column standard
+    if(!("EFFECT" %in% colnames(cSumstats))){
+      if("BETA" %in% colnames(cSumstats)) cSumstats$EFFECT<-cSumstats$BETA else
+      if("OR" %in% colnames(cSumstats)) cSumstats$EFFECT<-cSumstats$OR
+    }
+    cat(".")
     
     ## Add effect for datasets containing only Z
     if(!("EFFECT" %in% colnames(cSumstats)) && "Z" %in% colnames(cSumstats)){
@@ -510,16 +535,16 @@ supermunge <- function(
         cSumstats$EFFECT<-log(cSumstats$EFFECT)
         sumstats.meta[iFile,c("effect_type")]<-"OR"
         cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","OR  =>ln(OR)"))
-        if(!any(c("OR") %in% toupper(cSumstats.names$orig)) | any(c("B","BETA","LOG_ODDS","Z","ZSCORE","EST","ZSTAT","ZSTATISTIC") %in% toupper(cSumstats.names$orig))) {
-          cSumstats.warnings<-c(cSumstats.warnings,"\nThe effect format being an ODDS RATIO is not compatible with the original variable naming scheme!")
+        if(any(colnames(cSumstats)=="BETA")) {
+          cSumstats.warnings<-c(cSumstats.warnings,"\nThe effect format being an ODDS RATIO may not be compatible with the original variable naming scheme!")
           sumstats.meta[iFile,c("effect_type_warning")]<-T
         }
       } else {
         #is NOT odds ratio
         sumstats.meta[iFile,c("effect_type")]<-"non_OR"
         cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","NON OR"))
-        if(any(c("OR") %in% toupper(cSumstats.names$orig)) | !any(c("B","BETA","LOG_ODDS","Z","ZSCORE","EST","ZSTAT","ZSTATISTIC") %in% toupper(cSumstats.names$orig))) {
-          cSumstats.warnings<-c(cSumstats.warnings,"\nThe effect format is not compatible with the original variable naming scheme!")
+        if(any(colnames(cSumstats)=="OR")) {
+          cSumstats.warnings<-c(cSumstats.warnings,"\nThe effect format NOT being an ODDS RATIO may not compatible with the original variable naming scheme!")
           sumstats.meta[iFile,c("effect_type_warning")]<-T
         }
       }
@@ -691,6 +716,7 @@ supermunge <- function(
       cat("\nSaving supermunged dataset...\n\n")
       if("CHR" %in% colnames(cSumstats)){
         dir.create(paste0(nfilepath,".chr"), showWarnings = FALSE)
+        #TODO Adapt to new numeric chromosome numbering
         validChromosomes<-c(1:22,"X","Y","XY","MT") #as per Plink standard
         for(chr in validChromosomes){
           output.chr<-output[which(output$CHR==chr),c("SNP","ORIGBP","A1","A2","Z")]

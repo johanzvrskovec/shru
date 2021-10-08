@@ -75,7 +75,7 @@ semplate$generateIndicatorLoadingPatterns<-function(searchBitValues=c(0), indica
 }
 
 
-semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, fix_loading.table.indicator_factor=NULL, fixResidualVariance_v=NULL,orthogonal=FALSE, indicatorArgs=NULL, universalResidualLimitMin=0.001, universalCorrelationLimitMax=NA ){
+semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, fix_loading.table.indicator_factor=NULL,fix_correlation.table.factor_factor=NULL, fixResidualVariance_v=NULL,orthogonal=FALSE, indicatorArgs=NULL, universalResidualLimitMin=0.001, universalCorrelationLimitMax=NA ){
   #allow_loading.table.indicator_factor<-cIndicatorLoadings
   
   
@@ -179,15 +179,22 @@ semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, 
     } else {
       iCorrelationPatternCoefficient<-iCorrelationPatternCoefficient+1
       correlationPatternCoefficientLabels[iCorrelationPatternCoefficient]<-paste0('c',iComb)
-      lds.factorOther=paste0(lds.factorOther,"
+      if(is.null(fix_correlation.table.factor_factor)==FALSE){
+        #use fixed correlation coefficients
+        lds.factorOther=paste0(lds.factorOther,"
+                           F",row$index.x,"~~",ifelse(is.na(fix_correlation.table.factor_factor[row$index.x,row$index.y]),"",paste0(fix_correlation.table.factor_factor[row$index.x,row$index.y],"*")),"F",row$index.y)
+      } else {
+        #do not use fixed correlation coefficients
+        lds.factorOther=paste0(lds.factorOther,"
                            F",row$index.x,"~~",ifelse(is.na(universalCorrelationLimitMax),"",paste0(correlationPatternCoefficientLabels[iCorrelationPatternCoefficient],"*")),"F",row$index.y)
+      }
     }
   }
   
   cond.correlationSizeLimit=""
   if(length(correlationPatternCoefficientLabels)>0 & !is.na(universalCorrelationLimitMax)){
     for(iCorrelationPatternCoefficient in 1:length(correlationPatternCoefficientLabels)){
-      cond.correlationSizeLimit=paste0(cond.correlationSizeLimit,correlationPatternCoefficientLabels[iCorrelationPatternCoefficient],"<",universalCorrelationLimitMax,"
+      cond.correlationSizeLimit=paste0(cond.correlationSizeLimit,"abs(",correlationPatternCoefficientLabels[iCorrelationPatternCoefficient],")", "<",universalCorrelationLimitMax,"
                                         ")
     }
     cond=paste0(cond,cond.correlationSizeLimit)
