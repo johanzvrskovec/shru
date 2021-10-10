@@ -89,10 +89,10 @@ parseSNPColumnAsRSNumber <- function(text){
     return(lapply(X = matches, FUN = function(x)paste0("rs",x[2])))
   }
   
-  text<-sub(pattern = "^XY",replacement = "25",x = text)
-  text<-sub(pattern = "^X",replacement = "23",x = text)
-  text<-sub(pattern = "^Y",replacement = "24",x = text)
-  text<-sub(pattern = "^MT",replacement = "26",x = text)
+  text<-sub(pattern = "^XY:",replacement = "25:",x = text)
+  text<-sub(pattern = "^X:",replacement = "23:",x = text)
+  text<-sub(pattern = "^Y:",replacement = "24:",x = text)
+  text<-sub(pattern = "^MT:",replacement = "26:",x = text)
   text<-sub(pattern = "^chr",replacement = "",x = text)
   text<-sub(pattern = "_",replacement = ":",x = text)
   
@@ -105,7 +105,6 @@ parseCHRColumn <- function(text){
   text<-sub(pattern = "^Y",replacement = "24",x = text)
   text<-sub(pattern = "^MT",replacement = "26",x = text)
   text<-sub(pattern = "^chr",replacement = "",x = text)
-  text<-sub(pattern = "_",replacement = ":",x = text)
   return(text)
 }
 
@@ -129,26 +128,42 @@ parseCHRColumn <- function(text){
 # #N - precomputed for each SNP in the earlier processing step
 # pathDirOutput = project$folderpath.data.sumstats.munged
 
+
+#test3
+# filePaths = project$sumstats.sel$cleanedpath[23]
+# refFilePath=project$filepath.SNPReference.1kg
+# traitNames=project$sumstats.sel$code[23]
+# setChangeEffectDirectionOnAlleleFlip=T #set to TRUE to emulate genomic sem munge
+# produceVariantTable=T
+# N=project$sumstats.sel$n_total[23]
+# prop=(project$sumstats.sel$n_case/project$sumstats.sel$n_total)[23]
+# OLS=project$sumstats.sel$dependent_variable.OLS[23]
+# linprob=project$sumstats.sel$dependent_variable.linprob[23]
+# se.logit=project$sumstats.sel$se.logit[23]
+
 supermunge <- function(
-                       list_df=NULL,
-                       filePaths=NULL,
-                       ref_df=NULL,
-                       refFilePath=NULL,
-                       traitNames=NULL,
-                       setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
-                       N=NULL,
-                       OLS=NULL,
-                       linprob=NULL,
-                       pathDirOutput=".",
-                       keepIndel=T,
-                       harmoniseAllelesToReference=F,
-                       doChrSplit=F,
-                       doStatistics=F,
-                       mask=NULL,
-                       stopOnMissingEssential=T,
-                       maxSNPDistanceBpPadding=0,
-                       invertEffectDirectionOn=NULL
-                       ){
+  list_df=NULL,
+  filePaths=NULL,
+  ref_df=NULL,
+  refFilePath=NULL,
+  traitNames=NULL,
+  setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
+  produceVariantTable=F,
+  N=NULL,
+  prop=NULL,
+  OLS=NULL,
+  linprob=NULL,
+  se.logit=NULL,
+  pathDirOutput=".",
+  keepIndel=T,
+  harmoniseAllelesToReference=F,
+  doChrSplit=F,
+  doStatistics=F,
+  mask=NULL,
+  stopOnMissingEssential=T,
+  maxSNPDistanceBpPadding=0,
+  invertEffectDirectionOn=NULL
+){
   
   timeStart <- Sys.time()
   
@@ -177,21 +192,13 @@ supermunge <- function(
   }
   
   
-  
+  #settings similar to GenomicSEM sumstats function
   if(is.null(OLS)){
     OLS<-rep(FALSE,ds.length)
   }
   
   if(is.null(linprob)){
     linprob<-rep(FALSE,ds.length)
-  }
-  
-  if(is.null(traitNames)){
-    names.beta <- paste0("beta.",1:ds.length)
-    names.se <- paste0("se.",1:ds.length)
-  }else{
-    names.beta <- paste0("beta.",traitNames)
-    names.se <- paste0("se.",traitNames)
   }
   
   cat("\n\n\nS U P E R ★ M U N G E\n")
@@ -217,30 +224,40 @@ supermunge <- function(
   } 
   
   if(!is.null(ref)){
-    #rename reference columns as to distinguish them from the dataset columns
-    names(ref)<-paste0(names(ref),"_REF")
     # Transform to data table
     ref <- setDT(ref)
     # Column harmonisation
-    ref.keys<-c('SNP_REF')
-    ref$SNP_REF <- as.character(ref$SNP_REF)
-    ref$A1_REF <- toupper(as.character(ref$A1_REF))
-    ref$A2_REF <- toupper(as.character(ref$A2_REF))
-    if('CHR_REF' %in% names(ref)) {
-      ref$CHR_REF <- toupper(as.character(ref$CHR_REF))
-      ref.keys<-c(ref.keys,'CHR_REF') 
+    ref.keys<-c('SNP')
+    ref$SNP <- tolower(as.character(ref$SNP))
+    ref$A1 <- toupper(as.character(ref$A1))
+    ref$A2 <- toupper(as.character(ref$A2))
+    if('CHR' %in% names(ref)) {
+      ref$CHR <- toupper(as.character(ref$CHR))
+      ref.keys<-c(ref.keys,'CHR') 
     }
-    if('BP_REF' %in% names(ref)) {
-      ref$BP_REF <- as.integer(ref$BP_REF)
-      ref.keys<-c(ref.keys,'BP_REF')
+    if('BP' %in% names(ref)) {
+      ref$BP <- as.integer(ref$BP)
+      ref.keys<-c(ref.keys,'BP')
     }
-    setkeyv(ref,cols = ref.keys)
+    
+    if(produceVariantTable){
+      #create variant table
+      variantTable<-ref
+      variantTable <- setDT(variantTable)
+      setkeyv(variantTable, cols = ref.keys)
+      #check keys with key(variantTable)
+    }
+    
+    #rename reference columns as to distinguish them from the dataset columns
+    names(ref)<-paste0(names(ref),"_REF")
+    setkeyv(ref, cols = paste0(ref.keys,"_REF"))
+    #check keys with key(ref)
+    
   } else {
     warning("\nRunning without reference.\n")
   }
   
   sumstats.meta<-data.table(name=traitNames,file_path=filePaths,n_snp_raw=NA_integer_,n_snp_res=NA_integer_)
-  
   sumstats<-c()
   for(iFile in 1:ds.length){
     #for testing!
@@ -275,9 +292,6 @@ supermunge <- function(
     }
     cat("...")
     
-    # select supporting info for the current dataset
-    cOLS<-OLS[iFile]
-    
     # Give sumstats new standardised column names
     
     cSumstats.names <- stdGwasColumnNames(columnNames = names(cSumstats), stopOnMissingEssential = stopOnMissingEssential)
@@ -301,7 +315,7 @@ supermunge <- function(
     cSumstats$SNP<-tolower(parseSNPColumnAsRSNumber(cSumstats$SNP))
     
     if('CHR' %in% names(cSumstats)) {
-      cSumstats$CHR <- toupper(parseCHRColumn(as.character(cSumstats$CHR)))
+      cSumstats$CHR <- toupper(as.character(cSumstats$CHR))
       cSumstats.keys<-c(cSumstats.keys,'CHR') 
     }
     if('BP' %in% names(cSumstats)) {
@@ -314,20 +328,18 @@ supermunge <- function(
     
     # QC, and data management before merge with reference
     
-    cSumstats.meta<-rbind(cSumstats.meta,list("SNPs before supermunge",as.character(nrow(cSumstats))))
-    
     #TODO Fix according to new column standard
     if(!("EFFECT" %in% colnames(cSumstats))){
       if("BETA" %in% colnames(cSumstats)) cSumstats$EFFECT<-cSumstats$BETA else
-      if("OR" %in% colnames(cSumstats)) cSumstats$EFFECT<-cSumstats$OR
+        if("OR" %in% colnames(cSumstats)) cSumstats$EFFECT<-cSumstats$OR
     }
     cat(".")
     
     ## Add effect for datasets containing only Z
-    if(!("EFFECT" %in% colnames(cSumstats)) && "Z" %in% colnames(cSumstats)){
-      cSumstats$EFFECT<-cSumstats$Z
-    }
-    cat(".")
+    # if(!("EFFECT" %in% colnames(cSumstats)) && "Z" %in% colnames(cSumstats)){
+    #   cSumstats$EFFECT<-cSumstats$Z
+    # }
+    # cat(".")
     
     ## Save original Z
     if("Z" %in% colnames(cSumstats)){
@@ -347,7 +359,7 @@ supermunge <- function(
     if("EFFECT" %in% colnames(cSumstats)) {
       cSumstats.n<-nrow(cSumstats)
       cSumstats<-cSumstats[which(!is.na(cSumstats$EFFECT)),]
-      cSumstats.meta<-rbind(list("Removed SNPs; missing EFFECT",as.character(cSumstats.n-nrow(cSumstats))))
+      cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; missing EFFECT",as.character(cSumstats.n-nrow(cSumstats))))
     }
     cat(".")
     
@@ -363,6 +375,17 @@ supermunge <- function(
     }
     cat("..")
     
+    #TODO add duplicate removal as in GSEM sumstats
+    
+    ## Remove duplicated variants across SNP, A1 and A2
+    if(any(colnames(cSumstats)=="SNP") & any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")) {
+      cSumstats.n <- nrow(cSumstats)
+      cSumstats <- unique(cSumstats,by = c("SNP","A1","A2"))
+      cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; duplicate SNP,A1,A2",as.character(cSumstats.n-nrow(cSumstats))))
+    }
+    cat(".")
+    
+    # Merge with reference
     if(!is.null(ref)){
       #Aligning and validating with reference file
       cSumstats.n<-nrow(cSumstats)
@@ -434,9 +457,18 @@ supermunge <- function(
     
     if(!is.null(ref)){
       ## Add in chr and bp from ref if not present in datasets
-      if(!any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="CHR_REF"))cSumstats$CHR<-cSumstats$CHR_REF
-      if(!any(colnames(cSumstats)=="BP") & any(colnames(cSumstats)=="BP_REF"))cSumstats$BP<-cSumstats$BP_REF
+      if(!any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="CHR_REF")) {
+          cSumstats$CHR<-cSumstats$CHR_REF
+          cSumstats.keys<-c(cSumstats.keys,'CHR')
+        }
+      if(!any(colnames(cSumstats)=="BP") & any(colnames(cSumstats)=="BP_REF")){
+          cSumstats$BP<-cSumstats$BP_REF
+          cSumstats.keys<-c(cSumstats.keys,'BP') 
+        }
     }
+    
+    #restore sumstats data table keys
+    setkeyv(cSumstats,cols = cSumstats.keys)
     
     if(!is.null(ref)){
       ## Remove SNPs where alleles are not matching at least one of the reference alleles
@@ -458,9 +490,7 @@ supermunge <- function(
     if(!is.null(ref)){
       #cond.invertedAlleleOrder<-(cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF) #the same condition as in GenomicSEM munge.
       #cond.invertedAlleleOrder<-(cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF)
-      cond.invertedAlleleOrder<-((cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF) | (cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF)) #experimental - seems not to work
-    } else if(any(colnames(cSumstats)=="FRQ")){
-      cond.invertedAlleleOrder<- cSumstats$FRQ > .55
+      cond.invertedAlleleOrder<-((cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF) | (cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF)) #experimental - seems to work similar to the GenomicSEM implementation
     }
     cat(".")
     
@@ -504,7 +534,7 @@ supermunge <- function(
           cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","inverted > plain+1sd"))
           sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-T
           if(is.null(changeEffectDirectionOnAlleleFlip)){
-              changeEffectDirectionOnAlleleFlip<-F #inactivate the correction of effect direction on allele flip because of less credible new effect mean.
+            changeEffectDirectionOnAlleleFlip<-F #inactivate the correction of effect direction on allele flip because of less credible new effect mean.
           } else if(changeEffectDirectionOnAlleleFlip){
             cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip specified, but the mean effect difference between plain and inverted variants is much larger than between plain and non-inverted, indicating that inverted effects may be invalid.")
           }
@@ -520,9 +550,16 @@ supermunge <- function(
     }
     cat(".")
     
-    ## Invert alleles
-    if(!is.null(cond.invertedAlleleOrder)) cSumstats$A1<-ifelse(cond.invertedAlleleOrder, cSumstats$A2_ORIG, cSumstats$A1)
-    if(!is.null(cond.invertedAlleleOrder)) cSumstats$A2<-ifelse(cond.invertedAlleleOrder, cSumstats$A1_ORIG, cSumstats$A2)
+    ## Harmonise alleles (including their FRQ) to reference
+    if(!is.null(ref) & harmoniseAllelesToReference){
+      # Fix A1 and A2 to reflect the reference alleles
+      cSumstats$A1<-cSumstats$A1_REF
+      cSumstats$A2<-cSumstats$A2_REF
+      cSumstats$FRQ<-cSumstats$MAF_REF
+    } else if(!is.null(cond.invertedAlleleOrder)) { ## or Invert alleles
+        cSumstats$A1<-ifelse(cond.invertedAlleleOrder, cSumstats$A2_ORIG, cSumstats$A1)
+        cSumstats$A2<-ifelse(cond.invertedAlleleOrder, cSumstats$A1_ORIG, cSumstats$A2)
+      }
     cat(".")
     
     ## EFFECT
@@ -560,13 +597,13 @@ supermunge <- function(
       ##invert effect if inverted allele order
       if(!is.null(cond.invertedAlleleOrder) & changeEffectDirectionOnAlleleFlip) {
         if(any(cond.invertedAlleleOrder)) cSumstats$EFFECT<-ifelse(cond.invertedAlleleOrder,(cSumstats$EFFECT*-1),cSumstats$EFFECT)
-          if(any(colnames(cSumstats)=="SE")){
-            meffects.new<-weighted.mean(cSumstats$EFFECT, w = 1/(minv + cSumstats$SE^2), na.rm = T)
-            cSumstats.meta<-rbind(cSumstats.meta,list("New effect mean",as.character(meffects.new)))
-          } else {
-            meffects.new<-mean(cSumstats$EFFECT,na.rm = T)
-            cSumstats.meta<-rbind(cSumstats.meta,list("New effect mean",as.character(meffects.new)))
-          }
+        if(any(colnames(cSumstats)=="SE")){
+          meffects.new<-weighted.mean(cSumstats$EFFECT, w = 1/(minv + cSumstats$SE^2), na.rm = T)
+          cSumstats.meta<-rbind(cSumstats.meta,list("New effect mean",as.character(meffects.new)))
+        } else {
+          meffects.new<-mean(cSumstats$EFFECT,na.rm = T)
+          cSumstats.meta<-rbind(cSumstats.meta,list("New effect mean",as.character(meffects.new)))
+        }
       }
       
     } else {
@@ -591,7 +628,19 @@ supermunge <- function(
       }
       
       ### Invert FRQ based on the previous reference matching
-      if(!is.null(cond.invertedAlleleOrder)) cSumstats$FRQ<-ifelse(cond.invertedAlleleOrder, (1-cSumstats$FRQ), cSumstats$FRQ)
+      if(!is.null(cond.invertedAlleleOrder)) {
+          alleleFRQ <- ifelse(cond.invertedAlleleOrder, (1-cSumstats$FRQ), cSumstats$FRQ)
+          if(mean(alleleFRQ)<mean(cSumstats$FRQ)){
+            cSumstats$FRQ<-alleleFRQ
+            cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Fitted (flipped) according to reference allele order"))
+            sumstats.meta[iFile,c("FRQ.flipped")]<-T
+          } else {
+            cond.invertedMAF<-cSumstats$FRQ > .5
+            cSumstats$FRQ<-ifelse(cond.invertedMAF,1-cSumstats$FRQ,cSumstats$FRQ)
+            cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Set to MAF"))
+            sumstats.meta[iFile,c("FRQ.flipped")]<-F
+          }
+        }
       
       ### Compute MAF
       cond.invertedMAF<-cSumstats$FRQ > .5
@@ -600,10 +649,16 @@ supermunge <- function(
     } else {
       ### Does not have FRQ
       #### Note that FRQ is not present
-      cSumstats.warnings<-c(cSumstats.warnings,"No FRQ column present.")
       sumstats.meta[iFile,c("no_FRQ")]<-T
-      #### Add empty FRQ here for consistency
-      cSumstats$FRQ<-NA_real_
+      cSumstats.warnings<-c(cSumstats.warnings,"No FRQ column present!")
+      if(!is.null(ref)){
+        #Set FRQ from ref if not present
+        cSumstats$FRQ<-cSumstats$MAF_REF
+        cSumstats.warnings<-c(cSumstats.warnings,"Inferring FRQ from reference!")
+      } else {
+        #### Add empty FRQ here for consistency
+        cSumstats$FRQ<-NA_real_
+      }
     }
     cat(".")
     
@@ -612,12 +667,6 @@ supermunge <- function(
         "Modified SNPs; inverted allele order [",ifelse(any(colnames(cSumstats)=="FRQ"),"FRQ",""),",",
         ifelse(changeEffectDirectionOnAlleleFlip,"EFFECT",""),"]"),
       as.character(sum(cond.invertedAlleleOrder))))
-    
-    if(!is.null(ref) & harmoniseAllelesToReference){
-      # Fix A1 and A2 to reflect the reference alleles
-      cSumstats$A1<-cSumstats$A1_REF
-      cSumstats$A2<-cSumstats$A2_REF
-    }
     
     
     
@@ -646,20 +695,57 @@ supermunge <- function(
       cat(".")
     }
     
-    # Compute Z score (standardised beta)
+    ## EFFECT TRANSFORMATIONS START, as adapted from the GenomicSEM sumstats-function
+    
+    ### Compute Z score (standardised beta)
     if("EFFECT" %in% colnames(cSumstats) && "P" %in% colnames(cSumstats)) {
       cSumstats$Z <- sign(cSumstats$EFFECT) * sqrt(qchisq(cSumstats$P,1,lower=F))
       cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from P and sign(EFFECT)"))
     } else {
       cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT calculated since no P or EFFECT"))
     }
-    cat("..")
-    
-    # Set SNP to lower case since this seems to be more common
-    cSumstats$SNP<-tolower(cSumstats$SNP)
     cat(".")
     
-    #TODO Adapt summary statistics to be used for latent factor GWAS - NOT DONE!!!!!!!!
+    ### Compute variance of individual variant effects according to 2pq
+    cSumstats$VSNP<-2*cSumstats$FRQ*(1-cSumstats$FRQ)
+    cat(".")
+    
+    if(OLS[iFile]){
+      #Has OLS unstandardised beta
+      if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")) {
+        cSumstats$EFFECT <- cSumstats$Z/sqrt(cSumstats$N * 2 * cSumstats$VSNP)
+        cSumstats$SE <- cSumstats$EFFECT/cSumstats$Z
+        cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z,N => BETA,SE"))
+      } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
+    } else if(linprob[iFile]){
+      #Has effect based on a linear estimator for a binary trait (rather than a logistic model)
+      if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")){
+        if(is.null(prop[iFile]) | is.na(prop[iFile])) stop("\nCould not perform correction of linear BETA,SE to liability scale because of missing or invalid prop argument!\n")
+        uncorrectedEffect <- cSumstats$Z/sqrt(prop[iFile]*(1-prop[iFile]) * cSumstats$N * cSumstats$VSNP)
+        uncorerctedSE <- 1/sqrt(prop[iFile]*(1-prop[iFile]) * cSumstats$N * cSumstats$VSNP)
+        correctionTerm <- sqrt(cSumstats$VSNP * (uncorrectedEffect^2) + (pi^2)/3)
+        cSumstats$EFFECT <- uncorrectedEffect/correctionTerm
+        cSumstats$SE <- uncorerctedSE/correctionTerm
+        cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z,N,propCaCo => BETA,SE"))
+      } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
+    } else {
+      #Has effect based on a logistic estimator for a binary trait, OR or logistic beta
+      correctionTerm <- sqrt(cSumstats$VSNP * (cSumstats$EFFECT^2) + (pi^2)/3)
+      if(se.logit[iFile]){
+        cSumstats$SE <- cSumstats$SE/correctionTerm
+      } else {
+        #transform to logit SE 
+        cSumstats$SE <- (cSumstats$SE/exp(cSumstats$EFFECT))/correctionTerm
+        cSumstats.meta <- rbind(cSumstats.meta,list("SE","Transformation to logit scale"))
+      }
+      
+      cSumstats$EFFECT <- cSumstats$EFFECT/correctionTerm
+      cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT","Only unit-variance-scaled-liability correction."))
+    }
+    cat(".")
+    
+    ### Check effect value credibility as done in GenomicSEM sumstats function
+    if(mean(abs(cSumstats$EFFECT/cSumstats$SE)) > 5) warning("\nEFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
     
     
     # output handling below
@@ -687,13 +773,26 @@ supermunge <- function(
     cSumstats<-subset(cSumstats,select = output.colnames.all)
     cSumstats.meta<-rbind(cSumstats.meta,list("SNPs after supermunge",as.character(nrow(cSumstats))))
     
+    
+    #merge with variantTable
+    if(produceVariantTable){
+      cName.beta <- paste0("BETA.",traitNames[iFile])
+      cName.se <- paste0("SE.",traitNames[iFile])
+      toJoin <- cSumstats[,c("SNP","EFFECT","SE")]
+      #colnames(toJoin) <- c("SNP",cName.beta,cName.se)
+      #update variantTable by reference
+      #ref https://stackoverflow.com/questions/44433451/r-data-table-update-join
+      #ref about data.table improvements https://stackoverflow.com/questions/42537520/data-table-replace-data-using-values-from-another-data-table-conditionally/42539526#42539526
+      variantTable[toJoin, on=c(SNP='SNP'), c(cName.beta,cName.se):=.(i.EFFECT,i.SE)]
+    }
+    
     cat("\nProcessing done!\n\n")
     
     cat("\nDataset columns interpreted as:\n",cSumstats.names.string)
     cat("\nData processing results:\n")
     #print(readr::format_delim(as.data.frame(cSumstats.meta),delim = "\t",col_names = F,quote_escape = F, eol = "\n"))
     apply(cSumstats.meta, MARGIN = 1, FUN = function(x){
-     cat(as.character(x[1]),"\t\t\t",as.character(x[2]),"\n")
+      cat(as.character(x[1]),"\t\t\t",as.character(x[2]),"\n")
     })
     
     if(length(cSumstats.warnings)>0){
@@ -747,6 +846,10 @@ supermunge <- function(
   
   cat("\nSupermunge of all datasets was done in",timeDiff.minutes, "minutes and",timeDiff.seconds,"seconds.")
   
-  return(sumstats.meta)
+  return(list(
+    sumstats.meta=sumstats.meta,
+    variantTable=variantTable
+  )
+    )
   
 }
