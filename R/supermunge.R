@@ -109,15 +109,20 @@ parseCHRColumn <- function(text){
 }
 
 #test
-# filePaths = project$munge$filesToUse
-# refFilePath = project$filepath.SNPReference.1kg
-# traitNames = project$munge$traitNamesToUse
-# N = project$munge$NToUse
-# OLS=NULL
-# linprob=NULL
-# maxSNPDistanceBpPadding=0
-# pathDirOutput = project$folderpath.data.sumstats.munged
-# mask<-c(F,T,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F)
+# filePaths = project$munge$filesToUse,
+# refFilePath = project$filepath.SNPReference.1kg,
+# #refFilePath = project$filepath.SNPReference.hm3,
+# #mask = mask,
+# traitNames = project$munge$traitNamesToUse,
+# setChangeEffectDirectionOnAlleleFlip = T, #T=same behaviour as genomic SEM
+# produceVariantTable = T,
+# N = project$munge$NToUse,
+# OLS=project$munge$OLSToUse,
+# linprob=project$munge$linprobToUse,
+# se.logit = project$munge$se.logitToUse,
+# prop=project$munge$propToUse,
+# pathDirOutput = project$folderpath.data.sumstats.munged,
+# invertEffectDirectionOn = c("ANXI04") #ANXI4 has an inverted effect direction for some reason
 
 
 #test2
@@ -201,6 +206,10 @@ supermunge <- function(
     linprob<-rep(FALSE,ds.length)
   }
   
+  if(is.null(se.logit)){
+    se.logit<-rep(FALSE,ds.length)
+  }
+  
   cat("\n\n\nS U P E R ★ M U N G E\n")
   
   cat("\n--------------------------------\nSettings:")
@@ -258,10 +267,10 @@ supermunge <- function(
   }
   
   sumstats.meta<-data.table(name=traitNames,file_path=filePaths,n_snp_raw=NA_integer_,n_snp_res=NA_integer_)
-  sumstats<-c()
+
   for(iFile in 1:ds.length){
     #for testing!
-    #iFile=1
+    #iFile=2
     
     #set changeEffectDirectionOnAlleleFlip -this has to be reset for each file/dataset
     changeEffectDirectionOnAlleleFlip<-NULL
@@ -293,7 +302,6 @@ supermunge <- function(
     cat("...")
     
     # Give sumstats new standardised column names
-    
     cSumstats.names <- stdGwasColumnNames(columnNames = names(cSumstats), stopOnMissingEssential = stopOnMissingEssential)
     cSumstats.names.string <-""
     #apply(cSumstats.names, MARGIN = 1, FUN = function(c){cat(c[2],"\t-> ",c[1],"\n")})
@@ -315,7 +323,7 @@ supermunge <- function(
     cSumstats$SNP<-tolower(parseSNPColumnAsRSNumber(cSumstats$SNP))
     
     if('CHR' %in% names(cSumstats)) {
-      cSumstats$CHR <- toupper(as.character(cSumstats$CHR))
+      cSumstats$CHR <- toupper(parseCHRColumn(as.character(cSumstats$CHR)))
       cSumstats.keys<-c(cSumstats.keys,'CHR') 
     }
     if('BP' %in% names(cSumstats)) {
@@ -745,8 +753,10 @@ supermunge <- function(
     cat(".")
     
     ### Check effect value credibility as done in GenomicSEM sumstats function
-    if(mean(abs(cSumstats$EFFECT/cSumstats$SE)) > 5) warning("\nEFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
+    if(mean(abs(cSumstats$EFFECT/cSumstats$SE), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nEFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
     
+    if(any(is.na(cSumstats))) cSumstats.warnings<-c(cSumstats.warnings,"\nNull values detected among results!\n")
+    cat(".")
     
     # output handling below
     
@@ -827,8 +837,6 @@ supermunge <- function(
       cat(paste("\nOne file per chromosome have been saved under", paste0(nfilepath,".chr"), "in the specified output directory."))
       
     }
-    
-    sumstats[[iFile]]<-cSumstats
     
     timeStop.ds <- Sys.time()
     timeDiff <- difftime(time1=timeStop.ds,time2=timeStart.ds,units="sec")
