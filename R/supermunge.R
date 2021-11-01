@@ -169,7 +169,9 @@ supermunge <- function(
   maxSNPDistanceBpPadding=0,
   invertEffectDirectionOn=NULL,
   process=T,
-  writeOutput=T
+  writeOutput=T,
+  info.filter=NULL,
+  frq.filter=NULL
 ){
   
   timeStart <- Sys.time()
@@ -371,6 +373,30 @@ supermunge <- function(
     if(!("EFFECT" %in% colnames(cSumstats))){
       if("BETA" %in% colnames(cSumstats)) cSumstats$EFFECT<-cSumstats$BETA else
         if("OR" %in% colnames(cSumstats)) cSumstats$EFFECT<-cSumstats$OR
+    }
+    cat(".")
+    
+    #Filter variants FRQ<frq.filter
+    if(!is.null(frq.filter)){
+      if("FRQ" %in% names(cSumstats)){
+        rm <- (!is.na(cSumstats$FRQ) & (cSumstats$FRQ<frq.filter))
+        cSumstats <- cSumstats[!rm, ]
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; FRQ <",frq.filter),as.character(cSumstats.n-nrow(cSumstats))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ column to apply the specified filter on.")
+      }
+    }
+    cat(".")
+    
+    #Filter variants INFO<info.filter
+    if(!is.null(info.filter)){
+      if("INFO" %in% names(cSumstats)){
+        rm <- (!is.na(cSumstats$INFO) & cSumstats$INFO<info.filter)
+        cSumstats <- cSumstats[!rm, ]
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; INFO <",info.filter),as.character(cSumstats.n-nrow(cSumstats))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain an INFO column to apply the specified filter on.")
+      }
     }
     cat(".")
     
