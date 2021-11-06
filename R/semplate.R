@@ -3,7 +3,7 @@ semplate$powers.of.two32bit <- 2^(0:(32 - 1))
 semplate$bit.one<-intToBits(1)[1]
 semplate$bit.zero<-intToBits(0)[1]
 
-semplate$generateIndicatorLoadingPatternsFromFactorLoadings<-function(factorLoadings, increment, forceOneIndicatorLoading=T){
+semplate$generateIndicatorLoadingPatternsFromFactorLoadings<-function(factorLoadings, increment=0.0005, forceOneIndicatorLoading=T,valueCutoffStart=0.05){
   nrow<-nrow(factorLoadings)
   ncol<-ncol(factorLoadings)
   
@@ -14,7 +14,7 @@ semplate$generateIndicatorLoadingPatternsFromFactorLoadings<-function(factorLoad
     forced<-as.vector(apply(factorLoadings,MARGIN = 1,FUN = which.max))
   }
   
-  cValue<-0
+  cValue<-valueCutoffStart
   while(cValue < max(factorLoadings)){
     toadd<-(factorLoadings>cValue)
     #if(!all(toadd) | !any(toadd)){

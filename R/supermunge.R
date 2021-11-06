@@ -109,19 +109,19 @@ parseCHRColumn <- function(text){
 }
 
 #test
-# filePaths = project$munge$filesToUse,
-# refFilePath = project$filepath.SNPReference.1kg,
-# #refFilePath = project$filepath.SNPReference.hm3,
+# filePaths = p$munge$filesToUse,
+# refFilePath = p$filepath.SNPReference.1kg,
+# #refFilePath = p$filepath.SNPReference.hm3,
 # #mask = mask,
-# traitNames = project$munge$traitNamesToUse,
+# traitNames = p$munge$traitNamesToUse,
 # setChangeEffectDirectionOnAlleleFlip = T, #T=same behaviour as genomic SEM
-# produceVariantTable = F,
-# N = project$munge$NToUse,
-# OLS=project$munge$OLSToUse,
-# linprob=project$munge$linprobToUse,
-# se.logit = project$munge$se.logitToUse,
-# prop=project$munge$propToUse,
-# pathDirOutput = project$folderpath.data.sumstats.munged,
+# produceCompositeTable = F,
+# N = p$munge$NToUse,
+# OLS=p$munge$OLSToUse,
+# linprob=p$munge$linprobToUse,
+# se.logit = p$munge$se.logitToUse,
+# prop=p$munge$propToUse,
+# pathDirOutput = p$folderpath.data.sumstats.munged,
 # invertEffectDirectionOn = c("ANXI04") #ANXI4 has an inverted effect direction for some reason
 
 
@@ -139,7 +139,7 @@ parseCHRColumn <- function(text){
 # refFilePath=project$filepath.SNPReference.1kg
 # traitNames=project$sumstats.sel$code[23]
 # setChangeEffectDirectionOnAlleleFlip=T #set to TRUE to emulate genomic sem munge
-# produceVariantTable=T
+# produceCompositeTable=T
 # N=project$sumstats.sel$n_total[23]
 # prop=(project$sumstats.sel$n_case/project$sumstats.sel$n_total)[23]
 # OLS=project$sumstats.sel$dependent_variable.OLS[23]
@@ -153,7 +153,7 @@ supermunge <- function(
   refFilePath=NULL,
   traitNames=NULL,
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
-  produceVariantTable=F,
+  produceCompositeTable=F,
   N=NULL,
   prop=NULL,
   OLS=NULL,
@@ -171,7 +171,8 @@ supermunge <- function(
   process=T,
   writeOutput=T,
   info.filter=NULL,
-  frq.filter=NULL
+  frq.filter=NULL,
+  mhc.filter=NULL #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
 ){
   
   timeStart <- Sys.time()
@@ -253,13 +254,13 @@ supermunge <- function(
       ref.keys<-c(ref.keys,'BP')
     }
     
-    if(produceVariantTable){
-      #create variant table
+    if(produceCompositeTable){
+      #create composite variant table
       variantTable<-ref
       variantTable <- setDT(variantTable)
       setkeyv(variantTable, cols = ref.keys)
       #check keys with key(variantTable)
-    }
+    } else variantTable<-c()
     
     #rename reference columns as to distinguish them from the dataset columns
     names(ref)<-paste0(names(ref),"_REF")
@@ -375,6 +376,27 @@ supermunge <- function(
         if("OR" %in% colnames(cSumstats)) cSumstats$EFFECT<-cSumstats$OR
     }
     cat(".")
+    
+    #Remove MHC region based on position
+    #references
+    #https://www.ncbi.nlm.nih.gov/grc/human/regions/MHC?asm=GRCh37
+    #https://www.ncbi.nlm.nih.gov/grc/human/regions/MHC
+    if(!is.null(mhc.filter)){
+      if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
+        if(mhc.filter==37) {
+          rm <- (!is.na(cSumstats$CHR) & !is.na(cSumstats$BP) & cSumstats$CHR=="6" & cSumstats$BP>=28477797 & cSumstats$BP<=33448354)
+          cSumstats <- cSumstats[!rm, ]
+        } else if (mhc.filter==38) {
+          rm <- (!is.na(cSumstats$CHR) & !is.na(cSumstats$BP) & cSumstats$CHR=="6" & cSumstats$BP>=28510120 & cSumstats$BP<=33480577)
+          cSumstats <- cSumstats[!rm, ]
+          cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed MHC variants; GRCh",mhc.filter),as.character(sum(rm))))
+        } else {
+          cSumstats.warnings<-c(cSumstats.warnings,"Invalid assembly version provided - no filtering of the MHC was done!")
+        }
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"No chromosome or base-pair position information available - no filtering of the MHC was done!")
+      }
+    }
     
     #Filter variants FRQ<frq.filter
     if(!is.null(frq.filter)){
@@ -775,55 +797,68 @@ supermunge <- function(
         as.character(sum(cond.invertedAlleleOrder))))
       
       
-      
-      ## Compute Z score (standardised beta)
-      if("EFFECT" %in% colnames(cSumstats) && "P" %in% colnames(cSumstats)) {
-        cSumstats$Z <- sign(cSumstats$EFFECT) * sqrt(qchisq(cSumstats$P,1,lower=F))
-        cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from P and sign(EFFECT)"))
-      } else {
-        cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT calculated since no P or EFFECT"))
-      }
-      cat(".")
-      
-      ## EFFECT TRANSFORMATIONS START, as adapted from the GenomicSEM sumstats-function
-      
-      if(OLS[iFile]){
-        #Has OLS unstandardised beta
-        if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")) {
-          cSumstats$EFFECT <- cSumstats$Z/sqrt(cSumstats$N * 2 * cSumstats$VSNP)
-          cSumstats$SE <- cSumstats$EFFECT/cSumstats$Z
-          cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z,N => BETA,SE"))
-        } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
-      } else if(linprob[iFile]){
-        #Has effect based on a linear estimator for a binary trait (rather than a logistic model)
-        if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")){
-          if(is.null(prop[iFile]) | is.na(prop[iFile])) stop("\nCould not perform correction of linear BETA,SE to liability scale because of missing or invalid prop argument!\n")
-          uncorrectedEffect <- cSumstats$Z/sqrt(prop[iFile]*(1-prop[iFile]) * cSumstats$N * cSumstats$VSNP)
-          uncorerctedSE <- 1/sqrt(prop[iFile]*(1-prop[iFile]) * cSumstats$N * cSumstats$VSNP)
-          correctionTerm <- sqrt(cSumstats$VSNP * (uncorrectedEffect^2) + (pi^2)/3)
-          cSumstats$EFFECT <- uncorrectedEffect/correctionTerm
-          cSumstats$SE <- uncorerctedSE/correctionTerm
-          cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z,N,propCaCo => BETA,SE"))
-        } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
-      } else {
-        #Has effect based on a logistic estimator for a binary trait, OR or logistic beta
-        correctionTerm <- sqrt(cSumstats$VSNP * (cSumstats$EFFECT^2) + (pi^2)/3)
-        if(se.logit[iFile]){
-          cSumstats$SE <- cSumstats$SE/correctionTerm
+      ## EFFECT AND SE TRANSFORMATIONS START, as adapted from the GenomicSEM sumstats-function
+      if(any(colnames(cSumstats)=="EFFECT")){
+        ## Compute Z score (standardised beta) - used for effect corrections further and is finally also corrected accordingly
+        if(any(colnames(cSumstats)=="Z")) cSumstats$Z_ORIG<-cSumstats$Z #save original Z-score
+        if("P" %in% colnames(cSumstats)) {
+          cSumstats$Z <- sign(cSumstats$EFFECT) * sqrt(qchisq(cSumstats$P,1,lower=F))
+          cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from P and sign(EFFECT)"))
+        } else if(any(colnames(cSumstats)=="SE")){
+          cSumstats$Z <- cSumstats$EFFECT/cSumstats$SE
+          cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from EFFECT and SE"))
         } else {
-          #transform to logit SE 
-          cSumstats$SE <- (cSumstats$SE/exp(cSumstats$EFFECT))/correctionTerm
-          cSumstats.meta <- rbind(cSumstats.meta,list("SE","Transformation to logit scale"))
+          cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT calculated since no P or SE"))
         }
+        cat(".")
         
-        cSumstats$EFFECT <- cSumstats$EFFECT/correctionTerm
-        cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT","Only unit-variance-scaled-liability correction."))
+        if(OLS[iFile]){
+          #Has OLS unstandardised beta
+          if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")) {
+            cSumstats$EFFECT <- cSumstats$Z/sqrt(cSumstats$N * 2 * cSumstats$VSNP) #TODO - this is slightly redundant
+            cSumstats$SE <- cSumstats$EFFECT/cSumstats$Z
+            cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z,N => BETA,SE"))
+          } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
+        } else if(linprob[iFile]){
+          #Has effect based on a linear estimator for a binary trait (rather than a logistic model)
+          if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")){
+            if(is.null(prop[iFile]) | is.na(prop[iFile])) stop("\nCould not perform correction of linear BETA,SE to liability scale because of missing or invalid prop argument!\n")
+            uncorrectedEffect <- cSumstats$Z/sqrt(prop[iFile]*(1-prop[iFile]) * cSumstats$N * cSumstats$VSNP)
+            uncorerctedSE <- 1/sqrt(prop[iFile]*(1-prop[iFile]) * cSumstats$N * cSumstats$VSNP)
+            correctionTerm <- sqrt(cSumstats$VSNP * (uncorrectedEffect^2) + (pi^2)/3)
+            cSumstats$EFFECT <- uncorrectedEffect/correctionTerm
+            cSumstats$SE <- uncorerctedSE/correctionTerm
+            cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z,N,propCaCo, UVL correction => BETA,SE"))
+          } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
+        } else {
+          #Has effect based on a logistic estimator for a binary trait, OR or logistic beta
+          correctionTerm <- sqrt(cSumstats$VSNP * (cSumstats$EFFECT^2) + (pi^2)/3)
+          if(se.logit[iFile]){
+            cSumstats$SE <- cSumstats$SE/correctionTerm
+            cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","UVL correction => BETA,SE"))
+          } else {
+            #transform to logit SE 
+            cSumstats$SE <- (cSumstats$SE/exp(cSumstats$EFFECT))/correctionTerm
+            cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","SE to log scale, UVL correction => BETA,SE"))
+          }
+          cSumstats$EFFECT <- cSumstats$EFFECT/correctionTerm
+        }
+        cat(".")
+        
+        ## Compute Z score (standardised beta) again to update it acoording to any corrections just done
+        ## Compute new P
+        if("SE" %in% colnames(cSumstats)) {
+          cSumstats$Z <- cSumstats$EFFECT/cSumstats$SE
+          cSumstats$P<-2*pnorm(q = abs(cSumstats$Z),mean = 0, sd = 1, lower.tail = F)
+        }
+        cat(".")
+        
+        ### Check effect value credibility, only for common + uncommon (non-rare) SNPs though
+        if(mean(abs(cSumstats[MAF>0.001,EFFECT/SE]), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nEFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
+        
+        
+        
       }
-      cat(".")
-      
-      ### Check effect value credibility as done in GenomicSEM sumstats function
-      if(mean(abs(cSumstats$EFFECT/cSumstats$SE), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nEFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
-      
       if(any(is.na(cSumstats))) cSumstats.warnings<-c(cSumstats.warnings,"\nNull values detected among results!\n")
       cat(".")
     } #end of process stuff
@@ -835,8 +870,6 @@ supermunge <- function(
     
     #output.colnames<- c("SNP","N","Z","A1","A2")
     output.colnames<- c("SNP")
-    if("N" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N")
-    if("Z" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"Z")
     output.colnames<- c(output.colnames,c("A1","A2"))
     #output.colnames<- c(output.colnames,c("A1","A2","A1_ORIG","A2_ORIG"))
     if("CHR" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"CHR")
@@ -846,6 +879,9 @@ supermunge <- function(
     output.colnames<- c(output.colnames,c("P"))
     if("EFFECT" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"EFFECT")
     if("SE" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"SE")
+    if("Z" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"Z")
+    if("P" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"P")
+    if("N" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N")
     if("N_CAS" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CAS")
     if("N_CON" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CON")
     
@@ -856,7 +892,7 @@ supermunge <- function(
     
     
     #merge with variantTable
-    if(produceVariantTable){
+    if(produceCompositeTable){
       cName.beta <- paste0("BETA.",traitNames[iFile])
       cName.se <- paste0("SE.",traitNames[iFile])
       toJoin <- cSumstats[,c("SNP","EFFECT","SE")]
@@ -886,7 +922,7 @@ supermunge <- function(
     nfilepath<-file.path(pathDirOutput,traitNames[iFile])
     if(!doChrSplit & writeOutput){
       cat("\nSaving supermunged dataset...\n\n")
-      write.table(x = cSumstats,file = nfilepath,sep="\t", quote = FALSE, row.names = F)
+      write.table(x = cSumstats,file = nfilepath,sep="\t", quote = FALSE, row.names = F, append = F)
       nfilepath.gzip<-gzip(nfilepath)
       cat(paste("\nSupermunged dataset saved as", nfilepath.gzip, "in the specified output directory."))
     }
@@ -901,7 +937,7 @@ supermunge <- function(
         for(chr in validChromosomes){
           output.chr<-output[which(output$CHR==chr),c("SNP","ORIGBP","A1","A2","Z")]
           colnames(output.chr)<-c("rsID","pos","A0","A1","Z")
-          write.table(x = output.chr,file = file.path(paste0(nfilepath,".chr"), paste0("z_",traitNames[iFile],"_",chr,".txt")),sep="\t", quote = FALSE, row.names = F)
+          write.table(x = output.chr,file = file.path(paste0(nfilepath,".chr"), paste0("z_",traitNames[iFile],"_",chr,".txt")),sep="\t", quote = FALSE, row.names = F, append = F)
         }
       } else stop("\nSplit by chromosome specified, but the dataset does not have a CHR column.")
       
@@ -926,8 +962,9 @@ supermunge <- function(
   cat("\nSupermunge of all datasets was done in",timeDiff.minutes, "minutes and",timeDiff.seconds,"seconds.")
   
   return(list(
-    sumstats.meta=sumstats.meta,
-    variantTable=variantTable
+    meta=sumstats.meta,
+    last=cSumstats,
+    composite=variantTable
   )
     )
   
