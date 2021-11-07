@@ -169,6 +169,7 @@ supermunge <- function(
   maxSNPDistanceBpPadding=0,
   invertEffectDirectionOn=NULL,
   process=T,
+  standardiseEffectsToExposure=F,
   writeOutput=T,
   info.filter=NULL,
   frq.filter=NULL,
@@ -413,14 +414,14 @@ supermunge <- function(
     }
     cat(".")
     
-    #Filter variants FRQ<frq.filter
+    #Filter variants MAF<frq.filter
     if(!is.null(frq.filter)){
       if("FRQ" %in% names(cSumstats)){
-        rm <- (!is.na(cSumstats$FRQ) & (cSumstats$FRQ<frq.filter))
+        rm <- (!is.na(cSumstats$FRQ) & ((cSumstats$FRQ<frq.filter & cSumstats$FRQ<0.5) | (1-cSumstats$FRQ)<frq.filter))
         cSumstats <- cSumstats[!rm, ]
-        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; FRQ <",frq.filter),as.character(sum(rm))))
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; MAF <",frq.filter),as.character(sum(rm))))
       } else {
-        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ column to apply the specified filter on.")
+        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
       }
     }
     cat(".")
@@ -742,41 +743,57 @@ supermunge <- function(
         }
         
         ##standardise outcome standardised BETA to exposure as well (fully standardised)
-        ##correct binary trait regressions with a 'unit-variance-scaling'
+        ##correct binary trait regressions with a 'unit-variance-liability scaling'
         if(OLS[iFile]){
           #Has OLS unstandardised beta
           cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","OLS"))
-          if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")) {
-            cSumstats$EFFECT <- cSumstats$Z/sqrt(cSumstats$N * cSumstats$VSNP) #standardisation
-            cSumstats$SE <- abs(cSumstats$EFFECT/cSumstats$Z) #standardisation as this is derived form the standardised EFFECT
-            cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z,N => BETA,SE"))
-          } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
+          if(standardiseEffectsToExposure){
+            if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")) {
+              cSumstats$EFFECT <- cSumstats$Z/sqrt(cSumstats$N * cSumstats$VSNP) #standardisation
+              cSumstats$SE <- abs(cSumstats$EFFECT/cSumstats$Z) #standardisation as this is derived form the standardised EFFECT
+              cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z, N, UVL std => BETA,SE"))
+            } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
+          } else cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Provided BETA,SE"))
+        
         } else if(linprob[iFile]){
           #Has effect based on a linear estimator for a binary outcome (rather than a logistic model)
           cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Binary, linear"))
-          if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")){
-            if(is.null(prop[iFile]) | is.na(prop[iFile])) stop("\nCould not perform correction of linear BETA,SE to liability scale because of missing or invalid prop argument!\n")
-            stdEffect <- cSumstats$Z/sqrt(prop[iFile]*(1-prop[iFile]) * cSumstats$N * cSumstats$VSNP) #standardisation
-            stdSE <- 1/sqrt(prop[iFile]*(1-prop[iFile]) * cSumstats$N * cSumstats$VSNP) #standardisation
-            correctionTerm <- sqrt(cSumstats$VSNP * (stdEffect^2) + (pi^2)/3) 
-            cSumstats$EFFECT <- stdEffect/correctionTerm #UV correction
-            cSumstats$SE <- stdSE/correctionTerm #UV correction
-            cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z,N,propCaCo, UV correction => BETA,SE"))
-          } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
+          correctionTerm <- sqrt((cSumstats$EFFECT^2) + (pi^2)/3)
+          cSumstats$EFFECT <- cSumstats$EFFECT/correctionTerm #residual variance correction
+          cSumstats$SE <- cSumstats$SE/correctionTerm #residual variance correction
+          cSumstats$Z <- cSumstats$EFFECT/cSumstats$SE
+          if(standardiseEffectsToExposure){
+            if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")){
+              if(is.null(prop[iFile]) | is.na(prop[iFile])) stop("\nCould not perform correction of linear BETA,SE to liability scale because of missing or invalid prop argument!\n")
+              cSumstats$EFFECT <- cSumstats$Z/sqrt(prop[iFile]*(1-prop[iFile]) * cSumstats$N * cSumstats$VSNP) #standardisation
+              cSumstats$SE <- 1/sqrt(prop[iFile]*(1-prop[iFile]) * cSumstats$N * cSumstats$VSNP) #standardisation
+              cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z, N,propCaCo, UVL std => BETA,SE"))
+            } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
+          } else cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Provided BETA,SE"))
         } else {
           #Has effect based on a logistic estimator for a binary outcome, OR or logistic beta
-          #TODO Should these effects be standardised also?
           cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Binary, logistic"))
-          correctionTerm <- sqrt(cSumstats$VSNP * (cSumstats$EFFECT^2) + (pi^2)/3)
+          correctionTerm <- sqrt((cSumstats$EFFECT^2) + (pi^2)/3)
+          cSumstats$EFFECT <- cSumstats$EFFECT/correctionTerm #residual variance correction
+          #cSumstats$SE <- cSumstats$SE/correctionTerm #residual variance correction
           if(se.logit[iFile]){
-            cSumstats$SE <- cSumstats$SE/correctionTerm #UV correction
-            cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","UV correction => BETA,SE"))
+            cSumstats$SE <- cSumstats$SE/correctionTerm #residual variance correction
+            cSumstats.meta <- rbind(cSumstats.meta,list("SE","logit"))
           } else {
             #transform to logit SE 
             cSumstats$SE <- (cSumstats$SE/exp(cSumstats$EFFECT))/correctionTerm #UV correction
-            cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","exp(SE), UV correction => BETA,SE"))
+            cSumstats.meta <- rbind(cSumstats.meta,list("SE","SE(OR) => logit"))
           }
-          cSumstats$EFFECT <- cSumstats$EFFECT/correctionTerm
+          cSumstats$Z <- cSumstats$EFFECT/cSumstats$SE
+          if(standardiseEffectsToExposure){
+            if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")) {
+              cSumstats$EFFECT <- cSumstats$Z/sqrt(cSumstats$N * cSumstats$VSNP) #standardisation
+              cSumstats$SE <- abs(cSumstats$EFFECT/cSumstats$Z) #standardisation as this is derived form the standardised EFFECT
+              cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z, N, UVL std=> BETA,SE"))
+            } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
+          } else cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Provided BETA,SE"))
+          
+          
         }
         cat(".")
           
