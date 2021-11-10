@@ -593,17 +593,33 @@ supermunge <- function(
       if(any(colnames(cSumstats)=="N_CAS") && any(colnames(cSumstats)=="N_CON")) {
         ### Calculate total N from number of cases and number of controls if they are present. Overwrite any specific total N.
         cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("N_CAS + N_CON")))
-        cSumstats$N <- cSumstats$N_CAS + cSumstats$N_CON
-      } else if(!forceN & !is.null(N) & length(N)>=iFile & any(colnames(cSumstats)=="N")){
-        num<-sum(is.na(cSumstats$N))
-        if(num>0){
-        cSumstats[which(is.na(cSumstats$N)),]$N<-N[iFile]
-        cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile],"for",num," vars missing N")))
+        cSumstats[,N:=N_CAS + N_CON]
+      }
+      cat(".")
+      
+      # if(any(colnames(cSumstats)=="N")){
+      #   cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats$N, na.rm = T),", ",min(cSumstats$N, na.rm = T),", ", max(cSumstats$N, na.rm = T))))
+      # }
+      
+      if(!is.null(N) & length(N)>=iFile) {
+        if(forceN) { 
+          if(
+            abs((median(cSumstats$N, na.rm = T)-N[iFile])/median(cSumstats$N, na.rm = T))>0.05
+            |
+            (N[iFile]-min(cSumstats$N, na.rm = T))/N[iFile]>0.05
+            |
+            (N[iFile]-max(cSumstats$N, na.rm = T))/N[iFile]>0.05
+          ) cSumstats.warnings<-c(cSumstats.warnings,"Large (>5%) N discrepancies found between provided and existing N!")
+          cSumstats$N<-N[iFile]
+          cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile])))
+        } else {
+          cond<-is.na(cSumstats$N) | N[iFile] < cSumstats$N
+          if(sum(cond)>0) {
+            cSumstats$N<-ifelse(cond,N[iFile],cSumstats$N)
+            cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile],"for",sum(cond)," NA or > specified.")))
+          }
         }
-      } else if(!is.null(N) & length(N)>=iFile) {
-        #cat("\nUsing the explicitly specified N for the whole dataset:",N[iFile])
-        cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile])))
-        cSumstats$N<-N[iFile]
+        cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats$N, na.rm = T),", ",min(cSumstats$N, na.rm = T),", ", max(cSumstats$N, na.rm = T))))
       } else if(!("N" %in% colnames(cSumstats))) {
         cSumstats.warnings<-c(cSumstats.warnings,"\nNo N column detected!")
         cSumstats.meta<-rbind(cSumstats.meta,list("N","Warning: Not detected!"))
@@ -636,6 +652,7 @@ supermunge <- function(
       #cond.invertedFRQ<-NULL
       if(any(colnames(cSumstats)=="FRQ")) {
         ### Has FRQ
+        #cSumstats.meta<-rbind(cSumstats.meta,list("FRQ (median, min(abs), max(abs))",paste(median(cSumstats$FRQ, na.rm = T),", ",min(abs(cSumstats$FRQ), na.rm = T),", ", max(abs(cSumstats$FRQ), na.rm = T))))
         #### Check if value is within limits [0,1]
         if(any(cSumstats$FRQ>1) || any(cSumstats$FRQ<0)) {
           stop(paste0('\nThere are FRQ values larger than 1 (',sum(cSumstats$FRQ>1),') or less than 0 (',sum(cSumstats$FRQ<0),') which is outside of the possible FRQ range.'))
@@ -853,6 +870,7 @@ supermunge <- function(
       }
       cat(".")
       
+      cat("\nProcessing done!\n\n")
     } #end of process stuff
     
     if(standardiseEffectsToExposure & any(colnames(cSumstats)=="EFFECT")) {
@@ -954,9 +972,12 @@ supermunge <- function(
     cSumstats<-subset(cSumstats,select = output.colnames) #only output standardised columns
     cSumstats.meta<-rbind(cSumstats.meta,list("SNPs after supermunge",as.character(nrow(cSumstats))))
     
+    cat("\nResult head\n")
+    head(cSumstats)
     
     #merge with variantTable
     if(produceCompositeTable){
+      cat("\nProducing composite variant table.\n")
       cName.beta <- paste0("BETA.",traitNames[iFile])
       cName.se <- paste0("SE.",traitNames[iFile])
       toJoin <- cSumstats[,c("SNP","EFFECT","SE")]
@@ -967,7 +988,7 @@ supermunge <- function(
       variantTable[toJoin, on=c(SNP='SNP'), c(cName.beta,cName.se):=.(i.EFFECT,i.SE)]
     }
     
-    cat("\nProcessing done!\n\n")
+    
     
     cat("\nDataset columns interpreted as:\n",cSumstats.names.string)
     cat("\nData processing results:\n")
