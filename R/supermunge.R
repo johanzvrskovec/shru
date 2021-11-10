@@ -155,7 +155,7 @@ supermunge <- function(
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F,
   N=NULL,
-  forceN=T,
+  forceN=F,
   prop=NULL,
   OLS=NULL,
   linprob=NULL,
