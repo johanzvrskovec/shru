@@ -205,8 +205,9 @@ supermunge <- function(
   
   
   #settings similar to GenomicSEM sumstats function
+  ## Considers everything as OLS datasets if nothing specified however
   if(is.null(OLS)){
-    OLS<-rep(FALSE,ds.length)
+    OLS<-rep(TRUE,ds.length)
   }
   
   if(is.null(linprob)){
@@ -494,7 +495,7 @@ supermunge <- function(
         #cSumstats <- merge(ref,cSumstats,by="SNP",all.x=F,all.y=F) #old
         cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; rsID not in ref",as.character(cSumstats.n-nrow(cSumstats.merged.snp))))
         #cat("\nRemoved SNPs with rsIDs not present in the reference:\t\t",cSumstats.n-nrow(cSumstats.merged.snp))
-        cat("..")
+        cat(".")
         
         if('CHR' %in% names(cSumstats.merged.snp) && 'CHR_REF' %in% names(cSumstats.merged.snp))
         {
@@ -529,7 +530,7 @@ supermunge <- function(
           cSumstats.merged.pos$CHR<-cSumstats.merged.pos$CHR_REF
           cSumstats.merged.pos$BP<-cSumstats.merged.pos$BP_REF
         }
-        cat("..")
+        cat(".")
         
         #using cSumstats to store the plain or merged result
         if(is.null(cSumstats.merged.pos)){
@@ -944,7 +945,7 @@ supermunge <- function(
     }
     
     #NA values check
-    if(any(is.na(cSumstats))) cSumstats.warnings<-c(cSumstats.warnings,"\nNull values detected among results!\n")
+    if(any(is.na(cSumstats))) cSumstats.warnings<-c(cSumstats.warnings,"\nNA values detected among results!\n")
     
     # output handling below
     
