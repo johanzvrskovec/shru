@@ -264,7 +264,8 @@ supermunge <- function(
     cat("\nUsing reference from provided dataframe.\n")
   } else if(!is.null(refFilePath)){
     cat(paste0("\nReading reference file...\n"))
-    ref <- read.table(refFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
+    ref<-fread(file = refFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = 5, showProgress = F)
+    #ref <- read.table(refFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
     cat(paste0("\nRead reference file:\n",refFilePath))
   } 
   
@@ -326,7 +327,8 @@ supermunge <- function(
     } else {
       cFilePath<-filePaths[iFile]
       cat(paste("\n\nSupermunging\t",traitNames[iFile],"\nFile:", cFilePath,"\n"))
-      cSumstats <- read.table(cFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
+      cSumstats<-fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = 5, showProgress = F)
+      #cSumstats <- read.table(cFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
     }
     cat("\nReading.")
     
@@ -390,10 +392,8 @@ supermunge <- function(
     cSumstats <- setDT(cSumstats)
     # Column harmonisation
     cSumstats.keys<-c('SNP')
-    cSumstats$SNP <- as.character(cSumstats$SNP)
-    cSumstats$A1 <- toupper(as.character(cSumstats$A1))
-    cSumstats$A2 <- toupper(as.character(cSumstats$A2))
-    if('Z' %in% names(cSumstats)) cSumstats$Z<-as.numeric(cSumstats$Z)
+    cSumstats[,SNP:=as.character(SNP)][,A1:=as.character(A1)][,A2:=as.character(A2)]
+    if('Z' %in% names(cSumstats)) cSumstats[,Z:=as.numeric(Z)]
     if('FRQ' %in% names(cSumstats)) cSumstats$FRQ<-as.numeric(cSumstats$FRQ)
     if('MAF' %in% names(cSumstats)) cSumstats$MAF<-as.numeric(cSumstats$MAF)
     if('INFO' %in% names(cSumstats)) cSumstats$INFO<-as.numeric(cSumstats$INFO)
@@ -919,6 +919,7 @@ supermunge <- function(
         cSumstats[,Z:=Z+sign(Z)*sqrt(1-sqrt(genomicInflationFactor))]
         cSumstats[,EFFECT:=SE*Z] #attribute all of the re-inflation to the EFFECT
         #cSumstats[,SE:=EFFECT/Z] #attribute all of the re-inflation to the SE
+        cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
       }
       
       cat("Processing done!")
