@@ -817,6 +817,12 @@ supermunge <- function(
       }
       cat(".")
       
+      
+      #add missing SE
+      if(!any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="EFFECT")){
+        cSumstats$SE <- cSumstats$EFFECT/cSumstats$Z
+      }
+      
       #compute minimum variance for later calculations
       if(any(colnames(cSumstats)=="SE")){
         minv<-min(cSumstats$SE, na.rm = T)^2
@@ -899,11 +905,21 @@ supermunge <- function(
       
       
       ## Compute Z score (standardised beta) and P or update it according to any corrections just done
-      if(any(colnames(cSumstats)=="SE")) {
-        cSumstats$Z <- cSumstats$EFFECT/cSumstats$SE
-        cSumstats$P <- 2*pnorm(q = abs(cSumstats$Z),mean = 0, sd = 1, lower.tail = F)
-      }
+      if(any(colnames(cSumstats)=="SE")) cSumstats$Z <- cSumstats$EFFECT/cSumstats$SE
+      if(any(colnames(cSumstats)=="Z")) cSumstats$P <- 2*pnorm(q = abs(cSumstats$Z),mean = 0, sd = 1, lower.tail = F)
       cat(".")
+      
+      #calculate genomic inflation factor
+      genomicInflationFactor<-median(cSumstats$Z^2)/qchisq(0.5,1)
+      sumstats.meta[iFile,c("genomicInflationFactor")]<-genomicInflationFactor
+      cSumstats.meta<-rbind(cSumstats.meta,list("Genomic inflation factor",as.character(round(genomicInflationFactor,digits = 3))))
+      
+      #add in shifted Z for deflated factors (typically for latent factor GWAS), using careful interpretation of the inflation (sqrt)
+      if(genomicInflationFactor<1){
+        cSumstats[,Z:=Z+sign(Z)*sqrt(1-sqrt(genomicInflationFactor))]
+        cSumstats[,EFFECT:=SE*Z] #attribute all of the re-inflation to the EFFECT
+        #cSumstats[,SE:=EFFECT/Z] #attribute all of the re-inflation to the SE
+      }
       
       cat("Processing done!")
     } #end of process stuff
