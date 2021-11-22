@@ -5,3 +5,5 @@ clipValues <- function(x,min,max) {
   if(!is.null(max)) x[which(x>max)]<-max
   return(x)
 }
+
+

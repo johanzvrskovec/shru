@@ -13,7 +13,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
                                c.SE = c("SE","STDER","STDERR","STD","STANDARD_ERROR","OR_SE","STANDARDERROR", "STDERR_NW","META.SE","SE_DGC","SE.2GC"),
                                c.Z = c("Z","ZSCORE","Z-SCORE","ZSTAT","ZSTATISTIC","GC_ZSCORE","BETAZSCALE"),
                                c.INFO = c("INFO","IMPINFO","IMPQUALITY", "INFO.PLINK", "INFO_UKBB","INFO_UKB"),
-                               c.P = c("P","PVALUE","PVAL","P_VALUE","GC_PVALUE","WALD_P","P.VAL","GWAS_P","P-VALUE","P-VAL","FREQUENTIST_ADD_PVALUE","P.VALUE","P_VAL","SCAN-P","P.LMM","META.PVAL","P_RAN","P.ADD","P_BOLT_LMM"),
+                               c.P = c("P","PVALUE","PVAL","P_VALUE","GC_PVALUE","WALD_P","P.VAL","GWAS_P","P-VALUE","P-VAL","FREQUENTIST_ADD_PVALUE","P.VALUE","P_VAL","SCAN-P","P.LMM","META.PVAL","P_RAN","P.ADD","P_BOLT_LMM","PVAL_ESTIMATE"),
                                c.N = c("N","WEIGHT","NCOMPLETESAMPLES","TOTALSAMPLESIZE","TOTALN","TOTAL_N","N_COMPLETE_SAMPLES","N_TOTAL","N_SAMPLES","N_ANALYZED","NSAMPLES","SAMPLESIZE","SAMPLE_SIZE","TOTAL_SAMPLE_SIZE","TOTALSAMPLESIZE"),
                                c.N_CAS = c("N_CAS","NCASE","N_CASE","N_CASES","NCAS","NCA","NCASES","CASES","CASES_N","FRQ_A"),
                                c.N_CON = c("N_CON","NCONTROL","N_CONTROL","N_CONTROLS","NCON","NCO","N_CON","NCONTROLS","CONTROLS","CONTROLS_N","FRQ_U"),
@@ -21,7 +21,8 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
                                #include FRQ_A?
                                c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF","FREQ1.HAPMAP","FREQALLELE1HAPMAPCEU", "FREQ.ALLELE1.HAPMAPCEU","EFFECT_ALLELE_FREQ","FREQ.A1","F_A","F_U","FREQ_A","FREQ_U","MA_FREQ","MAF_NW","FREQ_A1","A1FREQ","CODED_ALLELE_FREQUENCY","FREQ_TESTED_ALLELE_IN_HRS","EAF_HRC","EAF_UKB"),
                                c.CHR = c("CHR","CH","CHROMOSOME","CHROM","CHR_BUILD38","CHR_BUILD37","CHR_BUILD36","CHR_B38","CHR_B37","CHR_B36","CHR_ID","SCAFFOLD","HG19CHR","CHR.HG19","CHR_HG19","HG18CHR","CHR.HG18","CHR_HG18","CHR_BP_HG19B37","HG19CHRC"),
-                               c.BP = c("BP","ORIGBP","POS","POSITION","LOCATION","PHYSPOS","GENPOS","CHR_POSITION","POS_B38","POS_BUILD38","POS_B37","POS_BUILD37","BP_HG19B37","POS_B36","POS_BUILD36","POS.HG19","POS.HG18","POS_HG19","POS_HG18","BP_HG19","BP_HG18","BP.GRCH38","BP.GRCH37","POSITION(HG19)","POSITION(HG18)","POS(B38)","POS(B37)")
+                               c.BP = c("BP","ORIGBP","POS","POSITION","LOCATION","PHYSPOS","GENPOS","CHR_POSITION","POS_B38","POS_BUILD38","POS_B37","POS_BUILD37","BP_HG19B37","POS_B36","POS_BUILD36","POS.HG19","POS.HG18","POS_HG19","POS_HG18","BP_HG19","BP_HG18","BP.GRCH38","BP.GRCH37","POSITION(HG19)","POSITION(HG18)","POS(B38)","POS(B37)"),
+                               c.DF = c("DF","CHISQ_DF")
 ){
   #test
   #columnNames<-cSumstats.names
@@ -48,6 +49,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
   columnNames[columnNames.upper %in% c.FRQ] <- c.FRQ[1]
   columnNames[columnNames.upper %in% c.CHR] <- c.CHR[1]
   columnNames[columnNames.upper %in% c.BP] <- c.BP[1]
+  columnNames[columnNames.upper %in% c.DF] <- c.DF[1]
   
   if(stopOnMissingEssential){
     # Stop if any of these columns are not found
@@ -146,6 +148,31 @@ parseCHRColumn <- function(text){
 # linprob=project$sumstats.sel$dependent_variable.linprob[23]
 # se.logit=project$sumstats.sel$se.logit[23]
 
+#pathDirOutput="."
+# setChangeEffectDirectionOnAlleleFlip=T
+# produceCompositeTable=F
+# N=NULL
+# forceN=F
+# prop=NULL
+# OLS=NULL
+# linprob=NULL
+# se.logit=NULL
+# 
+# keepIndel=T
+# harmoniseAllelesToReference=F
+# doChrSplit=F
+# doStatistics=F
+# mask=NULL
+# stopOnMissingEssential=T
+# maxSNPDistanceBpPadding=0
+# invertEffectDirectionOn=NULL
+# process=T
+# standardiseEffectsToExposure=F
+# writeOutput=T
+# info.filter=NULL
+# frq.filter=NULL
+# mhc.filter=NULL
+
 supermunge <- function(
   list_df=NULL,
   filePaths=NULL,
@@ -219,8 +246,9 @@ supermunge <- function(
   }
   
   cat("\n\n\nS U P E R ★ M U N G E\n")
-  
+  cat("\n",ds.length,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
+  
   cat("\nkeepIndel=",keepIndel)
   cat("\nharmoniseAllelesToReference=",harmoniseAllelesToReference)
   cat("\nmaxSNPDistanceBpPadding=",maxSNPDistanceBpPadding)
@@ -233,7 +261,7 @@ supermunge <- function(
   ref<-NULL
   if(!is.null(ref_df)){
     ref<-ref_df
-    cat(paste0("\nUsing reference from provided dataframe.\n"))
+    cat("\nUsing reference from provided dataframe.\n")
   } else if(!is.null(refFilePath)){
     cat(paste0("\nReading reference file...\n"))
     ref <- read.table(refFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
@@ -276,7 +304,8 @@ supermunge <- function(
     warning("\nRunning without reference.\n")
   }
   
-  sumstats.meta<-data.table(name=traitNames,file_path=filePaths,n_snp_raw=NA_integer_,n_snp_res=NA_integer_)
+  
+  sumstats.meta<-data.table(name=traitNames,file_path=ifelse(is.null(filePaths),NA_character_,filePaths),n_snp_raw=NA_integer_,n_snp_res=NA_integer_)
 
   for(iFile in 1:ds.length){
     #for testing!
@@ -441,7 +470,7 @@ supermunge <- function(
     cat(".")
     
     if(process){
-      cat("\nProcessing.")
+      cat("Processing.")
       # QC, and data management before merge with reference
       
       ## Remove SNPs with missing P
@@ -621,10 +650,15 @@ supermunge <- function(
           }
         }
         cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats$N, na.rm = T),", ",min(cSumstats$N, na.rm = T),", ", max(cSumstats$N, na.rm = T))))
-      } else if(!("N" %in% colnames(cSumstats))) {
-        cSumstats.warnings<-c(cSumstats.warnings,"\nNo N column detected!")
-        cSumstats.meta<-rbind(cSumstats.meta,list("N","Warning: Not detected!"))
-        cSumstats$N<-NA_integer_
+      } else if(!(any(colnames(cSumstats)=="N"))) {
+        if(any(colnames(cSumstats)=="NEF")){
+          cSumstats$N<-cSumstats$NEF
+          cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEF"))
+        } else {
+          cSumstats.warnings<-c(cSumstats.warnings,"\nNo N column detected!")
+          cSumstats.meta<-rbind(cSumstats.meta,list("N","Warning: Not detected!"))
+          #cSumstats$N<-NA_integer_
+        }
       }
       cat(".")
       
@@ -871,7 +905,7 @@ supermunge <- function(
       }
       cat(".")
       
-      cat("\nProcessing done!\n\n")
+      cat("Processing done!")
     } #end of process stuff
     
     if(standardiseEffectsToExposure & any(colnames(cSumstats)=="EFFECT")) {
@@ -934,8 +968,23 @@ supermunge <- function(
       
     }
     
+    #Calculate Effective Sample Size as advised from from the Genomic SEM Wiki
+    ##citation: https://www.biorxiv.org/content/10.1101/603134v3
+    if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="FRQ") & !any(colnames(cSumstats)=="N")){
+      cSumstats[,NEF:=((Z/EFFECT)^2)/VSNP]
+      cSumstats.meta <- rbind(
+        cSumstats.meta,
+        list(
+          "NEF",paste0("mean total=",
+                       round(mean(cSumstats[FRQ<0.4&FRQ>0.1,NEF], na.rm=T), digits = 0)
+                       )
+          )
+        )
+    }
+    cat(".")
+    
     ## Check effect value credibility
-    if(any(colnames(cSumstats)=="SE")) {
+    if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE")) {
       if(any(colnames(cSumstats)=="MAF")) {
         # only for common + uncommon (non-rare) SNPs if MAF available
         if(mean(abs(cSumstats[MAF>0.001,EFFECT/SE]), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nCommon variant EFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
@@ -943,6 +992,7 @@ supermunge <- function(
         if(mean(abs(cSumstats[,EFFECT/SE]), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nOverall EFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
       }
     }
+    cat(".")
     
     #NA values check
     if(any(is.na(cSumstats))) cSumstats.warnings<-c(cSumstats.warnings,"\nNA values detected among results!\n")
@@ -967,14 +1017,13 @@ supermunge <- function(
     if("N" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N")
     if("N_CAS" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CAS")
     if("N_CON" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CON")
+    if("NEF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"NEF")
+    if("DF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"DF")
     
     output.colnames.more<-colnames(cSumstats)[!(colnames(cSumstats) %in% output.colnames)]
     output.colnames.all<-c(output.colnames,output.colnames.more)
     cSumstats<-subset(cSumstats,select = output.colnames) #only output standardised columns
     cSumstats.meta<-rbind(cSumstats.meta,list("SNPs after supermunge",as.character(nrow(cSumstats))))
-    
-    cat("\nResult head\n")
-    head(cSumstats)
     
     #merge with variantTable
     if(produceCompositeTable){

@@ -719,5 +719,10 @@ semplate$parseAndPrintGenomicSEMResult <- function(resultDf = NULL){
   return(dot)
 }
 
-
+semplate$reliability.H <- function(factorLoadingsVector, singleVariableValues=F){
+  if(singleVariableValues) return(sqrt(1/(1+var(factorLoadingsVector,na.rm = T))))
+  factorLoadings2<-factorLoadingsVector^2
+  factorLoading2Sum<-sum(factorLoadings2/(1-factorLoadings2))
+  1/(1+1/factorLoading2Sum)
+}
 
