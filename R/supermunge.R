@@ -201,7 +201,8 @@ supermunge <- function(
   writeOutput=T,
   info.filter=NULL,
   frq.filter=NULL,
-  mhc.filter=NULL #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
+  mhc.filter=NULL, #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
+  GC="reinflate"
 ){
   
   timeStart <- Sys.time()
@@ -909,21 +910,10 @@ supermunge <- function(
       if(any(colnames(cSumstats)=="Z")) cSumstats$P <- 2*pnorm(q = abs(cSumstats$Z),mean = 0, sd = 1, lower.tail = F)
       cat(".")
       
-      #calculate genomic inflation factor
-      genomicInflationFactor<-median(cSumstats$Z^2)/qchisq(0.5,1)
-      sumstats.meta[iFile,c("genomicInflationFactor")]<-genomicInflationFactor
-      cSumstats.meta<-rbind(cSumstats.meta,list("Genomic inflation factor",as.character(round(genomicInflationFactor,digits = 3))))
-      
-      #add in shifted Z for deflated factors (typically for latent factor GWAS), using careful interpretation of the inflation (sqrt)
-      if(genomicInflationFactor<1){
-        cSumstats[,Z:=Z+sign(Z)*sqrt(1-sqrt(genomicInflationFactor))]
-        cSumstats[,EFFECT:=SE*Z] #attribute all of the re-inflation to the EFFECT
-        #cSumstats[,SE:=EFFECT/Z] #attribute all of the re-inflation to the SE
-        cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
-      }
-      
+     
       cat("Processing done!")
     } #end of process stuff
+    
     
     if(standardiseEffectsToExposure & any(colnames(cSumstats)=="EFFECT")) {
       ##standardise outcome standardised BETA to exposure as well (fully standardised)
@@ -983,6 +973,30 @@ supermunge <- function(
       }
       cat(".")
       
+    }
+    
+    
+    #calculate genomic inflation factor
+    medianChisq<-median(cSumstats$Z^2)
+    genomicInflationFactor<-medianChisq/qchisq(0.5,1)
+    sumstats.meta[iFile,c("genomicInflationFactor")]<-genomicInflationFactor
+    cSumstats.meta<-rbind(cSumstats.meta,list("Genomic inflation factor",as.character(round(genomicInflationFactor,digits = 4))))
+    
+    #basic re-inflation of deflated factor GWAS (typical for latent factor GWAS), using careful interpretation of the inflation (sqrt)
+    if(GC=="reinflate" & genomicInflationFactor<1){
+      meanChisq<-mean(cSumstats$Z^2) #using mean instead of median because it seems to be more stable than the median of deflated associations
+      genomicInflationFactor<-meanChisq/qchisq(0.5,1)
+      if(genomicInflationFactor<1){
+        cSumstats[,Z:=Z/sqrt(genomicInflationFactor)]
+        cSumstats[,EFFECT:=SE*Z] #attribute all of the re-inflation to the EFFECT
+        #cSumstats[,SE:=EFFECT/Z] #attribute all of the re-inflation to the SE
+        cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
+        sumstats.meta[iFile,c("GC_reinflate")]<-T
+        cSumstats.meta<-rbind(cSumstats.meta,list("GC","re-inflated"))
+        medianChisq<-median(cSumstats$Z^2)
+        genomicInflationFactor<-medianChisq/qchisq(0.5,1)
+        cSumstats.meta<-rbind(cSumstats.meta,list("Genomic inflation factor 2",as.character(round(genomicInflationFactor,digits = 4))))
+      }
     }
     
     #Calculate Effective Sample Size as advised from from the Genomic SEM Wiki
