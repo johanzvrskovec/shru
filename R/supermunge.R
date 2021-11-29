@@ -395,13 +395,15 @@ supermunge <- function(
     cSumstats.keys<-c('SNP')
     cSumstats[,SNP:=as.character(SNP)][,A1:=as.character(A1)][,A2:=as.character(A2)]
     if('Z' %in% names(cSumstats)) cSumstats[,Z:=as.numeric(Z)]
-    if('FRQ' %in% names(cSumstats)) cSumstats$FRQ<-as.numeric(cSumstats$FRQ)
-    if('MAF' %in% names(cSumstats)) cSumstats$MAF<-as.numeric(cSumstats$MAF)
-    if('INFO' %in% names(cSumstats)) cSumstats$INFO<-as.numeric(cSumstats$INFO)
-    if('EFFECT' %in% names(cSumstats)) cSumstats$EFFECT<-as.numeric(cSumstats$EFFECT)
-    if('SE' %in% names(cSumstats)) cSumstats$SE<-as.numeric(cSumstats$SE)
-    if('BETA' %in% names(cSumstats)) cSumstats$BETA<-as.numeric(cSumstats$BETA)
-    if('OR' %in% names(cSumstats)) cSumstats$OR<-as.numeric(cSumstats$OR)
+    if('FRQ' %in% names(cSumstats)) cSumstats[,FRQ:=as.numeric(FRQ)]
+    if('MAF' %in% names(cSumstats)) cSumstats[,MAF:=as.numeric(MAF)]
+    if('INFO' %in% names(cSumstats)) cSumstats[,INFO:=as.numeric(INFO)]
+    if('EFFECT' %in% names(cSumstats)) cSumstats[,EFFECT:=as.numeric(EFFECT)]
+    if('SE' %in% names(cSumstats)) cSumstats[,SE:=as.numeric(SE)]
+    if('BETA' %in% names(cSumstats)) cSumstats[,BETA:=as.numeric(BETA)]
+    if('OR' %in% names(cSumstats)) cSumstats[,OR:=as.numeric(OR)]
+    if('N' %in% names(cSumstats)) cSumstats[,N:=as.numeric(N)]
+    if('NEF' %in% names(cSumstats)) cSumstats[,NEF:=as.numeric(NEF)]
     cat(".")
     
     #parse SNP if needed
@@ -1002,14 +1004,10 @@ supermunge <- function(
     #Calculate Effective Sample Size as advised from from the Genomic SEM Wiki
     ##citation: https://www.biorxiv.org/content/10.1101/603134v3
     if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="FRQ") & !any(colnames(cSumstats)=="N")){
-      cSumstats[,NEF:=((Z/EFFECT)^2)/VSNP]
+      cSumstats[,NEF:=round(((Z/EFFECT)^2)/VSNP,digits = 0)]
       cSumstats.meta <- rbind(
         cSumstats.meta,
-        list(
-          "NEF",paste0("mean total=",
-                       round(mean(cSumstats[FRQ<0.4&FRQ>0.1,NEF], na.rm=T), digits = 0)
-                       )
-          )
+        list("NEF (mean total)",paste0(round(mean(cSumstats[FRQ<0.4&FRQ>0.1,NEF], na.rm=T), digits = 0)))
         )
     }
     cat(".")
