@@ -202,7 +202,7 @@ supermunge <- function(
   info.filter=NULL,
   frq.filter=NULL,
   mhc.filter=NULL, #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
-  GC="reinflate"
+  GC="none" #"reinflate"
 ){
   
   timeStart <- Sys.time()
@@ -635,6 +635,7 @@ supermunge <- function(
       # }
       
       if(!is.null(N) & length(N)>=iFile) {
+        hasN<-T
         if(forceN) { 
           if(
             abs((median(cSumstats$N, na.rm = T)-N[iFile])/median(cSumstats$N, na.rm = T))>0.05
@@ -654,6 +655,7 @@ supermunge <- function(
         }
         cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats$N, na.rm = T),", ",min(cSumstats$N, na.rm = T),", ", max(cSumstats$N, na.rm = T))))
       } else if(!(any(colnames(cSumstats)=="N"))) {
+        hasN<-F
         if(any(colnames(cSumstats)=="NEF")){
           cSumstats$N<-cSumstats$NEF
           cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEF"))
@@ -1003,12 +1005,15 @@ supermunge <- function(
     
     #Calculate Effective Sample Size as advised from from the Genomic SEM Wiki
     ##citation: https://www.biorxiv.org/content/10.1101/603134v3
-    if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="FRQ") & !any(colnames(cSumstats)=="N")){
+    if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="FRQ")){
+      hasNEF <- any(colnames(cSumstats)=="NEF")
       cSumstats[,NEF:=round(((Z/EFFECT)^2)/VSNP,digits = 0)]
       cSumstats.meta <- rbind(
         cSumstats.meta,
-        list("NEF (mean total)",paste0(round(mean(cSumstats[FRQ<0.4&FRQ>0.1,NEF], na.rm=T), digits = 0)))
+        list("NEF (mean total)",paste0(round(mean(cSumstats[MAF<0.4&MAF>0.1,NEF], na.rm=T), digits = 0)))
         )
+      
+      if(hasNEF & !hasN) cSumstats[,N:=NEF]
     }
     cat(".")
     
@@ -1016,7 +1021,7 @@ supermunge <- function(
     if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE")) {
       if(any(colnames(cSumstats)=="MAF")) {
         # only for common + uncommon (non-rare) SNPs if MAF available
-        if(mean(abs(cSumstats[MAF>0.001,EFFECT/SE]), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nCommon variant EFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
+        if(mean(abs(cSumstats[MAF>0.001,EFFECT/SE]), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nNon-rare variant EFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
       } else {
         if(mean(abs(cSumstats[,EFFECT/SE]), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nOverall EFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
       }
