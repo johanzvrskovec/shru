@@ -111,20 +111,22 @@ parseCHRColumn <- function(text){
 }
 
 #test
-# filePaths = p$munge$filesToUse,
-# refFilePath = p$filepath.SNPReference.1kg,
+# filePaths = p$munge$filesToUse
+# refFilePath = p$filepath.SNPReference.1kg
 # #refFilePath = p$filepath.SNPReference.hm3,
 # #mask = mask,
-# traitNames = p$munge$traitNamesToUse,
-# setChangeEffectDirectionOnAlleleFlip = T, #T=same behaviour as genomic SEM
-# produceCompositeTable = F,
-# N = p$munge$NToUse,
-# OLS=p$munge$OLSToUse,
-# linprob=p$munge$linprobToUse,
-# se.logit = p$munge$se.logitToUse,
-# prop=p$munge$propToUse,
-# pathDirOutput = p$folderpath.data.sumstats.munged,
-# invertEffectDirectionOn = c("ANXI04") #ANXI4 has an inverted effect direction for some reason
+# ldDirPath=p$folderpath.data.mvLDSC.ld.1kg
+# traitNames = p$munge$traitNamesToUse
+# setChangeEffectDirectionOnAlleleFlip = T #T=same behaviour as genomic SEM
+# imputeFromLD=T
+# #produceVariantTable = T,
+# N = p$munge$NToUse
+# OLS = p$munge$OLSToUse
+# linprob=p$munge$linprobToUse
+# se.logit = p$munge$se.logitToUse
+# prop=p$munge$propToUse
+# pathDirOutput = p$folderpath.data.sumstats.munged
+# invertEffectDirectionOn = c("ANXI04")
 
 
 #test2
@@ -178,9 +180,11 @@ supermunge <- function(
   filePaths=NULL,
   ref_df=NULL,
   refFilePath=NULL,
+  ldDirPath=NULL,
   traitNames=NULL,
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F,
+  imputeFromLD=F,
   N=NULL,
   forceN=F,
   prop=NULL,
@@ -264,11 +268,13 @@ supermunge <- function(
     ref<-ref_df
     cat("\nUsing reference from provided dataframe.\n")
   } else if(!is.null(refFilePath)){
-    cat(paste0("\nReading reference file...\n"))
+    cat(paste0("\nReading reference file..."))
     ref<-fread(file = refFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = 5, showProgress = F)
     #ref <- read.table(refFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
     cat(paste0("\nRead reference file:\n",refFilePath))
-  } 
+  }
+  
+  if(!is.null(ldDirPath) & is.null(ref)) stop("You must have a specified reference to append LD scores to!")
   
   variantTable<-NA
   if(!is.null(ref)){
@@ -297,10 +303,30 @@ supermunge <- function(
       #check keys with key(variantTable)
     } else variantTable<-c()
     
+    
+    #read and merge with ld scores from directory
+    if(!is.null(ldDirPath)){
+      cat("\nReading LD-scores from specified directory...")
+      ldscores<-c()
+      for(iChr in 1:22){
+        #iChr<-1
+        ldscores[[iChr]]<-suppressMessages(read_delim(
+          file.path(ldDirPath, paste0(iChr, ".l2.ldscore.gz")),
+          delim = "\t", escape_double = FALSE, trim_ws = TRUE, progress = FALSE))
+        ldscM<-suppressMessages(read_csv(file.path(ldDirPath, paste0(iChr, ".l2.M_5_50")), col_names = FALSE))
+        ldscores[[iChr]]$M<-ldscM[[1]]
+      }
+      ldscores<-rbindlist(ldscores)
+      setkeyv(ldscores, cols = "SNP")
+      ref[ldscores, on='SNP', c('L2','M') := list(i.L2,i.M)]
+      cat("Done!\n")
+    }
+    
     #rename reference columns as to distinguish them from the dataset columns
     names(ref)<-paste0(names(ref),"_REF")
     setkeyv(ref, cols = paste0(ref.keys,"_REF"))
     #check keys with key(ref)
+    
     
   } else {
     warning("\nRunning without reference.\n")
@@ -980,6 +1006,83 @@ supermunge <- function(
     }
     
     
+    #impute effects and standard errors
+    if(!is.null(imputeFromLD)){
+      #impute betas using LD
+      if(!(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE"))) stop("LD imputation is not possible without effect and standard error columns.")
+      
+      frameLen<-8000
+      frameLenHalf<-frameLen/2
+      cSumstats.merged.snp<-ref
+      
+      setkeyv(cSumstats,cols = cSumstats.keys)
+      setkeyv(cSumstats.merged.snp, cols = paste0(ref.keys,"_REF"))
+      if(any(colnames(cSumstats)=="N")) cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE','N') :=list(i.EFFECT,i.SE,i.N)] else cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE') :=list(i.EFFECT,i.SE)]
+      cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[is.na(BETA),]
+      #cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.na(BETA),] #for validation
+      setkeyv(cSumstats.merged.snp.toimpute,cols = "CHR_REF")
+      chrsToImpute<-unique(cSumstats.merged.snp.toimpute$CHR_REF)
+      cat("I")
+      if(length(chrsToImpute)>0){
+        for(cCHR in chrsToImpute){
+          #cCHR<-23
+          cSS<-cSumstats.merged.snp[CHR_REF==eval(cCHR) & !is.na(BETA),.(SNP=SNP_REF,BP=BP_REF,BETA,SE,L2=L2_REF,VAR=SE^2)] #Z=EFFECT/SE
+          setkeyv(cSS, cols = c("SNP","BP")) #chromosome is fixed per chromosome loop
+          cI<-cSumstats.merged.snp.toimpute[CHR_REF==eval(cCHR) & !is.na(L2_REF),.(SNP=SNP_REF,BP=BP_REF,A1_REF,A2_REF,MAF_REF,L2=L2_REF,BETA,SE,VAR=SE^2)]
+          #cI<-cI[1:100,] #FOR TEST ONLY
+          setkeyv(cI, cols = c("SNP","BP"))
+          if(nrow(cI)<1 || nrow(cSS)<1) next;
+          #1 cM equates to ~1M bp
+          for(i in 1L:nrow(cI)){
+            #i<-1L
+            cBP<-cI[i,BP]
+            frame<-cSS[BP!=cBP & BP< cBP+frameLenHalf & BP > cBP-frameLenHalf, .(BETA,SE,VAR,L2,W=L2/VAR)][,.(BETA,SE,VAR,L2,W,WBETA=W*BETA,WSE=W*SE)]
+            
+            k<-nrow(frame[!is.na(BETA),])
+            W.sum<-sum(frame$W,na.rm = T)
+            frame[,IMP.TERM:=WBETA/W.sum][,IMPSE.TERM:=WSE/W.sum]
+            if(k>2){
+              set(x = cI,i = i,j = "BETA.I",
+                  value = sum(frame$IMP.TERM,na.rm = T)
+              )
+              set(x = cI,i = i,j = "SE.I",
+                  value = sum(frame$IMPSE.TERM,na.rm = T)
+              )
+              set(x = cI,i = i,j = "K",
+                  value = k
+              )
+              set(x = cI,i = i,j = "INFO",
+                  value = k*cI[i,L2]/sqrt(W.sum)
+              )
+            }
+          } #for
+          #validation
+          # cI[,Z:=BETA/SE][,Z.I:=BETA.I/SE.I][,ZDIFF2:=(Z.I-Z)^2]
+          # rmse<-sqrt(mean(cI$ZDIFF2,na.rm=T))
+          # rmse
+          # rmse2<-sqrt(median(cI$ZDIFF2,na.rm=T))
+          # rmse2
+          #View(cI)
+          cI[,CHR:=eval(cCHR)]
+          if(any(colnames(cSumstats)=="N")) {
+            cI[,N:=round(mean(cSumstats.merged.snp$N))]
+            cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,N,EFFECT=BETA.I,SE=SE.I,K,INFO.LIMP=INFO)],fill=T)
+          } else {
+            #add imputed variants
+            cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,EFFECT=BETA.I,SE=SE.I,K,INFO.LIMP=INFO)],fill=T)
+          }
+          cat("I")
+        }
+      }
+      
+      ## Compute Z,P again after imputation
+      cSumstats$Z <- cSumstats$EFFECT/cSumstats$SE
+      cSumstats$P <- 2*pnorm(q = abs(cSumstats$Z),mean = 0, sd = 1, lower.tail = F)
+      setkeyv(cSumstats,cols = cSumstats.keys)
+      cat(".")
+      
+    }
+    
     #calculate genomic inflation factor
     medianChisq<-median(cSumstats$Z^2)
     genomicInflationFactor<-medianChisq/qchisq(0.5,1)
@@ -1010,7 +1113,15 @@ supermunge <- function(
       cSumstats[,NEF:=round(((Z/EFFECT)^2)/VSNP,digits = 0)]
       cSumstats.meta <- rbind(
         cSumstats.meta,
-        list("NEF (mean total)",paste0(round(mean(cSumstats[MAF<0.4&MAF>0.1,NEF], na.rm=T), digits = 0)))
+        list("NEF (mean total, for MAF<.4, >.1 if available)",paste0(
+          round(
+            mean(
+              ifelse(any(colnames(cSumstats)=="MAF"),
+                     cSumstats[MAF<0.4&MAF>0.1,NEF],
+                     cSumstats$NEF),
+            na.rm=T),
+          digits = 0))
+          )
         )
       
       if(hasNEF & !hasN) cSumstats[,N:=NEF]
@@ -1133,7 +1244,8 @@ supermunge <- function(
   return(list(
     meta=as.data.frame(sumstats.meta),
     last=as.data.frame(cSumstats),
-    composite=as.data.frame(variantTable)
+    composite=as.data.frame(variantTable),
+    ref=as.data.frame(ref)
   )
     )
   
