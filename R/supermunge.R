@@ -761,7 +761,7 @@ supermunge <- function(
       cat(".")
       
       ## Compute variance of individual variant effects according to 2pq
-      cSumstats$VSNP<-2*cSumstats$FRQ*(1-cSumstats$FRQ)
+      cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
       cat(".")
       
       
@@ -1083,10 +1083,11 @@ supermunge <- function(
       ## Remove failed imputations
       cSumstats<-cSumstats[!is.na(EFFECT) && !is.na(SE),]
       
-      ## Compute Z,P again after imputation
+      ## Compute Z,P,VSNP again after imputation
       cSumstats$Z <- cSumstats$EFFECT/cSumstats$SE
       cSumstats$P <- 2*pnorm(q = abs(cSumstats$Z),mean = 0, sd = 1, lower.tail = F)
       setkeyv(cSumstats,cols = cSumstats.keys)
+      cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
       cat(".")
       
     }
