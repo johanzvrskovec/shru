@@ -26,7 +26,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
 ){
   #test
   #columnNames<-cSumstats.names
-  
+  columnNames<-as.character(columnNames)
   columnNames.upper<-toupper(columnNames)
   #names(columnNames)<-columnNames
   columnNames.orig<-columnNames
@@ -75,7 +75,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
   if(sum(columnNames=="Z")>1) warning("\nMultiple 'Z' columns found!\n")
   if(sum(columnNames=="FRQ")>1) warning("\nMultiple 'FRQ' columns found!\n")
   
-  return(data.frame(std=columnNames,orig=columnNames.orig))
+  return(data.frame(std=as.character(columnNames),orig=as.character(columnNames.orig)))
 }
 
 #ref, plink chromosome numbering: https://zzz.bwh.harvard.edu/plink/data.shtml
@@ -370,14 +370,17 @@ supermunge <- function(
     cat(".")
     
     # Give sumstats new standardised column names
-    cSumstats.names <- stdGwasColumnNames(columnNames = names(cSumstats), stopOnMissingEssential = stopOnMissingEssential)
+    cSumstats.names <- stdGwasColumnNames(columnNames = colnames(cSumstats), stopOnMissingEssential = stopOnMissingEssential)
     cSumstats.names.string <-""
     #apply(cSumstats.names, MARGIN = 1, FUN = function(c){cat(c[2],"\t-> ",c[1],"\n")})
     for(iName in 1:nrow(cSumstats.names)){
       cSumstats.names.string<-paste(paste(cSumstats.names$orig,"\t->",cSumstats.names$std), collapse = '\n')
     }
-    colnames(cSumstats) <- cSumstats.names$std
+    # print(cSumstats.names)
+    # print(typeof(cSumstats.names$std))
+    # colnames(cSumstats) <- as.character(cSumstats.names$std)
     cat(".")
+    # print(cSumstats.names)
     
     
     #deal with duplicate columns - use the first occurrence
@@ -1006,7 +1009,7 @@ supermunge <- function(
     }
     
     
-    #impute effects and standard errors
+    #impute effects and standard errors - highly experimental
     if(!is.null(imputeFromLD)){
       #impute betas using LD
       if(!(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE"))) stop("LD imputation is not possible without effect and standard error columns.")
@@ -1017,15 +1020,17 @@ supermunge <- function(
       
       setkeyv(cSumstats,cols = cSumstats.keys)
       setkeyv(cSumstats.merged.snp, cols = paste0(ref.keys,"_REF"))
-      if(any(colnames(cSumstats)=="N")) cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE','N') :=list(i.EFFECT,i.SE,i.N)] else cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE') :=list(i.EFFECT,i.SE)]
+      cSumstats.allsnps<-data.table(SNP=unique(cSumstats.merged.snp[,SNP_REF]))
+      setkeyv(cSumstats.allsnps,cols = 'SNP')
+      if(any(colnames(cSumstats)=="N")) cSumstats.merged.snp[cSumstats[cSumstats.allsnps,on='SNP'], on=c(SNP_REF='SNP'),c('BETA','SE','N') :=list(i.EFFECT,i.SE,i.N)] else cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE') :=list(i.EFFECT,i.SE)]
       cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[is.na(BETA),]
       #cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.na(BETA),] #for validation
       setkeyv(cSumstats.merged.snp.toimpute,cols = "CHR_REF")
       chrsToImpute<-unique(cSumstats.merged.snp.toimpute$CHR_REF)
+      cat(paste0("\nWARNING: Imputing ",nrow(cSumstats.merged.snp.toimpute)," variants!\n"))
       cat("I")
       if(length(chrsToImpute)>0){
         for(cCHR in chrsToImpute){
-          #cCHR<-23
           cSS<-cSumstats.merged.snp[CHR_REF==eval(cCHR) & !is.na(BETA),.(SNP=SNP_REF,BP=BP_REF,BETA,SE,L2=L2_REF,VAR=SE^2)] #Z=EFFECT/SE
           setkeyv(cSS, cols = c("SNP","BP")) #chromosome is fixed per chromosome loop
           cI<-cSumstats.merged.snp.toimpute[CHR_REF==eval(cCHR) & !is.na(L2_REF),.(SNP=SNP_REF,BP=BP_REF,A1_REF,A2_REF,MAF_REF,L2=L2_REF,BETA,SE,VAR=SE^2)]
@@ -1075,6 +1080,9 @@ supermunge <- function(
         }
       }
       
+      ## Remove failed imputations
+      cSumstats<-cSumstats[!is.na(EFFECT) && !is.na(SE),]
+      
       ## Compute Z,P again after imputation
       cSumstats$Z <- cSumstats$EFFECT/cSumstats$SE
       cSumstats$P <- 2*pnorm(q = abs(cSumstats$Z),mean = 0, sd = 1, lower.tail = F)
@@ -1084,7 +1092,7 @@ supermunge <- function(
     }
     
     #calculate genomic inflation factor
-    medianChisq<-median(cSumstats$Z^2)
+    medianChisq<-median(cSumstats$Z^2, na.rm = T)
     genomicInflationFactor<-medianChisq/qchisq(0.5,1)
     sumstats.meta[iFile,c("genomicInflationFactor")]<-genomicInflationFactor
     cSumstats.meta<-rbind(cSumstats.meta,list("Genomic inflation factor",as.character(round(genomicInflationFactor,digits = 4))))
@@ -1142,11 +1150,7 @@ supermunge <- function(
     #NA values check
     if(any(is.na(cSumstats))) cSumstats.warnings<-c(cSumstats.warnings,"\nNA values detected among results!\n")
     
-    # output handling below
-    
-    #cSumstats<-cSumstats[,-which(names(cSumstats) %in% c("A1_REF","A2_REF"))]
-    
-    #output.colnames<- c("SNP","N","Z","A1","A2")
+    # output columns
     output.colnames<- c("SNP")
     output.colnames<- c(output.colnames,c("A1","A2"))
     #output.colnames<- c(output.colnames,c("A1","A2","A1_ORIG","A2_ORIG"))
@@ -1164,6 +1168,8 @@ supermunge <- function(
     if("N_CON" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CON")
     if("NEF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"NEF")
     if("DF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"DF")
+    if("K" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"K")
+    if("INFO.LIMP" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"INFO.LIMP")
     
     output.colnames.more<-colnames(cSumstats)[!(colnames(cSumstats) %in% output.colnames)]
     output.colnames.all<-c(output.colnames,output.colnames.more)
