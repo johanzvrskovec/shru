@@ -110,7 +110,7 @@ parseCHRColumn <- function(text){
   return(text)
 }
 
-#test
+# #test
 # filePaths = p$munge$filesToUse
 # refFilePath = p$filepath.SNPReference.1kg
 # #refFilePath = p$filepath.SNPReference.hm3,
@@ -378,9 +378,9 @@ supermunge <- function(
     }
     # print(cSumstats.names)
     # print(typeof(cSumstats.names$std))
-    # colnames(cSumstats) <- as.character(cSumstats.names$std)
+    
+    colnames(cSumstats) <- as.character(cSumstats.names$std)
     cat(".")
-    # print(cSumstats.names)
     
     
     #deal with duplicate columns - use the first occurrence
@@ -665,7 +665,7 @@ supermunge <- function(
       
       if(!is.null(N) & length(N)>=iFile) {
         hasN<-T
-        if(forceN) { 
+        if(forceN && any(colnames(cSumstats)=="N")) {
           if(
             abs((median(cSumstats$N, na.rm = T)-N[iFile])/median(cSumstats$N, na.rm = T))>0.05
             |
@@ -675,13 +675,14 @@ supermunge <- function(
           ) cSumstats.warnings<-c(cSumstats.warnings,"Large (>5%) N discrepancies found between provided and existing N!")
           cSumstats$N<-N[iFile]
           cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile])))
-        } else {
+        } else if(any(colnames(cSumstats)=="N")){
           cond<-is.na(cSumstats$N) | N[iFile] < cSumstats$N
           if(sum(cond)>0) {
             cSumstats$N<-ifelse(cond,N[iFile],cSumstats$N)
             cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile],"for",sum(cond)," NA or > specified.")))
           }
-        }
+        } else cSumstats[,N:=eval(N)]
+        
         cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats$N, na.rm = T),", ",min(cSumstats$N, na.rm = T),", ", max(cSumstats$N, na.rm = T))))
       } else if(!(any(colnames(cSumstats)=="N"))) {
         hasN<-F
@@ -1069,12 +1070,14 @@ supermunge <- function(
           # rmse2
           #View(cI)
           cI[,CHR:=eval(cCHR)]
-          if(any(colnames(cSumstats)=="N")) {
-            cI[,N:=round(mean(cSumstats.merged.snp$N))]
-            cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,N,EFFECT=BETA.I,SE=SE.I,K,INFO.LIMP=INFO)],fill=T)
-          } else {
-            #add imputed variants
-            cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,EFFECT=BETA.I,SE=SE.I,K,INFO.LIMP=INFO)],fill=T)
+          #add imputed variants
+          if(any(colnames(cSumstats)=="BETA.I") && any(colnames(cSumstats)=="SE.I") && any(colnames(cSumstats)=="K") && any(colnames(cSumstats)=="INFO")){
+            if(any(colnames(cSumstats)=="N")) {
+              cI[,N:=round(mean(cSumstats.merged.snp$N))]
+              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,N,EFFECT=BETA.I,SE=SE.I,K,INFO.LIMP=INFO)],fill=T)
+            } else {
+              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,EFFECT=BETA.I,SE=SE.I,K,INFO.LIMP=INFO)],fill=T)
+            }
           }
           cat("I")
         }
