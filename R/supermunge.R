@@ -318,6 +318,10 @@ supermunge <- function(
       }
       ldscores<-rbindlist(ldscores)
       setkeyv(ldscores, cols = "SNP")
+      #ref.allsnps<-data.table(SNP=unique(ref[,c("SNP")]))
+      #colnames(ref.allsnps)<-c("SNP") #needed for some strange error when SNP column is renamed here
+      #setkeyv(ref.allsnps, cols = "SNP")
+      #ref[ldscores[ref.allsnps, on='SNP'], on='SNP', c('L2','M') := list(i.L2,i.M)]
       ref[ldscores, on='SNP', c('L2','M') := list(i.L2,i.M)]
       cat("Done!\n")
     }
@@ -372,7 +376,6 @@ supermunge <- function(
     # Give sumstats new standardised column names
     cSumstats.names <- stdGwasColumnNames(columnNames = colnames(cSumstats), stopOnMissingEssential = stopOnMissingEssential)
     cSumstats.names.string <-""
-    #apply(cSumstats.names, MARGIN = 1, FUN = function(c){cat(c[2],"\t-> ",c[1],"\n")})
     for(iName in 1:nrow(cSumstats.names)){
       cSumstats.names.string<-paste(paste(cSumstats.names$orig,"\t->",cSumstats.names$std), collapse = '\n')
     }
@@ -550,10 +553,8 @@ supermunge <- function(
         
         #Join with reference on SNP rsID, only keeping SNPs with rsIDs part of the reference
         #https://stackoverflow.com/questions/34644707/left-outer-join-with-data-table-with-different-names-for-key-variables/34645997#34645997
-        
         cSumstats.merged.snp<-ref[cSumstats, on=c(SNP_REF='SNP'), nomatch=0]
-        #cSumstats[ref, on=c(SNP='SNP_REF'), CHR_REF:=i.CHR_REF] #experimental
-        #cSumstats <- merge(ref,cSumstats,by="SNP",all.x=F,all.y=F) #old
+        
         cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; rsID not in ref",as.character(cSumstats.n-nrow(cSumstats.merged.snp))))
         #cat("\nRemoved SNPs with rsIDs not present in the reference:\t\t",cSumstats.n-nrow(cSumstats.merged.snp))
         cat(".")
@@ -1018,12 +1019,10 @@ supermunge <- function(
       frameLen<-8000
       frameLenHalf<-frameLen/2
       cSumstats.merged.snp<-ref
-      
       setkeyv(cSumstats,cols = cSumstats.keys)
       setkeyv(cSumstats.merged.snp, cols = paste0(ref.keys,"_REF"))
-      cSumstats.allsnps<-data.table(SNP=unique(cSumstats.merged.snp[,SNP_REF]))
-      setkeyv(cSumstats.allsnps,cols = 'SNP')
-      if(any(colnames(cSumstats)=="N")) cSumstats.merged.snp[cSumstats[cSumstats.allsnps,on='SNP'], on=c(SNP_REF='SNP'),c('BETA','SE','N') :=list(i.EFFECT,i.SE,i.N)] else cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE') :=list(i.EFFECT,i.SE)]
+      
+      if(any(colnames(cSumstats)=="N")) cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE','N') :=list(i.EFFECT,i.SE,i.N)] else cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE') :=list(i.EFFECT,i.SE)]
       cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[is.na(BETA),]
       #cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.na(BETA),] #for validation
       setkeyv(cSumstats.merged.snp.toimpute,cols = "CHR_REF")
@@ -1032,6 +1031,7 @@ supermunge <- function(
       cat("I")
       if(length(chrsToImpute)>0){
         for(cCHR in chrsToImpute){
+          #cCHR<-"22"
           cSS<-cSumstats.merged.snp[CHR_REF==eval(cCHR) & !is.na(BETA),.(SNP=SNP_REF,BP=BP_REF,BETA,SE,L2=L2_REF,VAR=SE^2)] #Z=EFFECT/SE
           setkeyv(cSS, cols = c("SNP","BP")) #chromosome is fixed per chromosome loop
           cI<-cSumstats.merged.snp.toimpute[CHR_REF==eval(cCHR) & !is.na(L2_REF),.(SNP=SNP_REF,BP=BP_REF,A1_REF,A2_REF,MAF_REF,L2=L2_REF,BETA,SE,VAR=SE^2)]
@@ -1071,7 +1071,7 @@ supermunge <- function(
           #View(cI)
           cI[,CHR:=eval(cCHR)]
           #add imputed variants
-          if(any(colnames(cSumstats)=="BETA.I") && any(colnames(cSumstats)=="SE.I") && any(colnames(cSumstats)=="K") && any(colnames(cSumstats)=="INFO")){
+          if(any(colnames(cI)=="BETA.I") && any(colnames(cI)=="SE.I") && any(colnames(cI)=="K") && any(colnames(cI)=="INFO")){
             if(any(colnames(cSumstats)=="N")) {
               cI[,N:=round(mean(cSumstats.merged.snp$N))]
               cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,N,EFFECT=BETA.I,SE=SE.I,K,INFO.LIMP=INFO)],fill=T)
@@ -1185,12 +1185,20 @@ supermunge <- function(
       cat("\nProducing composite variant table.\n")
       cName.beta <- paste0("BETA.",traitNames[iFile])
       cName.se <- paste0("SE.",traitNames[iFile])
-      toJoin <- cSumstats[,c("SNP","EFFECT","SE")]
+      cName.infolimp <- paste0("INFO.LIMP.",traitNames[iFile])
+      cName.k <- paste0("K.",traitNames[iFile])
+      cNames.toJoin<-c("SNP","EFFECT","SE")
+      if(any(colnames(cSumstats)=="INFO.LIMP")) cNames.toJoin <- c(cNames.toJoin,"INFO.LIMP")
+      if(any(colnames(cSumstats)=="K")) cNames.toJoin <- c(cNames.toJoin,"K")
+      toJoin <- cSumstats[,cNames.toJoin]
+      setkeyv(toJoin,cols = 'SNP')
       #colnames(toJoin) <- c("SNP",cName.beta,cName.se)
       #update variantTable by reference
       #ref https://stackoverflow.com/questions/44433451/r-data-table-update-join
       #ref about data.table improvements https://stackoverflow.com/questions/42537520/data-table-replace-data-using-values-from-another-data-table-conditionally/42539526#42539526
-      variantTable[toJoin, on=c(SNP='SNP'), c(cName.beta,cName.se):=.(i.EFFECT,i.SE)]
+      ref.allsnps<-data.table(SNP=unique(variantTable[,SNP]))
+      setkeyv(ref.allsnps,cols = 'SNP')
+      variantTable[toJoin[ref.allsnps,on='SNP'], on=c(SNP='SNP'), c(cName.beta,cName.se):=.(i.EFFECT,i.SE)]
     }
     
     
@@ -1243,6 +1251,15 @@ supermunge <- function(
     cat("\nSupermunge of ",traitNames[iFile]," was done in",timeDiff.minutes, "minutes and",timeDiff.seconds," seconds.\n")
     gc() #do garbage collect if this can help with out of memory issues.
   }
+  
+  #process the variant table further
+  # if(!is.null(variantTable)){
+  #   # sum of K
+  #   colK<-colnames(variantTable)[grep("^K\\.", ignore.case = TRUE,colnames(variantTable))]
+  #   if(length(colK)>0) variantTable$K.SUM<-rowSums(abs(variantTable[,..colK]),na.rm = T)
+  #   colINFO.LIMP<-colnames(variantTable)[grep("^INFO\\.LIMP\\.", ignore.case = TRUE,colnames(variantTable))]
+  #   if(length(colINFO.LIMP)>0) variantTable$INFO.LIMP.SUM<-rowSums(abs(variantTable[,..colK]),na.rm = T)
+  # }
   
   timeStop <- Sys.time()
   timeDiff <- difftime(time1=timeStop,time2=timeStart,units="sec")
