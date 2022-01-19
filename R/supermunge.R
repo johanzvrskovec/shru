@@ -1043,7 +1043,7 @@ supermunge <- function(
     
     
     #impute effects and standard errors - highly experimental
-    if(!is.null(imputeFromLD)){
+    if(imputeFromLD){
       #impute betas using LD
       if(!(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE"))) stop("LD imputation is not possible without effect and standard error columns.")
       
