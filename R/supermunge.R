@@ -111,22 +111,19 @@ parseCHRColumn <- function(text){
 }
 
 # #test
-# filePaths = p$munge$filesToUse
+# filePaths = p$sumstats.sel$mungedpath
 # refFilePath = p$filepath.SNPReference.1kg
-# #refFilePath = p$filepath.SNPReference.hm3,
-# #mask = mask,
-# ldDirPath=p$folderpath.data.mvLDSC.ld.1kg
-# traitNames = p$munge$traitNamesToUse
-# setChangeEffectDirectionOnAlleleFlip = T #T=same behaviour as genomic SEM
-# imputeFromLD=T
-# #produceVariantTable = T,
-# N = p$munge$NToUse
-# OLS = p$munge$OLSToUse
-# linprob=p$munge$linprobToUse
-# se.logit = p$munge$se.logitToUse
-# prop=p$munge$propToUse
-# pathDirOutput = p$folderpath.data.sumstats.munged
-# invertEffectDirectionOn = c("ANXI04")
+# traitNames = p$sumstats.sel$code
+# produceCompositeTable = T
+# process = F
+# standardiseEffectsToExposure = T
+# writeOutput = F
+# N = p$sumstats.sel$n_total
+# OLS=p$sumstats.sel$dependent_variable.OLS
+# linprob=p$sumstats.sel$dependent_variable.linprob
+# se.logit = p$sumstats.sel$se.logit
+# prop=(p$sumstats.sel$n_case/p$sumstats.sel$n_total)
+# info.filter = 0.55
 
 
 #test2
@@ -150,16 +147,23 @@ parseCHRColumn <- function(text){
 # linprob=project$sumstats.sel$dependent_variable.linprob[23]
 # se.logit=project$sumstats.sel$se.logit[23]
 
-#pathDirOutput="."
-# setChangeEffectDirectionOnAlleleFlip=T
+#set default params for test
+# list_df=NULL
+# filePaths=NULL
+# ref_df=NULL
+# refFilePath=NULL
+# ldDirPath=NULL
+# traitNames=NULL
+# setChangeEffectDirectionOnAlleleFlip=T #set to TRUE to emulate genomic sem munge
 # produceCompositeTable=F
+# imputeFromLD=F
 # N=NULL
 # forceN=F
 # prop=NULL
 # OLS=NULL
 # linprob=NULL
 # se.logit=NULL
-# 
+# pathDirOutput="."
 # keepIndel=T
 # harmoniseAllelesToReference=F
 # doChrSplit=F
@@ -173,7 +177,8 @@ parseCHRColumn <- function(text){
 # writeOutput=T
 # info.filter=NULL
 # frq.filter=NULL
-# mhc.filter=NULL
+# mhc.filter=NULL #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
+# GC="none" #"reinflate"
 
 supermunge <- function(
   list_df=NULL,
@@ -342,6 +347,11 @@ supermunge <- function(
   for(iFile in 1:ds.length){
     #for testing!
     #iFile=1
+    timeStart.ds <- Sys.time()
+    
+    #temporary variables which has to be reset for each file/dataset
+    hasN<-F
+    hasNEF<-F
     
     #set changeEffectDirectionOnAlleleFlip -this has to be reset for each file/dataset
     changeEffectDirectionOnAlleleFlip<-NULL
@@ -349,7 +359,9 @@ supermunge <- function(
       changeEffectDirectionOnAlleleFlip<-setChangeEffectDirectionOnAlleleFlip
     }
     
-    timeStart.ds <- Sys.time()
+   
+    
+    
     
     
     if(!is.null(list_df)){
@@ -434,8 +446,14 @@ supermunge <- function(
     if('SE' %in% names(cSumstats)) cSumstats[,SE:=as.numeric(SE)]
     if('BETA' %in% names(cSumstats)) cSumstats[,BETA:=as.numeric(BETA)]
     if('OR' %in% names(cSumstats)) cSumstats[,OR:=as.numeric(OR)]
-    if('N' %in% names(cSumstats)) cSumstats[,N:=as.numeric(N)]
-    if('NEF' %in% names(cSumstats)) cSumstats[,NEF:=as.numeric(NEF)]
+    if('N' %in% names(cSumstats)) {
+      cSumstats[,N:=as.numeric(N)]
+      hasN<-T
+      }
+    if('NEF' %in% names(cSumstats)) {
+      cSumstats[,NEF:=as.numeric(NEF)]
+      hasNEF<-T
+      }
     cat(".")
     
     #parse SNP if needed
@@ -448,7 +466,7 @@ supermunge <- function(
     }
     cat(".")
     if('BP' %in% names(cSumstats)) {
-      cSumstats$BP <- as.integer(cSumstats$BP)
+      cSumstats[,BP:=as.integer(BP)]
       cSumstats.keys<-c(cSumstats.keys,'BP')
     }
     cat(".")
@@ -460,8 +478,8 @@ supermunge <- function(
     #Set effect to column standard - EFFECT
     #TODO Fix according to new column standard
     if(!("EFFECT" %in% colnames(cSumstats))){
-      if("BETA" %in% colnames(cSumstats)) cSumstats$EFFECT<-cSumstats$BETA else
-        if("OR" %in% colnames(cSumstats)) cSumstats$EFFECT<-cSumstats$OR
+      if("BETA" %in% colnames(cSumstats)) cSumstats[,EFFECT:=BETA] else
+        if("OR" %in% colnames(cSumstats)) cSumstats[,EFFECT:=OR]
     }
     cat(".")
     
@@ -951,8 +969,21 @@ supermunge <- function(
     
     
     if(standardiseEffectsToExposure & any(colnames(cSumstats)=="EFFECT")) {
+      cat("\nStandardising effect to exposure.")
       ##standardise outcome standardised BETA to exposure as well (fully standardised)
       ##correct binary trait regressions with a 'unit-variance-liability scaling'
+      
+      #quickfix backstop for missing N
+      if(any(colnames(cSumstats)=="N")){
+        if(any(is.na(cSumstats$N))){
+          mN<-mean(cSumstats$N,na.rm=T)
+          cSumstats[is.na(get("N")), N:=mN]
+        }
+      }
+      
+      ## (Re-)Compute variance of individual variant effects according to 2pq, in case not already present (from processing step)
+      if(!any(colnames(cSumstats)=="VSNP")) cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
+      
       if(OLS[iFile]){
         #Has OLS unstandardised beta
         cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","OLS"))
@@ -1006,7 +1037,7 @@ supermunge <- function(
         cSumstats$Z <- cSumstats$EFFECT/cSumstats$SE
         cSumstats$P <- 2*pnorm(q = abs(cSumstats$Z),mean = 0, sd = 1, lower.tail = F)
       }
-      cat(".")
+      cat("Done!\n")
       
     }
     
@@ -1073,7 +1104,7 @@ supermunge <- function(
           #add imputed variants
           if(any(colnames(cI)=="BETA.I") && any(colnames(cI)=="SE.I") && any(colnames(cI)=="K") && any(colnames(cI)=="INFO")){
             if(any(colnames(cSumstats)=="N")) {
-              cI[,N:=round(mean(cSumstats.merged.snp$N))]
+              cI[,N:=round(mean(cSumstats.merged.snp$N,na.rm=T))]
               cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,N,EFFECT=BETA.I,SE=SE.I,K,INFO.LIMP=INFO)],fill=T)
             } else {
               cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,EFFECT=BETA.I,SE=SE.I,K,INFO.LIMP=INFO)],fill=T)
@@ -1183,22 +1214,24 @@ supermunge <- function(
     #merge with variantTable
     if(produceCompositeTable){
       cat("\nProducing composite variant table.\n")
-      cName.beta <- paste0("BETA.",traitNames[iFile])
-      cName.se <- paste0("SE.",traitNames[iFile])
-      cName.infolimp <- paste0("INFO.LIMP.",traitNames[iFile])
-      cName.k <- paste0("K.",traitNames[iFile])
       cNames.toJoin<-c("SNP","EFFECT","SE")
+      if(any(colnames(cSumstats)=="FRQ")) cNames.toJoin <- c(cNames.toJoin,"FRQ")
       if(any(colnames(cSumstats)=="INFO.LIMP")) cNames.toJoin <- c(cNames.toJoin,"INFO.LIMP")
       if(any(colnames(cSumstats)=="K")) cNames.toJoin <- c(cNames.toJoin,"K")
-      toJoin <- cSumstats[,cNames.toJoin]
+      toJoin <- cSumstats[,..cNames.toJoin]
       setkeyv(toJoin,cols = 'SNP')
-      #colnames(toJoin) <- c("SNP",cName.beta,cName.se)
       #update variantTable by reference
       #ref https://stackoverflow.com/questions/44433451/r-data-table-update-join
       #ref about data.table improvements https://stackoverflow.com/questions/42537520/data-table-replace-data-using-values-from-another-data-table-conditionally/42539526#42539526
-      ref.allsnps<-data.table(SNP=unique(variantTable[,SNP]))
-      setkeyv(ref.allsnps,cols = 'SNP')
-      variantTable[toJoin[ref.allsnps,on='SNP'], on=c(SNP='SNP'), c(cName.beta,cName.se):=.(i.EFFECT,i.SE)]
+      cName.beta <- paste0("BETA.",traitNames[iFile])
+      cName.se <- paste0("SE.",traitNames[iFile])
+      cName.frq <- paste0("FRQ.",traitNames[iFile])
+      cName.infolimp <- paste0("INFO.LIMP.",traitNames[iFile])
+      cName.k <- paste0("K.",traitNames[iFile])
+      if(!any(colnames(toJoin)=="FRQ")) toJoin[,FRQ=NA_real_]
+      if(!any(colnames(toJoin)=="INFO.LIMP")) toJoin[,INFO.LIMP=NA_real_]
+      if(!any(colnames(toJoin)=="K")) toJoin[,K=NA_integer_]
+      variantTable[toJoin, on='SNP', c(cName.beta,cName.se,cName.frq,cName.infolimp,cName.k):=.(i.EFFECT,i.SE,i.FRQ,i.INFO.LIMP,i.K)]
     }
     
     
