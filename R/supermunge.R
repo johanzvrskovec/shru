@@ -215,7 +215,8 @@ supermunge <- function(
   info.filter=NULL,
   frq.filter=NULL,
   mhc.filter=NULL, #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
-  GC="none" #"reinflate"
+  GC="none", #"reinflate",
+  nThreads = 5
 ){
   
   timeStart <- Sys.time()
