@@ -8,4 +8,4 @@ Description: SHared R Utilities for behavioural genomics and beyond. Includes th
 License: MIT
 Encoding: UTF-8
 LazyData: true
-Imports: tidyverse,R.utils,DiagrammeR,data.table
+Imports: tidyverse,R.utils,DiagrammeR,data.table,readr
