@@ -7,3 +7,8 @@ clipValues <- function(x,min,max) {
 }
 
 
+padList <- function(l,padding,targetLength){
+  pl<-targetLength-length(l)
+  if(pl>0) {c(l,rep(padding,pl))} else {l}
+}
+

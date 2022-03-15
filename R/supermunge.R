@@ -110,6 +110,10 @@ parseCHRColumn <- function(text){
   return(text)
 }
 
+readFile <- function(filePath,nThreads=5){
+  return(data.table::fread(file = filePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F))
+}
+
 # #test
 # filePaths = p$sumstats.sel$mungedpath
 # refFilePath = p$filepath.SNPReference.1kg
@@ -274,7 +278,7 @@ supermunge <- function(
     cat("\nUsing reference from provided dataframe.\n")
   } else if(!is.null(refFilePath)){
     cat(paste0("\nReading reference file..."))
-    ref<-fread(file = refFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = 5, showProgress = F)
+    ref<-fread(file = refFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
     #ref <- read.table(refFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
     cat(paste0("\nRead reference file:\n",refFilePath))
   }
