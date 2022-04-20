@@ -194,6 +194,7 @@ supermunge <- function(
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F,
   imputeFromLD=F,
+  imputeFrameLenBp=8000, #this should be set to 500000 for decent imputation as compared to other methods, but will be very slow.
   N=NULL,
   forceN=F,
   prop=NULL,
@@ -1052,7 +1053,7 @@ supermunge <- function(
       #impute betas using LD
       if(!(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE"))) stop("LD imputation is not possible without effect and standard error columns.")
       
-      frameLen<-8000
+      frameLen<-imputeFrameLenBp
       frameLenHalf<-frameLen/2
       cSumstats.merged.snp<-ref
       setkeyv(cSumstats,cols = cSumstats.keys)
