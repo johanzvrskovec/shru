@@ -315,7 +315,7 @@ semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
 }
 
 #test
-#resultDf<-project$test$gwasResults$results
+#resultDf<-p$CFA$models.selected[iSelected,]$gsemResults[[1]][[1]]$results
 
 semplate$parseGenomicSEMResultAsMatrices <- function(resultDf){
   gsemResult<-semplate$parseGenomicSEMResult(resultDf)
@@ -427,7 +427,7 @@ semplate$parseGenomicSEMResultAsMatrices <- function(resultDf){
   #calculate variance explained by each latent factor and total
   factorVariance<-(patternCoefficients.matrix^2) #For latent factors with variance 1. Otherwise *Vfactor.
   totalIndicatorVariance<-residualVariances.matrix+rowSums(factorVariance, na.rm = T)
-  relativeFactorVariance<-factorVariance/rep(totalIndicatorVariance,ncol(factorVariance))
+  relativeFactorVariance<-factorVariance/rep(totalIndicatorVariance,ncol(factorVariance)) #this only works for orthogonal factor models.
   meanRelativeFactorVariance <- colMeans(relativeFactorVariance, na.rm = T)
   
   

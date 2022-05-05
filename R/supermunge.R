@@ -180,7 +180,7 @@ readFile <- function(filePath,nThreads=5){
 # standardiseEffectsToExposure=F
 # writeOutput=T
 # info.filter=NULL
-# frq.filter=NULL
+# maf.filter=NULL
 # mhc.filter=NULL #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
 # GC="none" #"reinflate"
 
@@ -194,7 +194,7 @@ supermunge <- function(
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F,
   imputeFromLD=F,
-  imputeFrameLenBp=8000, #this should be set to 500000 for decent imputation as compared to other methods, but will be very slow.
+  imputeFrameLenBp=8000, #this may be set higher to 500000 for decent imputation as compared to other methods, but may be very slow.
   N=NULL,
   forceN=F,
   prop=NULL,
@@ -214,8 +214,9 @@ supermunge <- function(
   standardiseEffectsToExposure=F,
   writeOutput=T,
   info.filter=NULL,
-  frq.filter=NULL,
+  maf.filter=NULL,
   mhc.filter=NULL, #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
+  region.filter_df=NULL, #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
   GC="none", #"reinflate",
   nThreads = 5
 ){
@@ -504,12 +505,29 @@ supermunge <- function(
     }
     cat(".")
     
-    #Filter variants MAF<frq.filter
-    if(!is.null(frq.filter)){
+    #remove custom regions according to specified dataframe
+    if(!is.null(region.filter_df)){
+      if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
+        if(!(any(colnames(region.filter_df)=="CHR") & any(colnames(region.filter_df)=="BP1" & any(colnames(region.filter_df)=="BP2")))) stop("Dataframe containing regions to be removed must contain the columns CHR,BP1, and BP2!")
+        setDT(region.filter_df)
+        setkeyv(region.filter_df, cols = c("CHR","BP1","BP2"))
+        cSumstats.nSNP<-nrow(cSumstats)
+        for(isegment in 1:nrow(p$highld)){
+          #isegment<-1
+          cSumstats <- cSumstats[!(CHR==region.filter_df[isegment] & BP>=region.filter_df[isegment] & BP<=region.filter_df[isegment]),]
+        }
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; custom regions"),as.character(cSumstats.nSNP-nrow(cSumstats))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"No chromosome or base-pair position information available - no filtering of custom provided regions was done!")
+      }
+    }
+    
+    #Filter variants MAF<maf.filter
+    if(!is.null(maf.filter)){
       if("FRQ" %in% names(cSumstats)){
-        rm <- (!is.na(cSumstats$FRQ) & ((cSumstats$FRQ<frq.filter & cSumstats$FRQ<0.5) | (1-cSumstats$FRQ)<frq.filter))
+        rm <- (!is.na(cSumstats$FRQ) & ((cSumstats$FRQ<maf.filter & cSumstats$FRQ<0.5) | (1-cSumstats$FRQ)<maf.filter))
         cSumstats <- cSumstats[!rm, ]
-        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; MAF <",frq.filter),as.character(sum(rm))))
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; MAF <",maf.filter),as.character(sum(rm))))
       } else {
         cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
       }
