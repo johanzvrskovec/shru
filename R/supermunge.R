@@ -217,6 +217,7 @@ supermunge <- function(
   maf.filter=NULL,
   mhc.filter=NULL, #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
   region.filter_df=NULL, #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
+  region.imputation.filter_df=NULL, #dataframe with columns CHR,BP1,BP2 specifying regions to be excluded from acting as support for imputation, due to high LD for example.
   GC="none", #"reinflate",
   nThreads = 5
 ){
@@ -268,11 +269,13 @@ supermunge <- function(
   
   cat("\nkeepIndel=",keepIndel)
   cat("\nharmoniseAllelesToReference=",harmoniseAllelesToReference)
-  cat("\nmaxSNPDistanceBpPadding=",maxSNPDistanceBpPadding)
   cat("\nchangeEffectDirectionOnAlleleFlip=",setChangeEffectDirectionOnAlleleFlip)
-  if(length(invertEffectDirectionOn)>0){
-    cat("\ninvertEffectDirectionOn=", paste(invertEffectDirectionOn,sep = ","))
-  }
+  cat("\nprocess=",process)
+  cat("\nimputeFromLD=",imputeFromLD)
+  if(imputeFromLD) cat("\nimputeFrameLenBp=",imputeFrameLenBp)
+  cat("\nproduceCompositeTable=",produceCompositeTable)
+  if(length(invertEffectDirectionOn)>0) cat("\ninvertEffectDirectionOn=", paste(invertEffectDirectionOn,sep = ","))
+  
   cat("\n--------------------------------\n")
   
   ref<-NULL
@@ -508,7 +511,7 @@ supermunge <- function(
     #remove custom regions according to specified dataframe
     if(!is.null(region.filter_df)){
       if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
-        if(!(any(colnames(region.filter_df)=="CHR") & any(colnames(region.filter_df)=="BP1" & any(colnames(region.filter_df)=="BP2")))) stop("Dataframe containing regions to be removed must contain the columns CHR,BP1, and BP2!")
+        if(!(any(colnames(region.filter_df)=="CHR") & any(colnames(region.filter_df)=="BP1" & any(colnames(region.filter_df)=="BP2")))) stop("Dataframe containing regions to be removed must contain the columns CHR, BP1, and BP2!")
         setDT(region.filter_df)
         setkeyv(region.filter_df, cols = c("CHR","BP1","BP2"))
         cSumstats.nSNP<-nrow(cSumstats)
@@ -1069,7 +1072,7 @@ supermunge <- function(
     #impute effects and standard errors - highly experimental
     if(imputeFromLD){
       #impute betas using LD
-      if(!(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE"))) stop("LD imputation is not possible without effect and standard error columns.")
+      if(!(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP"))) stop("LD imputation is not possible without the columns EFFECT,SE,CHR,BP!")
       
       frameLen<-imputeFrameLenBp
       frameLenHalf<-frameLen/2
@@ -1079,10 +1082,24 @@ supermunge <- function(
       
       if(any(colnames(cSumstats)=="N")) cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE','N') :=list(i.EFFECT,i.SE,i.N)] else cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE') :=list(i.EFFECT,i.SE)]
       cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[is.na(BETA),]
+      
+      #remove non-trustworthy variants according to specified regions in the df
+      if(!is.null(region.imputation.filter_df)){
+        if(!(any(colnames(region.imputation.filter_df)=="CHR") & any(colnames(region.imputation.filter_df)=="BP1" & any(colnames(region.imputation.filter_df)=="BP2")))) stop("Dataframe containing regions to be excluded as imputation support must contain the columns CHR, BP1, and BP2!")
+        cSumstats.merged.snp.nSNP<-nrow(cSumstats.merged.snp)
+        setDT(region.imputation.filter_df)
+        setkeyv(region.imputation.filter_df, cols = c("CHR","BP1","BP2"))
+        for(isegment in 1:nrow(region.imputation.filter_df)){
+          #isegment<-1
+          cSumstats.merged.snp <- cSumstats.merged.snp[!(CHR_REF==region.imputation.filter_df$CHR[isegment] & BP_REF>=region.imputation.filter_df$BP1[isegment] & BP_REF<=region.imputation.filter_df$BP2[isegment]),]
+        }
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Ignored variants (imputation); custom regions"),as.character(cSumstats.merged.snp.nSNP-nrow(cSumstats.merged.snp))))
+      }
+      
       #cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.na(BETA),] #for validation
       setkeyv(cSumstats.merged.snp.toimpute,cols = "CHR_REF")
       chrsToImpute<-unique(cSumstats.merged.snp.toimpute$CHR_REF)
-      cat(paste0("\nWARNING: Imputing ",nrow(cSumstats.merged.snp.toimpute)," variants!\n"))
+      cat(paste0("\nATTENTION!: Imputing ",nrow(cSumstats.merged.snp.toimpute)," variants!\n"))
       cat("I")
       if(length(chrsToImpute)>0){
         for(cCHR in chrsToImpute){
