@@ -512,9 +512,9 @@ supermunge <- function(
         setDT(region.filter_df)
         setkeyv(region.filter_df, cols = c("CHR","BP1","BP2"))
         cSumstats.nSNP<-nrow(cSumstats)
-        for(isegment in 1:nrow(p$highld)){
+        for(isegment in 1:nrow(region.filter_df)){
           #isegment<-1
-          cSumstats <- cSumstats[!(CHR==region.filter_df[isegment] & BP>=region.filter_df[isegment] & BP<=region.filter_df[isegment]),]
+          cSumstats <- cSumstats[!(CHR==region.filter_df$CHR[isegment] & BP>=region.filter_df$BP1[isegment] & BP<=region.filter_df$BP2[isegment]),]
         }
         cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; custom regions"),as.character(cSumstats.nSNP-nrow(cSumstats))))
       } else {
