@@ -79,6 +79,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
 }
 
 #ref, plink chromosome numbering: https://zzz.bwh.harvard.edu/plink/data.shtml
+#chromosome Un: https://genome.ucsc.edu/FAQ/FAQdownloads.html#download11
 parseSNPColumnAsRSNumber <- function(text){
   #decide if BGENIE SNP format using top 100,000 SNPs
   #TODO this condition may be improved to not rely on the number of variants being >100,000
@@ -91,22 +92,30 @@ parseSNPColumnAsRSNumber <- function(text){
     return(lapply(X = matches, FUN = function(x)paste0("rs",x[2])))
   }
   
-  text<-sub(pattern = "^XY:",replacement = "25:",x = text)
-  text<-sub(pattern = "^X:",replacement = "23:",x = text)
-  text<-sub(pattern = "^Y:",replacement = "24:",x = text)
-  text<-sub(pattern = "^MT:",replacement = "26:",x = text)
-  text<-sub(pattern = "^chr",replacement = "",x = text)
-  text<-sub(pattern = "_",replacement = ":",x = text)
+  text<-sub(pattern = "^chr",replacement = "",x = text, ignore.case = T)
+  text<-sub(pattern = "^XY:",replacement = "25:",x = text, ignore.case = T)
+  text<-sub(pattern = "^X:",replacement = "23:",x = text, ignore.case = T)
+  text<-sub(pattern = "^Y:",replacement = "24:",x = text, ignore.case = T)
+  text<-sub(pattern = "^MT:",replacement = "26:",x = text, ignore.case = T)
+  text<-sub(pattern = "^M:",replacement = "26:",x = text, ignore.case = T)
+  text<-sub(pattern = "^Un:",replacement = "0:",x = text, ignore.case = T)
+  text<-sub(pattern = "_",replacement = ":",x = text, ignore.case = T)
   
   return(text)
 }
 
+#ref, plink chromosome numbering: https://zzz.bwh.harvard.edu/plink/data.shtml
+#chromosome Un: https://genome.ucsc.edu/FAQ/FAQdownloads.html#download11
 parseCHRColumn <- function(text){
-  text<-sub(pattern = "^XY",replacement = "25",x = text)
-  text<-sub(pattern = "^X",replacement = "23",x = text)
-  text<-sub(pattern = "^Y",replacement = "24",x = text)
-  text<-sub(pattern = "^MT",replacement = "26",x = text)
-  text<-sub(pattern = "^chr",replacement = "",x = text)
+  text<-trimws(text)
+  text<-sub(pattern = "^chr",replacement = "",x = text, ignore.case = T)
+  text<-sub(pattern = "^XY",replacement = "25",x = text, ignore.case = T)
+  text<-sub(pattern = "^X",replacement = "23",x = text, ignore.case = T)
+  text<-sub(pattern = "^Y",replacement = "24",x = text, ignore.case = T)
+  text<-sub(pattern = "^MT",replacement = "26",x = text, ignore.case = T)
+  text<-sub(pattern = "^M",replacement = "26",x = text, ignore.case = T)
+  text<-sub(pattern = "^Un",replacement = "0",x = text, ignore.case = T)
+  
   return(text)
 }
 
