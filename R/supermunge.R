@@ -556,6 +556,18 @@ supermunge <- function(
     #lift-over to new coordinates before using coordinates
     if(!is.null(chainFilePath) & liftover[iFile]){
       #chain file format reference: http://genome.ucsc.edu/goldenPath/help/chain.html
+      
+      #check if the file is the same build as the reference if present
+      if(!is.null(ref)){
+        cSumstatsBuildCheck<-cSumstats
+        cSumstatsBuildCheck[ref, on=c(CHR='CHR_REF' , BP='BP_REF'), c('buildcheck') :=list(T)]
+        if(nrow(cSumstatsBuildCheck[buildcheck==T,])>0.75*nrow(cSumstats)){
+          cSumstats.warnings<-c(cSumstats.warnings,paste0("Dataset has more than a 75% overlap in genetic coordinates with the used reference variants (",nrow(cSumstatsBuildCheck[buildcheck==T,])," rows). Liftover may be unnecessary for this dataset."))
+        }
+        rm(cSumstatsBuildCheck)
+      }
+      
+      
       chain <- fread(file = chainFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8", header = F, check.names = T, fill = T, blank.lines.skip = T, data.table = T,showProgress = F, nThread=nThreads)
       
       chain$row <- 1:nrow(chain)
