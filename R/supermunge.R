@@ -1,5 +1,5 @@
-#WORK IN PROGRESS
-#Based on the amazing work by Grotzinger, A. D. et al. Nat. Hum. Behav. 3, 513–525 (2019) and Bulik-Sullivan, B. K. et al. Nat. Genet. 47, 291–295 (2015).
+#Johan Zvrskovec, 2021 
+#Based on the fantastic work by Grotzinger, A. D. et al. Nat. Hum. Behav. 3, 513–525 (2019) and Bulik-Sullivan, B. K. et al. Nat. Genet. 47, 291–295 (2015).
 
 
 
@@ -20,8 +20,9 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
                                c.NEF = c("NEF","NEFF","NEFFECTIVE","NE"),
                                #include FRQ_A?
                                c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF","FREQ1.HAPMAP","FREQALLELE1HAPMAPCEU", "FREQ.ALLELE1.HAPMAPCEU","EFFECT_ALLELE_FREQ","FREQ.A1","F_A","F_U","FREQ_A","FREQ_U","MA_FREQ","MAF_NW","FREQ_A1","A1FREQ","CODED_ALLELE_FREQUENCY","FREQ_TESTED_ALLELE_IN_HRS","EAF_HRC","EAF_UKB"),
-                               c.CHR = c("CHR","CH","CHROMOSOME","CHROM","CHR_BUILD38","CHR_BUILD37","CHR_BUILD36","CHR_B38","CHR_B37","CHR_B36","CHR_ID","SCAFFOLD","HG19CHR","CHR.HG19","CHR_HG19","HG18CHR","CHR.HG18","CHR_HG18","CHR_BP_HG19B37","HG19CHRC"),
-                               c.BP = c("BP","ORIGBP","POS","POSITION","LOCATION","PHYSPOS","GENPOS","CHR_POSITION","POS_B38","POS_BUILD38","POS_B37","POS_BUILD37","BP_HG19B37","POS_B36","POS_BUILD36","POS.HG19","POS.HG18","POS_HG19","POS_HG18","BP_HG19","BP_HG18","BP.GRCH38","BP.GRCH37","POSITION(HG19)","POSITION(HG18)","POS(B38)","POS(B37)"),
+                               c.CHR = c("CHR","CH","CHROMOSOME","CHROM","CHR_BUILD38","CHR_BUILD37","CHR_BUILD36","CHR_B38","CHR_B37","CHR_B36","CHR_ID","SCAFFOLD","HG19CHR","CHR.HG19","CHR_HG19","HG18CHR","CHR.HG18","CHR_HG18","CHR_BP_HG19B37","HG19CHRC","#CHROM"),
+                               c.BP = c("BP","BP1","ORIGBP","POS","POSITION","LOCATION","PHYSPOS","GENPOS","CHR_POSITION","POS_B38","POS_BUILD38","POS_B37","POS_BUILD37","BP_HG19B37","POS_B36","POS_BUILD36","POS.HG19","POS.HG18","POS_HG19","POS_HG18","BP_HG19","BP_HG18","BP.GRCH38","BP.GRCH37","POSITION(HG19)","POSITION(HG18)","POS(B38)","POS(B37)"),
+                               c.BP2 =c("BP2"),
                                c.DF = c("DF","CHISQ_DF")
 ){
   #test
@@ -49,6 +50,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
   columnNames[columnNames.upper %in% c.FRQ] <- c.FRQ[1]
   columnNames[columnNames.upper %in% c.CHR] <- c.CHR[1]
   columnNames[columnNames.upper %in% c.BP] <- c.BP[1]
+  columnNames[columnNames.upper %in% c.BP2] <- c.BP2[1]
   columnNames[columnNames.upper %in% c.DF] <- c.DF[1]
   
   if(stopOnMissingEssential){
@@ -106,6 +108,7 @@ parseSNPColumnAsRSNumber <- function(text){
 
 #ref, plink chromosome numbering: https://zzz.bwh.harvard.edu/plink/data.shtml
 #chromosome Un: https://genome.ucsc.edu/FAQ/FAQdownloads.html#download11
+#this does make the output numeric
 parseCHRColumn <- function(text){
   text<-trimws(text)
   text<-sub(pattern = "^chr",replacement = "",x = text, ignore.case = T)
@@ -116,56 +119,37 @@ parseCHRColumn <- function(text){
   text<-sub(pattern = "^M",replacement = "26",x = text, ignore.case = T)
   text<-sub(pattern = "^Un",replacement = "0",x = text, ignore.case = T)
   
-  return(text)
+  return(as.integer(text))
 }
 
 readFile <- function(filePath,nThreads=5){
   return(data.table::fread(file = filePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F))
 }
 
-# #test
-# filePaths = p$sumstats.sel$mungedpath
+#test
+# list_df=list(highld=p$highld_b37)
+# chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
+
+
+#test with settings from analysis script
+# filePaths = p$munge$filesToUse
 # refFilePath = p$filepath.SNPReference.1kg
-# traitNames = p$sumstats.sel$code
-# produceCompositeTable = T
-# process = F
-# standardiseEffectsToExposure = T
-# writeOutput = F
-# N = p$sumstats.sel$n_total
-# OLS=p$sumstats.sel$dependent_variable.OLS
-# linprob=p$sumstats.sel$dependent_variable.linprob
-# se.logit = p$sumstats.sel$se.logit
-# prop=(p$sumstats.sel$n_case/p$sumstats.sel$n_total)
-# info.filter = 0.55
+# traitNames = p$munge$traitNamesToUse
+# #imputeFromLD=T
+# #region.imputation.filter_df=p$highld #provide the high-ld regions to not use for imputation
+# #produceVariantTable = T
+# N = p$munge$NToUse
+# pathDirOutput = p$folderpath.data.sumstats.munged
+# chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
 
 
-#test2
-# list_df = lfGwasList
-# ref_df = ref
-# traitNames = paste0(cModel$code,".F",1:length(lfGwasList))
-# setChangeEffectDirectionOnAlleleFlip = T #T=same behaviour as genomic SEM
-# #N - precomputed for each SNP in the earlier processing step
-# pathDirOutput = project$folderpath.data.sumstats.munged
-
-
-#test3
-# filePaths = project$sumstats.sel$cleanedpath[23]
-# refFilePath=project$filepath.SNPReference.1kg
-# traitNames=project$sumstats.sel$code[23]
-# setChangeEffectDirectionOnAlleleFlip=T #set to TRUE to emulate genomic sem munge
-# produceCompositeTable=T
-# N=project$sumstats.sel$n_total[23]
-# prop=(project$sumstats.sel$n_case/project$sumstats.sel$n_total)[23]
-# OLS=project$sumstats.sel$dependent_variable.OLS[23]
-# linprob=project$sumstats.sel$dependent_variable.linprob[23]
-# se.logit=project$sumstats.sel$se.logit[23]
-
-#set default params for test
+# set default params for test
 # list_df=NULL
 # filePaths=NULL
 # ref_df=NULL
 # refFilePath=NULL
 # ldDirPath=NULL
+# chainFilePath = NULL
 # traitNames=NULL
 # setChangeEffectDirectionOnAlleleFlip=T #set to TRUE to emulate genomic sem munge
 # produceCompositeTable=F
@@ -176,13 +160,15 @@ readFile <- function(filePath,nThreads=5){
 # OLS=NULL
 # linprob=NULL
 # se.logit=NULL
+# liftover=NULL
 # pathDirOutput="."
 # keepIndel=T
 # harmoniseAllelesToReference=F
+# harmoniseBPToReference=T
 # doChrSplit=F
 # doStatistics=F
 # mask=NULL
-# stopOnMissingEssential=T
+# stopOnMissingEssential=F
 # maxSNPDistanceBpPadding=0
 # invertEffectDirectionOn=NULL
 # process=T
@@ -191,7 +177,12 @@ readFile <- function(filePath,nThreads=5){
 # info.filter=NULL
 # maf.filter=NULL
 # mhc.filter=NULL #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
+#region.filter_df=NULL #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
+#region.imputation.filter_df=NULL #dataframe with columns CHR,BP1,BP2 specifying regions to be excluded from acting as support for imputation, due to high LD for example.
 # GC="none" #"reinflate"
+# nThreads = 5
+# lossless = F
+
 
 supermunge <- function(
   list_df=NULL,
@@ -199,6 +190,7 @@ supermunge <- function(
   ref_df=NULL,
   refFilePath=NULL,
   ldDirPath=NULL,
+  chainFilePath = NULL, #chain file for lift-over
   traitNames=NULL,
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F,
@@ -210,14 +202,16 @@ supermunge <- function(
   OLS=NULL,
   linprob=NULL,
   se.logit=NULL,
+  liftover=NULL,
   pathDirOutput=".",
   keepIndel=T,
   harmoniseAllelesToReference=F,
+  harmoniseBPToReference=T,
   doChrSplit=F,
   doStatistics=F,
   mask=NULL,
-  stopOnMissingEssential=T,
-  maxSNPDistanceBpPadding=0,
+  stopOnMissingEssential=F,
+  maxSNPDistanceBpPadding=5,
   invertEffectDirectionOn=NULL,
   process=T,
   standardiseEffectsToExposure=F,
@@ -228,13 +222,15 @@ supermunge <- function(
   region.filter_df=NULL, #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
   region.imputation.filter_df=NULL, #dataframe with columns CHR,BP1,BP2 specifying regions to be excluded from acting as support for imputation, due to high LD for example.
   GC="none", #"reinflate",
-  nThreads = 5
+  nThreads = 5,
+  lossless = F #If true, include all original and additional columns, otherwise restrict output to standard column set (default)
 ){
   
   timeStart <- Sys.time()
   
   if(length(list_df)>0){
     if(is.null(traitNames)){
+      if(is.data.frame(list_df)) list_df<-list(trait1=list_df)
       traitNames<-names(list_df)
     }
     
@@ -243,7 +239,7 @@ supermunge <- function(
       if(!is.null(traitNames)) traitNames<-traitNames[mask]
     }
     
-    ds.length <- length(list_df)
+    nDatasets <- length(list_df)
   } else {
     if(is.null(traitNames)){
       traitNames<-basename(filePaths)
@@ -254,26 +250,30 @@ supermunge <- function(
       if(!is.null(traitNames)) traitNames<-traitNames[mask]
     }
     
-    ds.length <- length(filePaths)
+    nDatasets <- length(filePaths)
   }
   
   
   #settings similar to GenomicSEM sumstats function
   ## Considers everything as OLS datasets if nothing specified however
   if(is.null(OLS)){
-    OLS<-rep(TRUE,ds.length)
+    OLS<-rep(TRUE,nDatasets)
   }
   
   if(is.null(linprob)){
-    linprob<-rep(FALSE,ds.length)
+    linprob<-rep(FALSE,nDatasets)
   }
   
   if(is.null(se.logit)){
-    se.logit<-rep(FALSE,ds.length)
+    se.logit<-rep(FALSE,nDatasets)
+  }
+  
+  if(is.null(liftover)){
+    liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
   cat("\n\n\nS U P E R ★ M U N G E\n")
-  cat("\n",ds.length,"dataset(s) provided")
+  cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
   cat("\nkeepIndel=",keepIndel)
@@ -284,7 +284,7 @@ supermunge <- function(
   if(imputeFromLD) cat("\nimputeFrameLenBp=",imputeFrameLenBp)
   cat("\nproduceCompositeTable=",produceCompositeTable)
   if(length(invertEffectDirectionOn)>0) cat("\ninvertEffectDirectionOn=", paste(invertEffectDirectionOn,sep = ","))
-  
+  cat("\npathDirOutput=",pathDirOutput)
   cat("\n--------------------------------\n")
   
   ref<-NULL
@@ -302,19 +302,19 @@ supermunge <- function(
   
   variantTable<-NA
   if(!is.null(ref)){
-    # Transform to data table
-    ref <- setDT(ref)
+    # ref should be a data.table at this point
+    
     # Column harmonisation
-    ref.keys<-c('SNP')
-    ref$SNP <- tolower(as.character(ref$SNP))
-    ref$A1 <- toupper(as.character(ref$A1))
-    ref$A2 <- toupper(as.character(ref$A2))
+    ref.keys<-c("SNP","A1","A2")
+    #let's assume the ref is properly formatted and interpreted here with PLINK numeric chromosome numbers
+    # ref[,SNP:=tolower(as.character(SNP))]
+    # ref[,A1:=toupper(as.character(A1))]
+    # ref[,A2:=toupper(as.character(A2))]
     if('CHR' %in% names(ref)) {
-      ref$CHR <- toupper(as.character(ref$CHR))
       ref.keys<-c(ref.keys,'CHR') 
     }
     if('BP' %in% names(ref)) {
-      ref$BP <- as.integer(ref$BP)
+      #ref[,BP:=as.integer(BP)]
       ref.keys<-c(ref.keys,'BP')
     }
     
@@ -329,6 +329,7 @@ supermunge <- function(
     
     
     #read and merge with ld scores from directory
+    #TODO Fix so it can work with any type of ld-score files in a folder rather than a set of chromosomes
     if(!is.null(ldDirPath)){
       cat("\nReading LD-scores from specified directory...")
       ldscores<-c()
@@ -351,7 +352,7 @@ supermunge <- function(
     }
     
     #rename reference columns as to distinguish them from the dataset columns
-    names(ref)<-paste0(names(ref),"_REF")
+    colnames(ref)<-paste0(names(ref),"_REF")
     setkeyv(ref, cols = paste0(ref.keys,"_REF"))
     #check keys with key(ref)
     
@@ -363,7 +364,7 @@ supermunge <- function(
   
   sumstats.meta<-data.table(name=traitNames,file_path=ifelse(is.null(filePaths),NA_character_,filePaths),n_snp_raw=NA_integer_,n_snp_res=NA_integer_)
 
-  for(iFile in 1:ds.length){
+  for(iFile in 1:nDatasets){
     #for testing!
     #iFile=1
     timeStart.ds <- Sys.time()
@@ -378,18 +379,19 @@ supermunge <- function(
       changeEffectDirectionOnAlleleFlip<-setChangeEffectDirectionOnAlleleFlip
     }
     
-   
-    
-    
-    
-    
+    #print per-dataset info and setting
+    cat(paste("\n\nSupermunging\t",traitNames[iFile],"\n @ dataset", iFile,"\n"))
+    cat("\nN=",N[iFile])
+    cat("\nOLS=",OLS[iFile])
+    cat("\nlinprob=",linprob[iFile])
+    cat("\nse.logit=",se.logit[iFile])
+    cat("\nprop=",prop[iFile])
     if(!is.null(list_df)){
-      cat(paste("\n\nSupermunging\t",traitNames[iFile],"\n @ dataset", iFile,"\n"))
       cSumstats <- list_df[[iFile]]
     } else {
       cFilePath<-filePaths[iFile]
-      cat(paste("\n\nSupermunging\t",traitNames[iFile],"\nFile:", cFilePath,"\n"))
-      cSumstats<-fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = 5, showProgress = F)
+      cat(paste("\nFile:", cFilePath,"\n"))
+      cSumstats<-fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
       #cSumstats <- read.table(cFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
     }
     cat("\nReading.")
@@ -452,41 +454,64 @@ supermunge <- function(
       }
     }
     
+    
+    #Add in backstop SNP column
+    if(!any(colnames(cSumstats)=="SNP")){
+      cSumstats$SNP<-paste0("sm",1:nrow(cSumstats))
+    }
+    
+    
     # Transform to data table
-    cSumstats <- setDT(cSumstats)
+    #cSumstats <- setDT(cSumstats) #redundant now
     # Column harmonisation
     cSumstats.keys<-c('SNP')
-    cSumstats[,SNP:=as.character(SNP)][,A1:=as.character(A1)][,A2:=as.character(A2)]
-    if('Z' %in% names(cSumstats)) cSumstats[,Z:=as.numeric(Z)]
-    if('FRQ' %in% names(cSumstats)) cSumstats[,FRQ:=as.numeric(FRQ)]
-    if('MAF' %in% names(cSumstats)) cSumstats[,MAF:=as.numeric(MAF)]
-    if('INFO' %in% names(cSumstats)) cSumstats[,INFO:=as.numeric(INFO)]
-    if('EFFECT' %in% names(cSumstats)) cSumstats[,EFFECT:=as.numeric(EFFECT)]
-    if('SE' %in% names(cSumstats)) cSumstats[,SE:=as.numeric(SE)]
-    if('BETA' %in% names(cSumstats)) cSumstats[,BETA:=as.numeric(BETA)]
-    if('OR' %in% names(cSumstats)) cSumstats[,OR:=as.numeric(OR)]
-    if('N' %in% names(cSumstats)) {
+    cSumstats[,SNP:=as.character(SNP)]
+    if(any(colnames(cSumstats)=="A1")) {
+      cSumstats[,A1:=as.character(A1)]
+      cSumstats.keys<-c(cSumstats.keys,'A1')
+    }
+    if(any(colnames(cSumstats)=="A2")) {
+      cSumstats[,A2:=as.character(A2)]
+      cSumstats.keys<-c(cSumstats.keys,'A2')
+    }
+
+    if(any(colnames(cSumstats)=="Z")) cSumstats[,Z:=as.numeric(Z)]
+    if(any(colnames(cSumstats)=="FRQ")) cSumstats[,FRQ:=as.numeric(FRQ)]
+    #if(any(colnames(cSumstats)=="MAF")) cSumstats[,MAF:=as.numeric(MAF)]
+    if(any(colnames(cSumstats)=="INFO")) cSumstats[,INFO:=as.numeric(INFO)]
+    #if(any(colnames(cSumstats)=="EFFECT")) cSumstats[,EFFECT:=as.numeric(EFFECT)]
+    if(any(colnames(cSumstats)=="SE")) cSumstats[,SE:=as.numeric(SE)]
+    if(any(colnames(cSumstats)=="BETA")) cSumstats[,BETA:=as.numeric(BETA)]
+    if(any(colnames(cSumstats)=="OR")) cSumstats[,OR:=as.numeric(OR)]
+    if(any(colnames(cSumstats)=="N")) {
       cSumstats[,N:=as.numeric(N)]
       hasN<-T
       }
-    if('NEF' %in% names(cSumstats)) {
+    if(any(colnames(cSumstats)=="NEF")) {
       cSumstats[,NEF:=as.numeric(NEF)]
       hasNEF<-T
       }
     cat(".")
     
     #parse SNP if needed
-    cSumstats$SNP<-tolower(parseSNPColumnAsRSNumber(cSumstats$SNP))
+    cSumstats[,SNP:=parseSNPColumnAsRSNumber(SNP)]
     cat(".")
     
-    if('CHR' %in% names(cSumstats)) {
-      cSumstats$CHR <- toupper(parseCHRColumn(as.character(cSumstats$CHR)))
+    if(any(colnames(cSumstats)=="CHR")) {
+      cSumstats[,CHR:=parseCHRColumn(CHR)]
       cSumstats.keys<-c(cSumstats.keys,'CHR') 
     }
     cat(".")
+    
     if('BP' %in% names(cSumstats)) {
       cSumstats[,BP:=as.integer(BP)]
       cSumstats.keys<-c(cSumstats.keys,'BP')
+    }
+    cat(".")
+    
+    if('BP2' %in% names(cSumstats)) {
+      cSumstats[,BP2:=as.integer(BP2)]
+      cSumstats.keys<-c(cSumstats.keys,'BP2')
     }
     cat(".")
     
@@ -502,37 +527,6 @@ supermunge <- function(
     }
     cat(".")
     
-    #Remove MHC region based on position
-    #references
-    #https://www.ncbi.nlm.nih.gov/grc/human/regions/MHC?asm=GRCh37
-    #https://www.ncbi.nlm.nih.gov/grc/human/regions/MHC
-    if(!is.null(mhc.filter)){
-      if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
-        cSumstats.nSNP<-nrow(cSumstats)
-        if(mhc.filter==37) cSumstats <- cSumstats[!is.na(CHR) & !is.na(BP) & CHR=="6" & BP>=28477797 & BP<=33448354, ] else if (mhc.filter==38) cSumstats <- cSumstats[!is.na(CHR) & !is.na(BP) & CHR=="6" & BP>=28510120 & BP<=33480577, ] else cSumstats.warnings<-c(cSumstats.warnings,"Invalid assembly version provided - no filtering of the MHC was done!")
-        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; GRCh",mhc.filter,"MHC"),as.character(cSumstats.nSNP-nrow(cSumstats))))
-      } else {
-        cSumstats.warnings<-c(cSumstats.warnings,"No chromosome or base-pair position information available - no filtering of the MHC was done!")
-      }
-    }
-    cat(".")
-    
-    #remove custom regions according to specified dataframe
-    if(!is.null(region.filter_df)){
-      if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
-        if(!(any(colnames(region.filter_df)=="CHR") & any(colnames(region.filter_df)=="BP1" & any(colnames(region.filter_df)=="BP2")))) stop("Dataframe containing regions to be removed must contain the columns CHR, BP1, and BP2!")
-        setDT(region.filter_df)
-        setkeyv(region.filter_df, cols = c("CHR","BP1","BP2"))
-        cSumstats.nSNP<-nrow(cSumstats)
-        for(isegment in 1:nrow(region.filter_df)){
-          #isegment<-1
-          cSumstats <- cSumstats[!(CHR==region.filter_df$CHR[isegment] & BP>=region.filter_df$BP1[isegment] & BP<=region.filter_df$BP2[isegment]),]
-        }
-        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; custom regions"),as.character(cSumstats.nSNP-nrow(cSumstats))))
-      } else {
-        cSumstats.warnings<-c(cSumstats.warnings,"No chromosome or base-pair position information available - no filtering of custom provided regions was done!")
-      }
-    }
     
     #Filter variants MAF<maf.filter
     if(!is.null(maf.filter)){
@@ -558,136 +552,292 @@ supermunge <- function(
     }
     cat(".")
     
+    
+    #lift-over to new coordinates before using coordinates
+    if(!is.null(chainFilePath) & liftover[iFile]){
+      #chain file format reference: http://genome.ucsc.edu/goldenPath/help/chain.html
+      chain <- fread(file = chainFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8", header = F, check.names = T, fill = T, blank.lines.skip = T, data.table = T,showProgress = F, nThread=nThreads)
+      
+      chain$row <- 1:nrow(chain)
+      
+      chains.dt <- chain[V1=="chain",]
+      chains.dt[,V1:=NULL]
+      colnames(chains.dt) <- c("score","tName","tSize","tStrand","tStart","tEnd","qName","qSize","qStrand","qStart","qEnd","id","row")
+      
+      
+      #tName
+      chains.dt$tName<-parseCHRColumn(chains.dt$tName)
+      chains.dt$strange_tName<-grepl(pattern = "^[^_]+_", chains.dt$tName)
+      indexesLengths<-regexec(pattern = "^([^_]+)_", text=chains.dt$tName)
+      matches<-regmatches(chains.dt$tName,indexesLengths)
+      chains.dt$tName[chains.dt$strange_tName] <- unlist(lapply(matches[chains.dt$strange_tName],FUN = function(x)x[2]))
+      
+      #qName
+      chains.dt$qName<-parseCHRColumn(chains.dt$qName)
+      chains.dt$strange_qName<-grepl(pattern = "^[^_]+_", chains.dt$qName)
+      indexesLengths<-regexec(pattern = "^([^_]+)_", text=chains.dt$qName)
+      matches<-regmatches(chains.dt$qName,indexesLengths)
+      chains.dt$qName[chains.dt$strange_qName] <- unlist(lapply(matches[chains.dt$strange_qName],FUN = function(x)x[2]))
+      
+      #chromosome Un
+      #https://genome.ucsc.edu/FAQ/FAQdownloads.html#download11
+      
+      chains.dt[,score:=as.numeric(score)]
+      chains.dt[,tName:=as.integer(tName)]
+      chains.dt[,qName:=as.integer(qName)]
+      
+      setkeyv(chains.dt,cols = c("tStart","tEnd","qStart","qEnd","id","row"))
+      #chains.dt<-chains.dt[order("row")]
+      
+      segments.dt <- chain[V1!="chain",]
+      segments.dt[,c("size","dt","dq"):=tstrsplit(V1,split = "\t",fixed = T)] #tstrsplit!
+      segments.dt[,colnames(segments.dt)[!colnames(segments.dt) %in% c("row","size","dt","dq")]:=NULL]
+      setkeyv(segments.dt,cols = c("row","size","dt","dq"))
+      chains.dt<-chains.dt[order(chains.dt$row),]
+      
+      #update segments with chain id
+      for(i in 1:nrow(chains.dt)){
+        #i<-1
+        cRow<-chains.dt[i,c("row")][[1]]
+        cId<-chains.dt[i,c("id")][[1]]
+        segments.dt[row>cRow,chain:=cId]
+      }
+      
+      #segments.dt[, cumsize := cumsum(size), by=list(chain)]
+      
+      rm(chain) #we don't need chain anymore
+      cat(".")
+      
+      #liftover
+      
+      #update cSumstats with chain id - sort on chain score!! =BLAT score?, -> overwrite lower score assignments later in the loop
+      chains.dt<-chains.dt[order(chains.dt$score),]
+      for(i in 1:nrow(chains.dt)){
+        #i<-1
+        cCHR<-chains.dt[i,c("tName")][[1]]
+        cStartBP<-chains.dt[i,c("tStart")][[1]]
+        cEndBP<-chains.dt[i,c("tEnd")][[1]]
+        cNCHR<-chains.dt[i,c("qName")][[1]]
+        cNStartBP<-chains.dt[i,c("qStart")][[1]]
+        cId<-chains.dt[i,c("id")][[1]]
+        cStrange_tName<-chains.dt[i,c("strange_tName")][[1]]
+        cStrange_qName<-chains.dt[i,c("strange_qName")][[1]]
+        # hits<-mTot[CHR==eval(cCHR) & BP>=eval(cStartBP) & BP<=eval(cEndBP),]
+        # num<-nrow(hits)
+        cSumstats[CHR==eval(cCHR) & BP>=eval(cStartBP) & BP<=eval(cEndBP),c('chain','strange_tName','strange_qName','NCHR','NBP') :=list(eval(cId),eval(cStrange_tName),eval(cStrange_qName),eval(cNCHR),(BP-eval(cStartBP)+eval(cNStartBP)))]
+        if(any(colnames(cSumstats)=="BP2")){
+          cSumstats[CHR==eval(cCHR) & BP2>=eval(cStartBP) & BP2<=eval(cEndBP),c('chain2','strange_tName2','strange_qName2','NCHR2','NBP2') :=list(eval(cId),eval(cStrange_tName),eval(cStrange_qName),eval(cNCHR),(BP2-eval(cStartBP)+eval(cNStartBP)))]
+        }
+        
+      }
+      
+      # nrow(cSumstats)
+      # 
+      # remapped <- cSumstats[CHR!=NCHR | BP!= NBP,]
+      # nrow(remapped)
+      # 
+      # unmapped <- cSumstats[is.na(NCHR) | is.na(NBP),]
+      # nrow(unmapped)
+      
+      cSumstats<-cSumstats[!(is.na(NCHR) | is.na(NBP)),][,c("CHR_ORIG","BP_ORIG"):=list(CHR,BP)][,c("CHR","BP"):=list(NCHR,NBP)]
+      #nrow(cSumstats[CHR!=NCHR | BP!= NBP,]) #check - should be 0
+      
+      if(any(colnames(cSumstats)=="BP2")){
+        cSumstats<-cSumstats[!(is.na(NCHR2) | is.na(NBP2)),][,c("CHR2_ORIG","BP2_ORIG"):=list(CHR,BP2)][,BP2:=NBP2][,segmentChrMismatch:=(NCHR!=NCHR2)]
+        #nrow(cSumstats[CHR!=NCHR2 | BP!= NBP2,]) #check - should be 0
+        
+      }
+      
+      cSumstats[,NCHR:=NULL][,NBP:=NULL]
+      if(any(colnames(cSumstats)=="BP2")) cSumstats[,NCHR2:=NULL][,NBP2:=NULL]
+      
+      cat("🏋")
+    }
+    
+    
+    #Remove MHC region based on position
+    #references
+    #https://www.ncbi.nlm.nih.gov/grc/human/regions/MHC?asm=GRCh37
+    #https://www.ncbi.nlm.nih.gov/grc/human/regions/MHC
+    if(!is.null(mhc.filter)){
+      if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
+        cSumstats.nSNP<-nrow(cSumstats)
+        if(mhc.filter==37) cSumstats <- cSumstats[!is.na(CHR) & !is.na(BP) & CHR=="6" & BP>=28477797 & BP<=33448354, ] else if (mhc.filter==38) cSumstats <- cSumstats[!is.na(CHR) & !is.na(BP) & CHR=="6" & BP>=28510120 & BP<=33480577, ] else cSumstats.warnings<-c(cSumstats.warnings,"Invalid assembly version provided - no filtering of the MHC was done!")
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; GRCh",mhc.filter,"MHC"),as.character(cSumstats.nSNP-nrow(cSumstats))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"No chromosome or base-pair position information available - no filtering of the MHC was done!")
+      }
+    }
+    cat(".")
+    
+    #remove custom regions according to specified dataframe
+    if(!is.null(region.filter_df)){
+      if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
+        if(!(any(colnames(region.filter_df)=="CHR") & any(colnames(region.filter_df)=="BP" & any(colnames(region.filter_df)=="BP2")))) stop("Dataframe containing regions to be removed must contain the columns CHR, BP, and BP2!")
+        setDT(region.filter_df)
+        setkeyv(region.filter_df, cols = c("CHR","BP","BP2"))
+        cSumstats.nSNP<-nrow(cSumstats)
+        for(isegment in 1:nrow(region.filter_df)){
+          #isegment<-1
+          cSumstats <- cSumstats[!(CHR==region.filter_df$CHR[isegment] & BP>=region.filter_df$BP[isegment] & BP<=region.filter_df$BP2[isegment]),]
+        }
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; custom regions"),as.character(cSumstats.nSNP-nrow(cSumstats))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"No chromosome or base-pair position information available - no filtering of custom provided regions was done!")
+      }
+    }
+    
+    
     if(process){
       cat("Processing.")
       # QC, and data management before merge with reference
       
       ## Remove SNPs with missing P
-      if("P" %in% colnames(cSumstats)) {
+      if(any(colnames(cSumstats)=="P")) {
         cSumstats.n<-nrow(cSumstats)
-        cSumstats<-cSumstats[which(!is.na(cSumstats$P)),]
+        cSumstats<-cSumstats[!is.na(P),]
         cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; missing P",as.character(cSumstats.n-nrow(cSumstats))))
       }
       cat(".")
       
       ## Remove SNPs with missing effects
-      if("EFFECT" %in% colnames(cSumstats)) {
+      if(any(colnames(cSumstats)=="EFFECT")) {
         cSumstats.n<-nrow(cSumstats)
-        cSumstats<-cSumstats[which(!is.na(cSumstats$EFFECT)),]
+        cSumstats<-cSumstats[!is.na(EFFECT),]
         cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; missing EFFECT",as.character(cSumstats.n-nrow(cSumstats))))
       }
       cat(".")
       
       ##Alleles, deal with indels
       if(keepIndel == T){
-        cSumstats$A1 <- as.character(toupper(cSumstats$A1))
-        cSumstats$A2 <- as.character(toupper(cSumstats$A2))
+        #we already formatted these earlier
+        # cSumstats$A1 <- as.character(toupper(cSumstats$A1))
+        # cSumstats$A2 <- as.character(toupper(cSumstats$A2))
       } else if(keepIndel == F){
-        cSumstats$A1 <- as.character(toupper(cSumstats$A1), c("A", "C", "G", "T"))
-        cSumstats$A2 <- as.character(toupper(cSumstats$A2), c("A", "C", "G", "T"))
+        cSumstats$A1 <- as.character(cSumstats$A1, c("A", "C", "G", "T"))
+        cSumstats$A2 <- as.character(cSumstats$A2, c("A", "C", "G", "T"))
         cSumstats.meta<-rbind(cSumstats.meta,list("Discarded indels (A1)",as.character(count(is.na(cSumstats$A1)))))
         cSumstats.meta<-rbind(cSumstats.meta,list("Discarded indels (A2)",as.character(count(is.na(cSumstats$A2)))))
       }
       cat(".")
       
-      ## Remove duplicated variants across SNP, A1 and A2
-      if(any(colnames(cSumstats)=="SNP") & any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")) {
-        cSumstats.n <- nrow(cSumstats)
-        cSumstats <- unique(cSumstats,by = c("SNP","A1","A2"))
-        cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; duplicate SNP,A1,A2",as.character(cSumstats.n-nrow(cSumstats))))
-      }
-      cat(".")
+      ## Remove duplicated variants across SNP, A1 and A2 - DEPRECATED! - MOVED TO LATER
+      # if(any(colnames(cSumstats)=="SNP") & any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")) {
+      #   cSumstats.n <- nrow(cSumstats)
+      #   cSumstats <- unique(cSumstats,by = c("SNP","A1","A2"))
+      #   #TODO replace with a solution according to this syntax:
+      #   #ul2<-l2[, .(L2 = head(L2,1)), by = c("CHR","SNP","BP")]
+      #   cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; duplicate SNP,A1,A2",as.character(cSumstats.n-nrow(cSumstats))))
+      # }
+      # cat(".")
       
       # Merge with reference
       if(!is.null(ref)){
         #Aligning and validating with reference file
         cSumstats.n<-nrow(cSumstats)
-        #cat("\nValidating dataset \tnSNP =",cSumstats.n,"\nwith reference \t\tnSNP =", nrow(ref))
         
         
         #Join with reference on SNP rsID, only keeping SNPs with rsIDs part of the reference
         #https://stackoverflow.com/questions/34644707/left-outer-join-with-data-table-with-different-names-for-key-variables/34645997#34645997
-        cSumstats.merged.snp<-ref[cSumstats, on=c(SNP_REF='SNP'), nomatch=0]
+        cSumstats.merged.snp<-ref[cSumstats, on=c(SNP_REF="SNP"), nomatch=0]
+        #replace missing columns
+        cSumstats.merged.snp[,SNP:=SNP_REF]
+        #cSumstats.merged.snp[,DBPORIG:=BP-BP_ORIG][,DBPREF:=BP-BP_REF]
         
-        cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; rsID not in ref",as.character(cSumstats.n-nrow(cSumstats.merged.snp))))
-        #cat("\nRemoved SNPs with rsIDs not present in the reference:\t\t",cSumstats.n-nrow(cSumstats.merged.snp))
+        cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; rsID not in ref",as.character(cSumstats.n-nrow(cSumstats.merged.snp))))
         cat(".")
         
-        if('CHR' %in% names(cSumstats.merged.snp) && 'CHR_REF' %in% names(cSumstats.merged.snp))
+        if(any(colnames(cSumstats.merged.snp)=="CHR") && any(colnames(cSumstats.merged.snp)=="CHR_REF"))
         {
           cSumstats.merged.snp.n<-nrow(cSumstats.merged.snp)
           cSumstats.merged.snp<-cSumstats.merged.snp[CHR==CHR_REF]
-          #cat("\nRemoved SNPs not matching the reference chromosome:\t\t",cSumstats.merged.snp.n-nrow(cSumstats.merged.snp))
-          cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; CHR not matching ref",as.character(cSumstats.merged.snp.n-nrow(cSumstats.merged.snp))))
+          cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; CHR not matching ref",as.character(cSumstats.merged.snp.n-nrow(cSumstats.merged.snp))))
         }
         cat(".")
         
-        if('BP' %in% names(cSumstats.merged.snp) && 'BP_REF' %in% names(cSumstats.merged.snp)){
-          cSumstats.merged.snp.maxAlleleLength<-max(nchar(cSumstats.merged.snp$A1),nchar(cSumstats.merged.snp$A2),nchar(cSumstats.merged.snp$A1_REF),nchar(cSumstats.merged.snp$A2_REF))
-          cSumstats.merged.snp.n<-nrow(cSumstats.merged.snp)
-          cSumstats.merged.snp<-cSumstats.merged.snp[BP < BP_REF + cSumstats.merged.snp.maxAlleleLength + maxSNPDistanceBpPadding & BP > BP_REF - cSumstats.merged.snp.maxAlleleLength - maxSNPDistanceBpPadding]
-          #cat("\nRemoved SNPs outside the specified bp window +-bp",(cSumstats.merged.snp.maxAlleleLength + maxSNPDistanceBpPadding -1),"from the reference position:\t\t",cSumstats.merged.snp.n-nrow(cSumstats.merged.snp))
-          cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed SNPs; outside bp window +-bp",as.character(cSumstats.merged.snp.maxAlleleLength + maxSNPDistanceBpPadding -1)),as.character(cSumstats.merged.snp.n-nrow(cSumstats.merged.snp))))
-        }
-        cat(".")
-        
-        #replace missing columns
-        cSumstats.merged.snp$SNP<-cSumstats.merged.snp$SNP_REF
-        
+        #Join with reference on genetic coordinates
         cSumstats.merged.pos<-NULL
-        if('CHR' %in% names(cSumstats) && 'BP' %in% names(cSumstats) && 'CHR_REF' %in% names(ref) && 'BP_REF' %in% names(ref)) {
+        if(any(colnames(cSumstats)=="CHR") && any(colnames(cSumstats)=="BP") && any(colnames(ref)=="CHR_REF") && any(colnames(ref)=="BP_REF") && any(colnames(cSumstats)=="A1") && any(colnames(ref)=="A1_REF") && any(colnames(cSumstats)=="A2") && any(colnames(ref)=="A2_REF")) {
           #Join with reference on position rather than rsID
-          #cSumstats.merged.pos<-ref[cSumstats, on=c(CHR_REF='CHR' , 'BP' < BP_REF + cSumstats.merged.snp.maxAlleleLength + maxSNPDistanceBpPadding & 'BP' > BP_REF - cSumstats.merged.snp.maxAlleleLength - maxSNPDistanceBpPadding)]
-          
           cSumstats.merged.pos<-ref[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP'), nomatch=0]
-          #cSumstats.merged.pos<-cSumstats.merged.pos[!(cSumstats.merged.pos$SNP_REF %in% cSumstats.merged.snp$SNP_REF),]
           
           #replace missing columns
-          cSumstats.merged.pos$CHR<-cSumstats.merged.pos$CHR_REF
-          cSumstats.merged.pos$BP<-cSumstats.merged.pos$BP_REF
+          cSumstats.merged.pos[,CHR:=CHR_REF]
+          cSumstats.merged.pos[,BP:=BP_REF]
         }
         cat(".")
         
-        #using cSumstats to store the plain or merged result
         if(is.null(cSumstats.merged.pos)){
           cSumstats<-cSumstats.merged.snp
         } else {
+          
+          #assure proper allele configuration
+          if(any(colnames(cSumstats.merged.pos)=="A1") && any(colnames(cSumstats.merged.pos)=="A1_REF") && any(colnames(cSumstats.merged.pos)=="A2") && any(colnames(cSumstats.merged.pos)=="A2_REF")) cSumstats.merged.pos<-cSumstats.merged.pos[A1==A1_REF & A2==A2_REF,]
+          
           #merge merged datasets
           cSumstats.merged.pos.salvaged<-cSumstats.merged.pos[!(cSumstats.merged.pos$SNP_REF %in% cSumstats.merged.snp$SNP_REF),]
-          cSumstats<-rbindlist(list(cSumstats.merged.snp,cSumstats.merged.pos.salvaged), use.names=T)
+          cSumstats.merged.pos.salvaged[,c("SNP","inferredFromCoord"):=list(SNP_REF,T)] #make sure that these variants are interpreted as the one inferred from the reference from now on
+          cSumstats<-rbindlist(list(cSumstats.merged.snp,cSumstats.merged.pos.salvaged), use.names=T, fill = T)
           #cat("\nSalvaged SNPs by merging on SNP position rather than rsID:",nrow(cSumstats.merged.pos.salvaged))
           cSumstats.meta<-rbind(cSumstats.meta,list("Salvaged SNPs by ref locus",as.character(nrow(cSumstats.merged.pos.salvaged))))
           cSumstats.merged.pos<-NULL
+          cSumstats.merged.pos.salvaged<-NULL
           #TODO Make more memory friendly version using https://www.biostars.org/p/432389/
         }
         cSumstats.merged.snp<-NULL
+        cat(".")
+        
+        #compare coordinates with reference
+        if(any(colnames(cSumstats)=="BP") && any(colnames(cSumstats)=="BP_REF")){
+          cSumstats.maxAlleleLength<-max(nchar(cSumstats$A1),nchar(cSumstats$A2),nchar(cSumstats$A1_REF),nchar(cSumstats$A2_REF))
+          cSumstats.n<-nrow(cSumstats)
+          cSumstats[,c("DBP","ADBP"):=list((BP-BP_REF),abs(BP-BP_REF))]
+          #cSumstats.merged.snp[,DBPREF_ORIG:=abs(BP_ORIG-BP_REF)]
+          
+          cSumstats.medianDBPperCHR<-cSumstats[, .(medDBP = median(DBP)), by = c("CHR")]
+          cat(".")
+          
+          #calculate adjusted BP to account for systematic differences between the dataset and reference
+          cSumstats[cSumstats.medianDBPperCHR,on=(CHR="CHR"),c("BPADJ","ADBPADJ"):=list((BP-i.medDBP),abs((BP-i.medDBP)-BP_REF))]
+          cat(".")
+        }
+        
       }
-      cat(".")
       
       # More QC and data management, after merge with reference
       
       #store original allele order and frequency info
-      cSumstats$A1_ORIG<-cSumstats$A1
-      cSumstats$A2_ORIG<-cSumstats$A2
-      if(any(colnames(cSumstats)=="FRQ")) cSumstats$FRQ_ORIG<-cSumstats$FRQ
+      cSumstats[,A1_ORIG:=A1]
+      cSumstats[,A2_ORIG:=A2]
+      if(any(colnames(cSumstats)=="FRQ")) cSumstats[,FRQ_ORIG:=FRQ]
       
       
       if(!is.null(ref)){
         
-        ##Synchronise SNP with reference SNP
-        cSumstats$SNP<-cSumstats$SNP_REF
+        ##Synchronise SNP,BP with reference
+        cSumstats[,SNP:=SNP_REF]
+        cSumstats[,BP:=BP_REF]
         
         ## Add in chr and bp from ref if not present in datasets
-        if(!any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="CHR_REF")) {
-            cSumstats$CHR<-cSumstats$CHR_REF
+        if(!any(colnames(cSumstats)=="CHR")){
+          cSumstats.warnings<-c(cSumstats.warnings,"No CHR column present!")
+          if(any(colnames(cSumstats)=="CHR_REF")){
+            cSumstats[,CHR:=CHR_REF]
             cSumstats.keys<-c(cSumstats.keys,'CHR')
+            cSumstats.warnings<-c(cSumstats.warnings,"Inferring CHR from reference!")
+          }
         }
-        if(!any(colnames(cSumstats)=="BP") & any(colnames(cSumstats)=="BP_REF")){
-            cSumstats$BP<-cSumstats$BP_REF
-            cSumstats.keys<-c(cSumstats.keys,'BP') 
-        }
-        if(!any(colnames(cSumstats)=="FRQ") & any(colnames(cSumstats)=="FRQ_REF")){
-          cSumstats$FRQ<-cSumstats$FRQ_REF
+        
+        if(!any(colnames(cSumstats)=="FRQ")){
+          sumstats.meta[iFile,c("no_FRQ")]<-T
+          cSumstats.warnings<-c(cSumstats.warnings,"No FRQ column present!")
+          if(any(colnames(cSumstats)=="MAF_REF")){
+            cSumstats[,FRQ:=MAF_REF]
+            cSumstats.warnings<-c(cSumstats.warnings,"Inferring FRQ from reference!")
+          } else {
+            cSumstats[,FRQ:=NA_real_]
+          }
+          
         }
       }
       cat(".")
@@ -700,8 +850,8 @@ supermunge <- function(
         ## Remove SNPs where alleles are not matching at least one of the reference alleles
         cSumstats.n<-nrow(cSumstats)
         cond.removeNonmatching<-(cSumstats$A1 != (cSumstats$A1_REF) & cSumstats$A1 != (cSumstats$A2_REF)) & (cSumstats$A2 != (cSumstats$A1_REF)  & cSumstats$A2 != (cSumstats$A2_REF))
-        cSumstats<-cSumstats[which(!cond.removeNonmatching), ]
-        cSumstats.meta<-rbind(cSumstats.meta,list("Removed SNPs; A1 or A2 not matching any ref allele",as.character(sum(cond.removeNonmatching))))
+        cSumstats<-cSumstats[!cond.removeNonmatching, ]
+        cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; A1 or A2 not matching any ref allele",as.character(sum(cond.removeNonmatching))))
         sumstats.meta[iFile,c("Removed, nonmatching ref alleles")]<-sum(cond.removeNonmatching)
       }
       cat(".")
@@ -753,23 +903,24 @@ supermunge <- function(
       cat(".")
       
       ## Establish allele order from the reference
-      cond.invertedAlleleOrder<-NULL
       if(!is.null(ref)){
         #cond.invertedAlleleOrder<-(cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF) #the same condition as in GenomicSEM munge.
         #cond.invertedAlleleOrder<-(cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF)
-        cond.invertedAlleleOrder<-((cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF) | (cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF)) #experimental - seems to work similar to the GenomicSEM implementation
+        #cond.invertedAlleleOrder<-((cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF) | (cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF)) #experimental - seems to work similar to the GenomicSEM implementation
+        cSumstats[,cond.invertedAlleleOrder:=((A2!=A2_REF & A1==A2_REF) | (A1!=A1_REF & A2 ==A1_REF))]
+        
       }
       cat(".")
       
       ## Invert alleles or harmonise (including their FRQ) to reference
       if(!is.null(ref) & harmoniseAllelesToReference){
         # Fix A1 and A2 to reflect the reference alleles
-        cSumstats$A1<-cSumstats$A1_REF
-        cSumstats$A2<-cSumstats$A2_REF
-        if(any(colnames(cSumstats)=="MAF_REF")) cSumstats$FRQ<-cSumstats$MAF_REF
-      } else if(!is.null(cond.invertedAlleleOrder)) { ## or Invert alleles  -FRQ is dealt with below
-        cSumstats$A1<-ifelse(cond.invertedAlleleOrder, cSumstats$A2_ORIG, cSumstats$A1)
-        cSumstats$A2<-ifelse(cond.invertedAlleleOrder, cSumstats$A1_ORIG, cSumstats$A2)
+        cSumstats[,A1:=A1_REF]
+        cSumstats[,A2:=A2_REF]
+        if(any(colnames(cSumstats)=="MAF_REF")) cSumstats[,FRQ:=MAF_REF]
+      } else if(any(colnames(cSumstats)=="cond.invertedAlleleOrder")) { ## Invert alleles  -FRQ is dealt with below
+        cSumstats[,A1:=ifelse(cond.invertedAlleleOrder, A2_ORIG, A1)]
+        cSumstats[,A2:=ifelse(cond.invertedAlleleOrder, A1_ORIG, A2)]
       }
       cat(".")
       
@@ -784,9 +935,9 @@ supermunge <- function(
         }
         
         ### Invert FRQ based on the previous reference matching
-        if(!is.null(cond.invertedAlleleOrder) & !harmoniseAllelesToReference) {
-          alleleFRQ <- ifelse(cond.invertedAlleleOrder, (1-cSumstats$FRQ), cSumstats$FRQ)
-          if(mean(alleleFRQ)<mean(cSumstats$FRQ)){
+        if(any(colnames(cSumstats)=="cond.invertedAlleleOrder") & !harmoniseAllelesToReference) {
+          alleleFRQ <- ifelse(cSumstats$cond.invertedAlleleOrder, (1-cSumstats$FRQ), cSumstats$FRQ)
+          if(mean(alleleFRQ) < mean(cSumstats$FRQ) * 1.1){
             cSumstats$FRQ<-alleleFRQ
             cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Fitted (flipped) according to reference allele order"))
             sumstats.meta[iFile,c("FRQ.flipped")]<-T
@@ -800,24 +951,22 @@ supermunge <- function(
         ### Compute MAF
         cond.invertedMAF<-cSumstats$FRQ > .5
         cSumstats$MAF<-ifelse(cond.invertedMAF,1-cSumstats$FRQ,cSumstats$FRQ)
-      } else {
-        ### Does not have FRQ
-        #### Note that FRQ is not present
-        sumstats.meta[iFile,c("no_FRQ")]<-T
-        cSumstats.warnings<-c(cSumstats.warnings,"No FRQ column present!")
-        if(!is.null(ref)){
-          #Set FRQ from ref if not present
-          cSumstats$FRQ<-cSumstats$MAF_REF
-          cSumstats.warnings<-c(cSumstats.warnings,"Inferring FRQ from reference!")
-        } else {
-          #### Add empty FRQ here for consistency
-          cSumstats$FRQ<-NA_real_
-        }
       }
       cat(".")
       
       ## Compute variance of individual variant effects according to 2pq
       cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
+      cat(".")
+      
+      
+      #remove duplicate ID variants, ordered by ADBPADJ, -MAF
+      cSumstats.n<-nrow(cSumstats)
+      cSumstats<-cSumstats[order(ADBPADJ, -MAF),]
+      cSumstats$ADBPADJ_ID<-1:nrow(cSumstats)
+      cSumstats.unique<-cSumstats[, .(ADBPADJ_ID = head(ADBPADJ_ID,1)), by = c("SNP")]
+      cSumstats<-cSumstats[cSumstats.unique, on=c(ADBPADJ_ID=c("ADBPADJ_ID"))]
+      cSumstats[,i.SNP:=NULL]
+      cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; duplicate variant ID",as.character(cSumstats.n-nrow(cSumstats))))
       cat(".")
       
       
@@ -836,9 +985,8 @@ supermunge <- function(
       #produce the unstandardised regression beta from Z if no EFFECT present
       if(any(colnames(cSumstats)=="Z") && !any(colnames(cSumstats)=="EFFECT")) {
         ## Compute BETA/EFFECT from Z if present
-        cSumstats$EFFECT <- cSumstats$Z/sqrt(cSumstats$N * cSumstats$VSNP) 
-        cSumstats$SE <- cSumstats$EFFECT/cSumstats$Z
-        cSumstats[is.na(cSumstats$SE),]$SE<-1 #explicitly set NA SE to 1
+        cSumstats[,EFFECT:= Z/sqrt(N*VSNP)][,SE:=EFFECT/Z]
+        cSumstats[is.na(SE),SE:=1] #explicitly set NA SE to 1
         cSumstats.meta<-rbind(cSumstats.meta,list("BETA","Calculated from Z"))
       }
       cat(".")
@@ -846,9 +994,9 @@ supermunge <- function(
       if(any(colnames(cSumstats)=="EFFECT")) {
         
         ## Determine effect type, and set effect to log(EFFECT) if odds ratio
-        if(round(median(cSumstats$EFFECT,na.rm=T)) == 1) {
+        if(round(median(cSumstats$EFFECT,na.rm=T),digits = 1) == 1) {
           ###is odds ratio
-          cSumstats$EFFECT<-log(cSumstats$EFFECT)
+          cSumstats[,EFFECT:=log(EFFECT)]
           sumstats.meta[iFile,c("effect_type")]<-"OR"
           cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","OR  =>ln(OR)"))
           if(any(colnames(cSumstats)=="BETA")) {
@@ -867,13 +1015,13 @@ supermunge <- function(
         cat(".")
         
         ## Compute Z score (standardised beta) - used for effect corrections further and is later corrected accordingly
+        if(any(colnames(cSumstats)=="Z")) cSumstats[,Z_ORIG:=Z] #save original Z-score
         if(any(colnames(cSumstats)=="P")) {
-          if(any(colnames(cSumstats)=="Z")) cSumstats$Z_ORIG<-cSumstats$Z #save original Z-score
-          cSumstats$Z <- sign(cSumstats$EFFECT) * sqrt(qchisq(cSumstats$P,1,lower=F))
+          
+          cSumstats[,Z:=sign(EFFECT) * sqrt(qchisq(P,1,lower=F))]
           cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from P and sign(EFFECT)"))
         } else if(any(colnames(cSumstats)=="SE")){
-          if(any(colnames(cSumstats)=="Z")) cSumstats$Z_ORIG<-cSumstats$Z #save original Z-score
-          cSumstats$Z <- cSumstats$EFFECT/cSumstats$SE #is this less reliable as we cannot know the scale of SE?
+          cSumstats[,Z:=EFFECT/SE] #is this less reliable as we cannot know the scale of SE?
           cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from EFFECT and SE"))
         } else {
           cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT calculated since no P or SE"))
@@ -901,7 +1049,7 @@ supermunge <- function(
       ##invert overall effect if specified
       if(any(colnames(cSumstats)=="EFFECT") & !is.null(invertEffectDirectionOn)){
         if(any(invertEffectDirectionOn==traitNames[iFile])){
-          cSumstats$EFFECT<-cSumstats$EFFECT*-1
+          cSumstats[,EFFECT:=EFFECT*-1]
           cSumstats.meta<-rbind(cSumstats.meta,list("Inverted overall effect",as.character(length(cSumstats$EFFECT))))
         }
       }
@@ -910,7 +1058,7 @@ supermunge <- function(
       
       #add missing SE
       if(!any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="EFFECT")){
-        cSumstats$SE <- cSumstats$EFFECT/cSumstats$Z
+        cSumstats[,SE:=EFFECT/Z]
       }
       
       #compute minimum variance for later calculations
@@ -921,31 +1069,31 @@ supermunge <- function(
       #compare hypothesised inverted allele effects with non-inverted allele effects for validation
       if(is.null(changeEffectDirectionOnAlleleFlip)) changeEffectDirectionOnAlleleFlip<-T
       
-      if(any(colnames(cSumstats)=="EFFECT") & !is.null(cond.invertedAlleleOrder)){
-        if(any(cond.invertedAlleleOrder)){
-          sumstats.meta[iFile,c("Inverted allele order variants")]<-sum(cond.invertedAlleleOrder)
+      if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="cond.invertedAlleleOrder")){
+        if(any(cSumstats$cond.invertedAlleleOrder)){
+          sumstats.meta[iFile,c("Inverted allele order variants")]<-sum(cSumstats$cond.invertedAlleleOrder)
           if(any(colnames(cSumstats)=="SE")){
             cSumstats.meta<-rbind(cSumstats.meta,list("Mean effect","ivw"))
-            meffects.reference<-weighted.mean(cSumstats$EFFECT[!cond.invertedAlleleOrder], w = 1/(minv + cSumstats$SE[!cond.invertedAlleleOrder]^2), na.rm = T)
-            meffects.candidate<-weighted.mean(cSumstats$EFFECT[cond.invertedAlleleOrder], w = 1/(minv + cSumstats$SE[cond.invertedAlleleOrder]^2), na.rm = T)
+            meffects.reference<-weighted.mean(cSumstats$EFFECT[!cSumstats$cond.invertedAlleleOrder], w = 1/(minv + cSumstats$SE[!cSumstats$cond.invertedAlleleOrder]^2), na.rm = T)
+            meffects.candidate<-weighted.mean(cSumstats$EFFECT[cSumstats$cond.invertedAlleleOrder], w = 1/(minv + cSumstats$SE[cSumstats$cond.invertedAlleleOrder]^2), na.rm = T)
           } else {
             cSumstats.meta<-rbind(cSumstats.meta,list("Mean effect","plain"))
-            meffects.reference<-mean(cSumstats$EFFECT[!cond.invertedAlleleOrder],na.rm = T)
-            meffects.candidate<-mean(cSumstats$EFFECT[cond.invertedAlleleOrder],na.rm = T)
+            meffects.reference<-mean(cSumstats$EFFECT[!cSumstats$cond.invertedAlleleOrder],na.rm = T)
+            meffects.candidate<-mean(cSumstats$EFFECT[cSumstats$cond.invertedAlleleOrder],na.rm = T)
           }
           
           meffects.candidate.inverted<-meffects.candidate*-1
-          sdeffects.reference<-sd(cSumstats$EFFECT[!cond.invertedAlleleOrder],na.rm = T)
-          sdeffects.candidate<-sd(cSumstats$EFFECT[cond.invertedAlleleOrder],na.rm = T)
-          cSumstats.meta<-rbind(cSumstats.meta,list("Number variants, reference, candidate:",paste0(as.character(length(cSumstats$EFFECT[!cond.invertedAlleleOrder])),",",as.character(length(cSumstats$EFFECT[cond.invertedAlleleOrder])))))
+          sdeffects.reference<-sd(cSumstats$EFFECT[!cSumstats$cond.invertedAlleleOrder],na.rm = T)
+          sdeffects.candidate<-sd(cSumstats$EFFECT[cSumstats$cond.invertedAlleleOrder],na.rm = T)
+          cSumstats.meta<-rbind(cSumstats.meta,list("Number variants, reference, candidate:",paste0(as.character(length(cSumstats$EFFECT[!cSumstats$cond.invertedAlleleOrder])),",",as.character(length(cSumstats$EFFECT[cSumstats$cond.invertedAlleleOrder])))))
           cSumstats.meta<-rbind(cSumstats.meta,list("Mean reference effect (sd)",paste0(as.character(round(meffects.reference,digits = 5))," (",round(sdeffects.reference,digits = 5),")")))
           cSumstats.meta<-rbind(cSumstats.meta,list("Mean candidate effect (sd)",paste0(as.character(round(meffects.candidate,digits = 5))," (",round(sdeffects.candidate,digits = 5),")")))
           #cSumstats.meta<-rbind(cSumstats.meta,list("Mean candidate effect, inverted",as.character(round(abs(meffects.candidate.inverted),digits = 5))))
           #cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect, plain",as.character(round(abs(meffects.reference-meffects.candidate),digits = 5))))
           #cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect, inverted",as.character(round(abs(meffects.reference-meffects.candidate.inverted),digits = 5))))
           
-          sumstats.meta[iFile,c("Reference variants")]<-length(cSumstats$EFFECT[!cond.invertedAlleleOrder])
-          sumstats.meta[iFile,c("Candidate variants")]<-length(cSumstats$EFFECT[cond.invertedAlleleOrder])
+          sumstats.meta[iFile,c("Reference variants")]<-length(cSumstats$EFFECT[!cSumstats$cond.invertedAlleleOrder])
+          sumstats.meta[iFile,c("Candidate variants")]<-length(cSumstats$EFFECT[cSumstats$cond.invertedAlleleOrder])
           sumstats.meta[iFile,c("Mean reference effect")]<-round(meffects.reference,digits = 5)
           sumstats.meta[iFile,c("Mean reference effect sd")]<-round(sdeffects.reference,digits = 5)
           sumstats.meta[iFile,c("Mean candidate effect")]<-round(meffects.candidate,digits = 5)
@@ -973,30 +1121,29 @@ supermunge <- function(
       
       ## EFFECT direction
       ##invert effect if inverted allele order
-      if(any(colnames(cSumstats)=="EFFECT")& !is.null(cond.invertedAlleleOrder) & changeEffectDirectionOnAlleleFlip) {
-        if(any(cond.invertedAlleleOrder)) cSumstats$EFFECT<-ifelse(cond.invertedAlleleOrder,(cSumstats$EFFECT*-1),cSumstats$EFFECT)
+      if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="cond.invertedAlleleOrder") & changeEffectDirectionOnAlleleFlip) {
+        if(any(cSumstats$cond.invertedAlleleOrder)) cSumstats[,EFFECT:=ifelse(cond.invertedAlleleOrder,(EFFECT*-1),EFFECT)]
         if(any(colnames(cSumstats)=="SE")){
           meffects.new<-weighted.mean(cSumstats$EFFECT, w = 1/(minv + cSumstats$SE^2), na.rm = T)
-          cSumstats.meta<-rbind(cSumstats.meta,list("New effect mean",as.character(meffects.new)))
         } else {
           meffects.new<-mean(cSumstats$EFFECT,na.rm = T)
-          cSumstats.meta<-rbind(cSumstats.meta,list("New effect mean",as.character(meffects.new)))
         }
+        cSumstats.meta<-rbind(cSumstats.meta,list("New effect mean",as.character(round(meffects.new,digits = 5))))
       }
       sumstats.meta[iFile,c("changeEffectDirectionOnAlleleFlip")]<-changeEffectDirectionOnAlleleFlip
       cat(".")
       
       
-      if(!is.null(cond.invertedAlleleOrder)) cSumstats.meta<-rbind(cSumstats.meta,list(
+      if(any(colnames(cSumstats)=="cond.invertedAlleleOrder")) cSumstats.meta<-rbind(cSumstats.meta,list(
         paste0(
           "Modified SNPs; inverted allele order [",ifelse(any(colnames(cSumstats)=="FRQ"),"FRQ",""),",",
           ifelse(changeEffectDirectionOnAlleleFlip,"EFFECT",""),"]"),
-        as.character(sum(cond.invertedAlleleOrder))))
+        as.character(sum(cSumstats$cond.invertedAlleleOrder))))
       
       
       ## Compute Z score (standardised beta) and P or update it according to any corrections just done
-      if(any(colnames(cSumstats)=="SE")) cSumstats$Z <- cSumstats$EFFECT/cSumstats$SE
-      if(any(colnames(cSumstats)=="Z")) cSumstats$P <- 2*pnorm(q = abs(cSumstats$Z),mean = 0, sd = 1, lower.tail = F)
+      if(any(colnames(cSumstats)=="SE")) cSumstats[,Z:=EFFECT/SE]
+      if(any(colnames(cSumstats)=="Z")) cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
       cat(".")
       
      
@@ -1024,8 +1171,8 @@ supermunge <- function(
         #Has OLS unstandardised beta
         cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","OLS"))
         if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")) {
-          cSumstats$EFFECT <- cSumstats$Z/sqrt(cSumstats$N * cSumstats$VSNP) #standardisation
-          cSumstats$SE <- abs(cSumstats$EFFECT/cSumstats$Z) #standardisation as this is derived form the standardised EFFECT
+          cSumstats[,EFFECT:=Z/sqrt(N*VSNP)] #standardisation
+          cSumstats[,SE:=abs(EFFECT/Z)] #standardisation as this is derived form the standardised EFFECT
           cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z, N, UVL std => BETA,SE"))
         } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
       
@@ -1035,33 +1182,33 @@ supermunge <- function(
         cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Binary, linear"))
         if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")){
           if(is.null(prop[iFile]) | is.na(prop[iFile])) stop("\nCould not perform correction of linear BETA,SE to liability scale because of missing or invalid prop argument!\n")
-          cSumstats$EFFECT <- cSumstats$Z/sqrt(prop[iFile]*(1-prop[iFile]) * cSumstats$N * cSumstats$VSNP) #standardisation
-          cSumstats$SE <- 1/sqrt(prop[iFile]*(1-prop[iFile]) * cSumstats$N * cSumstats$VSNP) #standardisation
+          cSumstats[,EFFECT:=Z/sqrt(prop[iFile]*(1-prop[iFile]) * N * VSNP)] #standardisation
+          cSumstats[,SE:=1/sqrt(prop[iFile]*(1-prop[iFile]) * N * VSNP)] #standardisation
           cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z, N,propCaCo, UVL std => BETA,SE"))
         } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
       
-        correctionTerm <- sqrt((cSumstats$EFFECT^2) + (pi^2)/3)
-        cSumstats$EFFECT <- cSumstats$EFFECT/correctionTerm #residual variance correction
-        cSumstats$SE <- cSumstats$SE/correctionTerm #residual variance correction
+        cSumstats[,residualVarCorrectionTerm:=sqrt((EFFECT^2) + (pi^2)/3)]
+        cSumstats[,EFFECT:=EFFECT/residualVarCorrectionTerm] #residual variance correction
+        cSumstats[,SE:=cSumstats$SE/residualVarCorrectionTerm] #residual variance correction
        
       } else {
         #Has effect based on a logistic estimator for a binary outcome, OR or logistic beta
         cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Binary, logistic"))
         if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")) {
-          cSumstats$EFFECT <- cSumstats$Z/sqrt(cSumstats$N * cSumstats$VSNP) #standardisation
-          cSumstats$SE <- abs(cSumstats$EFFECT/cSumstats$Z) #standardisation as this is derived form the standardised EFFECT
+          cSumstats[,EFFECT:=Z/sqrt(N*VSNP)] #standardisation
+          cSumstats[,SE:=abs(EFFECT/Z)] #standardisation as this is derived form the standardised EFFECT
           cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z, N, UVL std=> BETA,SE"))
         } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
       
-        correctionTerm <- sqrt((cSumstats$EFFECT^2) + (pi^2)/3)
-        cSumstats$EFFECT <- cSumstats$EFFECT/correctionTerm #residual variance correction
+        cSumstats[,residualVarCorrectionTerm:=sqrt((EFFECT^2) + (pi^2)/3)]
+        cSumstats[,EFFECT:=EFFECT/residualVarCorrectionTerm] #residual variance correction
         #cSumstats$SE <- cSumstats$SE/correctionTerm #residual variance correction
         if(se.logit[iFile]){
-          cSumstats$SE <- cSumstats$SE/correctionTerm #residual variance correction
+          cSumstats[,SE:=cSumstats$SE/residualVarCorrectionTerm] #residual variance correction
           cSumstats.meta <- rbind(cSumstats.meta,list("SE","logit"))
         } else {
           #transform to logit SE 
-          cSumstats$SE <- (cSumstats$SE/exp(cSumstats$EFFECT))/correctionTerm #UV correction
+          cSumstats[,SE:=(SE/exp(EFFECT))/residualVarCorrectionTerm] #UV correction
           cSumstats.meta <- rbind(cSumstats.meta,list("SE","SE(OR) => logit"))
         }
         
@@ -1070,15 +1217,15 @@ supermunge <- function(
       
       ## Compute Z,P again to update it according to any corrections just done
       if(any(colnames(cSumstats)=="SE")) {
-        cSumstats$Z <- cSumstats$EFFECT/cSumstats$SE
-        cSumstats$P <- 2*pnorm(q = abs(cSumstats$Z),mean = 0, sd = 1, lower.tail = F)
+        cSumstats[,Z:=EFFECT/SE]
+        cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
       }
       cat("Done!\n")
       
     }
     
     
-    #impute effects and standard errors - highly experimental
+    #impute effects and standard errors; LD-IMP - highly experimental
     if(imputeFromLD){
       #impute betas using LD
       if(!(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP"))) stop("LD imputation is not possible without the columns EFFECT,SE,CHR,BP!")
@@ -1094,13 +1241,13 @@ supermunge <- function(
       
       #remove non-trustworthy variants according to specified regions in the df
       if(!is.null(region.imputation.filter_df)){
-        if(!(any(colnames(region.imputation.filter_df)=="CHR") & any(colnames(region.imputation.filter_df)=="BP1" & any(colnames(region.imputation.filter_df)=="BP2")))) stop("Dataframe containing regions to be excluded as imputation support must contain the columns CHR, BP1, and BP2!")
+        if(!(any(colnames(region.imputation.filter_df)=="CHR") & any(colnames(region.imputation.filter_df)=="BP" & any(colnames(region.imputation.filter_df)=="BP2")))) stop("Dataframe containing regions to be excluded as imputation support must contain the columns CHR, BP, and BP2!")
         cSumstats.merged.snp.nSNP<-nrow(cSumstats.merged.snp)
         setDT(region.imputation.filter_df)
-        setkeyv(region.imputation.filter_df, cols = c("CHR","BP1","BP2"))
+        setkeyv(region.imputation.filter_df, cols = c("CHR","BP","BP2"))
         for(isegment in 1:nrow(region.imputation.filter_df)){
           #isegment<-1
-          cSumstats.merged.snp <- cSumstats.merged.snp[!(CHR_REF==region.imputation.filter_df$CHR[isegment] & BP_REF>=region.imputation.filter_df$BP1[isegment] & BP_REF<=region.imputation.filter_df$BP2[isegment]),]
+          cSumstats.merged.snp <- cSumstats.merged.snp[!(CHR_REF==region.imputation.filter_df$CHR[isegment] & BP_REF>=region.imputation.filter_df$BP[isegment] & BP_REF<=region.imputation.filter_df$BP2[isegment]),]
         }
         cSumstats.meta<-rbind(cSumstats.meta,list(paste("Ignored variants (imputation); custom regions"),as.character(cSumstats.merged.snp.nSNP-nrow(cSumstats.merged.snp))))
       }
@@ -1155,9 +1302,9 @@ supermunge <- function(
           if(any(colnames(cI)=="BETA.I") && any(colnames(cI)=="SE.I") && any(colnames(cI)=="K") && any(colnames(cI)=="INFO")){
             if(any(colnames(cSumstats)=="N")) {
               cI[,N:=round(mean(cSumstats.merged.snp$N,na.rm=T))]
-              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,N,EFFECT=BETA.I,SE=SE.I,K,INFO.LIMP=INFO)],fill=T)
+              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,N,EFFECT=BETA.I,SE=SE.I,K,LD_IMP=INFO)],fill=T)
             } else {
-              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,EFFECT=BETA.I,SE=SE.I,K,INFO.LIMP=INFO)],fill=T)
+              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,EFFECT=BETA.I,SE=SE.I,K,LD_IMP=INFO)],fill=T)
             }
           }
           cat("I")
@@ -1183,7 +1330,7 @@ supermunge <- function(
     cSumstats.meta<-rbind(cSumstats.meta,list("Genomic inflation factor",as.character(round(genomicInflationFactor,digits = 4))))
     
     #basic re-inflation of deflated factor GWAS (typical for latent factor GWAS), using careful interpretation of the inflation (sqrt)
-    if(GC=="reinflate" & genomicInflationFactor<1){
+    if(GC=="reinflate" & genomicInflationFactor<0.9){
       meanChisq<-mean(cSumstats$Z^2) #using mean instead of median because it seems to be more stable than the median of deflated associations
       genomicInflationFactor<-meanChisq/qchisq(0.5,1)
       if(genomicInflationFactor<1){
@@ -1232,19 +1379,24 @@ supermunge <- function(
     }
     cat(".")
     
+    #rename the ambiguous EFFECT column to BETA, as it should be a regression beta at this point
+    if(any(colnames(cSumstats)=="EFFECT")){
+      cSumstats[,BETA:=EFFECT][,EFFECT:=NULL]
+    }
+    
     #NA values check
     if(any(is.na(cSumstats))) cSumstats.warnings<-c(cSumstats.warnings,"\nNA values detected among results!\n")
     
     # output columns
     output.colnames<- c("SNP")
-    output.colnames<- c(output.colnames,c("A1","A2"))
-    #output.colnames<- c(output.colnames,c("A1","A2","A1_ORIG","A2_ORIG"))
+    if(any(colnames(cSumstats)=="A1")) output.colnames<- c(output.colnames,"A1")
+    if(any(colnames(cSumstats)=="A2")) output.colnames<- c(output.colnames,"A2")
     if("CHR" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"CHR")
     if("BP" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"BP")
+    if("BP2" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"BP2")
     if("FRQ" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"FRQ")
     #if("MAF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"MAF")
-    output.colnames<- c(output.colnames,c("P"))
-    if("EFFECT" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"EFFECT")
+    if("BETA" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"BETA")
     if("SE" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"SE")
     if("Z" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"Z")
     if("P" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"P")
@@ -1254,19 +1406,24 @@ supermunge <- function(
     if("NEF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"NEF")
     if("DF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"DF")
     if("K" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"K")
-    if("INFO.LIMP" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"INFO.LIMP")
+    if("LD_IMP" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LD_IMP")
     
     output.colnames.more<-colnames(cSumstats)[!(colnames(cSumstats) %in% output.colnames)]
     output.colnames.all<-c(output.colnames,output.colnames.more)
-    cSumstats<-subset(cSumstats,select = output.colnames) #only output standardised columns
-    cSumstats.meta<-rbind(cSumstats.meta,list("SNPs after supermunge",as.character(nrow(cSumstats))))
+    if(lossless){
+      cSumstats<-cSumstats[,..output.colnames.all]
+    } else {
+      cSumstats<-cSumstats[,..output.colnames]
+    }
+    
+    cSumstats.meta<-rbind(cSumstats.meta,list("Variants after supermunge",as.character(nrow(cSumstats))))
     
     #merge with variantTable
     if(produceCompositeTable){
       cat("\nProducing composite variant table.\n")
       cNames.toJoin<-c("SNP","EFFECT","SE")
       if(any(colnames(cSumstats)=="FRQ")) cNames.toJoin <- c(cNames.toJoin,"FRQ")
-      if(any(colnames(cSumstats)=="INFO.LIMP")) cNames.toJoin <- c(cNames.toJoin,"INFO.LIMP")
+      if(any(colnames(cSumstats)=="LD_IMP")) cNames.toJoin <- c(cNames.toJoin,"LD_IMP")
       if(any(colnames(cSumstats)=="K")) cNames.toJoin <- c(cNames.toJoin,"K")
       toJoin <- cSumstats[,..cNames.toJoin]
       setkeyv(toJoin,cols = 'SNP')
@@ -1276,10 +1433,10 @@ supermunge <- function(
       cName.beta <- paste0("BETA.",traitNames[iFile])
       cName.se <- paste0("SE.",traitNames[iFile])
       cName.frq <- paste0("FRQ.",traitNames[iFile])
-      cName.infolimp <- paste0("INFO.LIMP.",traitNames[iFile])
+      cName.infolimp <- paste0("LD_IMP",traitNames[iFile])
       cName.k <- paste0("K.",traitNames[iFile])
       if(!any(colnames(toJoin)=="FRQ")) toJoin[,FRQ=NA_real_]
-      if(!any(colnames(toJoin)=="INFO.LIMP")) toJoin[,INFO.LIMP=NA_real_]
+      if(!any(colnames(toJoin)=="LD_IMP")) toJoin[,INFO.LIMP=NA_real_]
       if(!any(colnames(toJoin)=="K")) toJoin[,K=NA_integer_]
       variantTable[toJoin, on='SNP', c(cName.beta,cName.se,cName.frq,cName.infolimp,cName.k):=.(i.EFFECT,i.SE,i.FRQ,i.INFO.LIMP,i.K)]
     }
@@ -1301,29 +1458,22 @@ supermunge <- function(
     }
     
     nfilepath<-file.path(pathDirOutput,traitNames[iFile])
-    if(!doChrSplit & writeOutput){
-      cat("\nSaving supermunged dataset...\n\n")
-      write.table(x = cSumstats,file = nfilepath,sep="\t", quote = FALSE, row.names = F, append = F)
-      nfilepath.gzip<-gzip(nfilepath)
-      cat(paste("\nSupermunged dataset saved as", nfilepath.gzip, "in the specified output directory."))
-    }
-    
-    #addition: producing per-chromosome files in a folder, as RAISS columns
-    if(doChrSplit & writeOutput) {
-      cat("\nSaving supermunged dataset...\n\n")
-      if("CHR" %in% colnames(cSumstats)){
-        dir.create(paste0(nfilepath,".chr"), showWarnings = FALSE)
-        #TODO Adapt to new numeric chromosome numbering
-        validChromosomes<-c(1:22,"X","Y","XY","MT") #as per Plink standard
-        for(chr in validChromosomes){
-          output.chr<-output[which(output$CHR==chr),c("SNP","ORIGBP","A1","A2","Z")]
-          colnames(output.chr)<-c("rsID","pos","A0","A1","Z")
-          write.table(x = output.chr,file = file.path(paste0(nfilepath,".chr"), paste0("z_",traitNames[iFile],"_",chr,".txt")),sep="\t", quote = FALSE, row.names = F, append = F)
-        }
-      } else stop("\nSplit by chromosome specified, but the dataset does not have a CHR column.")
-      
-      cat(paste("\nOne file per chromosome have been saved under", paste0(nfilepath,".chr"), "in the specified output directory."))
-      
+    if(writeOutput){
+        cat("\nSaving supermunged dataset...\n\n")
+        if((!any(colnames(cSumstats)=="CHR") & doChrSplit)) warning("\nSplit by chromosome specified, but the dataset does not have a CHR column.")
+        if(!doChrSplit | ((!any(colnames(cSumstats)=="CHR") & doChrSplit))){
+          #write.table(x = cSumstats,file = nfilepath,sep="\t", quote = FALSE, row.names = F, append = F)
+          #nfilepath.gzip<-gzip(nfilepath)
+          fwrite(x = cSumstats,file = paste0(nfilepath,".gz"),append = F,quote = F,sep = "\t",col.names = T)
+          cat(paste("\nSupermunged dataset saved as", paste0(nfilepath,".gz")))
+        } else {
+          dir.create(paste0(nfilepath,".chr"), showWarnings = FALSE)
+          chromosomes<-unique(cSumstats$CHR)
+          for(cChr in chromosomes){
+            fwrite(x = cSumstats[CHR==cChr,],file = file.path(paste0(nfilepath,".chr"),paste0(traitNames[iFile],"_",cChr,".gz")),append = F,quote = F,sep = "\t",col.names = T)
+          }
+          cat(paste("\nSupermunged dataset saved as one file per chromosome under", paste0(nfilepath,".chr")))
+      }
     }
     
     timeStop.ds <- Sys.time()
