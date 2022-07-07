@@ -593,7 +593,7 @@ supermunge <- function(
     
     
     #lift-over to new coordinates before using coordinates
-    if(!is.null(chainFilePath) & liftover[iFile]){
+    if(!is.null(chainFilePath) & liftover[iFile] & any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
       #chain file format reference: http://genome.ucsc.edu/goldenPath/help/chain.html
       
       #check if the file is the same build as the reference if present
