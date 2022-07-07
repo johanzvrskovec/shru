@@ -1031,15 +1031,20 @@ supermunge <- function(
       
       
       #remove duplicate ID variants, ordered by ADBPADJ, -MAF
-      cSumstats.n<-nrow(cSumstats)
-      cSumstats<-cSumstats[order(ADBPADJ, -MAF),]
-      cSumstats$ADBPADJ_ID<-1:nrow(cSumstats)
-      cSumstats.unique<-cSumstats[, .(ADBPADJ_ID = head(ADBPADJ_ID,1)), by = c("SNP")]
-      cSumstats<-cSumstats[cSumstats.unique, on=c(ADBPADJ_ID=c("ADBPADJ_ID"))]
-      cSumstats[,i.SNP:=NULL]
-      cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; duplicate variant ID",as.character(cSumstats.n-nrow(cSumstats))))
-      cat(".")
-      
+      if(any(colnames(cSumstats)=="MAF")){
+        cSumstats.n<-nrow(cSumstats)
+        if(any(colnames(cSumstats)=="ADBPADJ")){
+          cSumstats<-cSumstats[order(ADBPADJ, -MAF),]
+        } else {
+          cSumstats<-cSumstats[order(-MAF),]
+        }
+        cSumstats$ADBPADJ_ID<-1:nrow(cSumstats)
+        cSumstats.unique<-cSumstats[, .(ADBPADJ_ID = head(ADBPADJ_ID,1)), by = c("SNP")]
+        cSumstats<-cSumstats[cSumstats.unique, on=c(ADBPADJ_ID=c("ADBPADJ_ID"))]
+        cSumstats[,i.SNP:=NULL]
+        cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; duplicate variant ID",as.character(cSumstats.n-nrow(cSumstats))))
+        cat(".")
+      }
       
       # P validity checks before the Z-score calculation
       ### Check the values of the P-column
