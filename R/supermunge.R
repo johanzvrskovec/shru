@@ -130,10 +130,17 @@ readFile <- function(filePath,nThreads=5){
 # list_df=list(highld=p$highld_b37)
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
+# filePaths = "../data/gwas_sumstats/cleaned/ANXI03.gz"
+# refFilePath = "../data/variant_lists/hc1kgp3.b38.eur.l2.jz2022.gz"
+# rsSynonymsFilePath = "../data/variant_lists/dbsnp151.synonyms.gz"
+# traitNames = "ANXI03"
+# N = 83566
+
 
 #test with settings from analysis script
 # filePaths = p$munge$filesToUse
 # refFilePath = p$filepath.SNPReference.1kg
+# rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # traitNames = p$munge$traitNamesToUse
 # #imputeFromLD=T
 # #region.imputation.filter_df=p$highld #provide the high-ld regions to not use for imputation
@@ -148,6 +155,7 @@ readFile <- function(filePath,nThreads=5){
 # filePaths=NULL
 # ref_df=NULL
 # refFilePath=NULL
+# rsSynonymsFilePath=NULL
 # ldDirPath=NULL
 # chainFilePath = NULL
 # traitNames=NULL
@@ -177,8 +185,8 @@ readFile <- function(filePath,nThreads=5){
 # info.filter=NULL
 # maf.filter=NULL
 # mhc.filter=NULL #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
-#region.filter_df=NULL #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
-#region.imputation.filter_df=NULL #dataframe with columns CHR,BP1,BP2 specifying regions to be excluded from acting as support for imputation, due to high LD for example.
+# region.filter_df=NULL #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
+# region.imputation.filter_df=NULL #dataframe with columns CHR,BP1,BP2 specifying regions to be excluded from acting as support for imputation, due to high LD for example.
 # GC="none" #"reinflate"
 # nThreads = 5
 # lossless = F
@@ -189,6 +197,7 @@ supermunge <- function(
   filePaths=NULL,
   ref_df=NULL,
   refFilePath=NULL,
+  rsSynonymsFilePath=NULL,
   ldDirPath=NULL,
   chainFilePath = NULL, #chain file for lift-over
   traitNames=NULL,
@@ -342,7 +351,7 @@ supermunge <- function(
         ldscores[[iChr]]$M<-ldscM[[1]]
       }
       ldscores<-rbindlist(ldscores)
-      setkeyv(ldscores, cols = "SNP")
+      setkeyv(ldscores, cols = c("SNP"))
       #ref.allsnps<-data.table(SNP=unique(ref[,c("SNP")]))
       #colnames(ref.allsnps)<-c("SNP") #needed for some strange error when SNP column is renamed here
       #setkeyv(ref.allsnps, cols = "SNP")
@@ -350,6 +359,36 @@ supermunge <- function(
       ref[ldscores, on='SNP', c('L2','M') := list(i.L2,i.M)]
       cat("Done!\n")
     }
+    
+    #read SNP id synonyms
+    if(!is.null(rsSynonymsFilePath)){
+      cat("\nReading variant ID synonyms...")
+      
+      idSynonyms <- fread(file = rsSynonymsFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",header = F, fill=T,  blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F, skip = 2, sep = "")
+      cat(".")
+      #idSynonyms.map<-as.data.frame(matrix(data = NA, nrow = 0, ncol = 0))
+      idSynonyms$parts<-strsplit(x = idSynonyms$V1, split = " ")
+      cat(".")
+      idSynonyms[,V1:=NULL]
+      #idSynonyms[,parts2:=paste0("rs",parts)]
+      #idSynonyms$parts2<-lapply(idSynonyms$parts,FUN = function(x){paste0("rs",x)})
+      idSynonyms$parts.n<-lapply(idSynonyms$parts,FUN = function(x){length(x)})
+      idSynonyms[,parts.n:=as.integer(parts.n)]
+      idSynonyms$first.rs<-lapply(idSynonyms$parts,FUN = function(x){x[[1]]}) #current
+      idSynonyms[,first.rs:=paste0("rs",first.rs)]
+      idSynonyms[,first.rs:=as.character(first.rs)]
+      setkeyv(idSynonyms, cols = c("first.rs","parts.n"))
+      cat(".")
+      
+      uniqueSynonyms<-data.table(SNP=paste0("rs",unique(unlist(idSynonyms$parts))))
+      setkeyv(uniqueSynonyms, cols = c("SNP"))
+      cat(".")
+      
+      # idSynonyms2<-read.table(file = rsSynonymsFilePath,header = F,na.strings = c(".",NA,"NA",""), blank.lines.skip = T, encoding = "UTF-8", fill = T)
+      # rm(idSynonyms2)
+      cat("Done!\n")
+    }
+    
     
     #rename reference columns as to distinguish them from the dataset columns
     colnames(ref)<-paste0(names(ref),"_REF")
@@ -699,6 +738,26 @@ supermunge <- function(
       }
     }
     
+    #update variant ID's from synonym list
+    if(!is.null(idSynonyms)){
+      # idSynonymsSplitMaxlength<-0
+      # crap <- lapply(idSynonyms$parts,FUN = function(x){if(length(x)>idSynonymsSplitMaxlength) idSynonymsSplitMaxlength<<- length(x)})
+      # rm(crap)
+      
+      for(iSynonym in 2:50){ #max 50 synonyms considered
+        #iSynonym<-2
+        cSynonym<-idSynonyms[parts.n>=iSynonym,]
+        if(nrow(cSynonym)>0){
+          cSynonym$SNP<-lapply(cSynonym$parts,FUN = function(x){ifelse(iSynonym<=length(x),x[[iSynonym]],NA)})
+          cSynonym[,SNP:=as.character(SNP)][,SNP:=paste0("rs",SNP)][,c("SNP","first.rs")]
+          setkeyv(cSynonym, cols = c("SNP"))
+          #temp<-cSumstats[cSynonym,on=c(SNP="SNP"), nomatch=0]
+          cSumstats[cSynonym,on=c(SNP="SNP"), SNP:=i.first.rs]
+        } else break
+      }
+      cat("📛")
+    }
+    
     
     if(process){
       cat("Processing.")
@@ -828,7 +887,7 @@ supermunge <- function(
         
         ##Synchronise SNP,BP with reference
         cSumstats[,SNP:=SNP_REF]
-        cSumstats[,BP:=BP_REF]
+        if(harmoniseBPToReference) cSumstats[,BP:=BP_REF]
         
         ## Add in chr and bp from ref if not present in datasets
         if(!any(colnames(cSumstats)=="CHR")){
