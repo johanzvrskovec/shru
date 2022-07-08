@@ -19,7 +19,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
                                c.N_CON = c("N_CON","NCONTROL","N_CONTROL","N_CONTROLS","NCON","NCO","N_CON","NCONTROLS","CONTROLS","CONTROLS_N","FRQ_U"),
                                c.NEF = c("NEF","NEFF","NEFFECTIVE","NE"),
                                #include FRQ_A?
-                               c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF","FREQ1.HAPMAP","FREQALLELE1HAPMAPCEU", "FREQ.ALLELE1.HAPMAPCEU","EFFECT_ALLELE_FREQ","FREQ.A1","F_A","F_U","FREQ_A","FREQ_U","MA_FREQ","MAF_NW","FREQ_A1","A1FREQ","CODED_ALLELE_FREQUENCY","FREQ_TESTED_ALLELE_IN_HRS","EAF_HRC","EAF_UKB"),
+                               c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF","FREQ1.HAPMAP","FREQALLELE1HAPMAPCEU", "FREQ.ALLELE1.HAPMAPCEU","EFFECT_ALLELE_FREQ","FREQ.A1","F_A","F_U","FREQ_A","FREQ_U","MA_FREQ","MAF_NW","FREQ_A1","A1FREQ","CODED_ALLELE_FREQUENCY","FREQ_TESTED_ALLELE","FREQ_TESTED_ALLELE_IN_HRS","EAF_HRC","EAF_UKB","FREQ_TESTED_ALLELE"),
                                c.CHR = c("CHR","CH","CHROMOSOME","CHROM","CHR_BUILD38","CHR_BUILD37","CHR_BUILD36","CHR_B38","CHR_B37","CHR_B36","CHR_ID","SCAFFOLD","HG19CHR","CHR.HG19","CHR_HG19","HG18CHR","CHR.HG18","CHR_HG18","CHR_BP_HG19B37","HG19CHRC","#CHROM"),
                                c.BP = c("BP","BP1","ORIGBP","POS","POSITION","LOCATION","PHYSPOS","GENPOS","CHR_POSITION","POS_B38","POS_BUILD38","POS_B37","POS_BUILD37","BP_HG19B37","POS_B36","POS_BUILD36","POS.HG19","POS.HG18","POS_HG19","POS_HG18","BP_HG19","BP_HG18","BP.GRCH38","BP.GRCH37","POSITION(HG19)","POSITION(HG18)","POS(B38)","POS(B37)"),
                                c.BP2 =c("BP2"),
@@ -35,8 +35,6 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
   columnNames[columnNames.upper %in% c.SNP] <- c.SNP[1]
   columnNames[columnNames.upper %in% c.A1] <- c.A1[1]
   columnNames[columnNames.upper %in% c.A2] <- c.A2[1]
-  #columnNames[columnNames.upper %in% c.EFFECT] <- c.EFFECT[1]
-  #if(any(columnNames==c.EFFECT[1])) columnNames[columnNames.upper %in% c.Z] <- c.Z[1] else columnNames[columnNames.upper %in% c.Z] <- c.EFFECT[1]
   columnNames[columnNames.upper %in% c.BETA] <- c.BETA[1]
   columnNames[columnNames.upper %in% c.OR] <- c.OR[1] 
   columnNames[columnNames.upper %in% c.Z] <- c.Z[1] 
@@ -78,6 +76,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
   if(sum(columnNames=="FRQ")>1) warning("\nMultiple 'FRQ' columns found!\n")
   
   return(data.frame(std=as.character(columnNames),orig=as.character(columnNames.orig)))
+  
 }
 
 #ref, plink chromosome numbering: https://zzz.bwh.harvard.edu/plink/data.shtml
@@ -92,6 +91,13 @@ parseSNPColumnAsRSNumber <- function(text){
     indexesLengths<-regexec(pattern = "^\\d+:(\\w+)_\\w+_\\w+", text=text)
     matches<-regmatches(text,indexesLengths)
     return(lapply(X = matches, FUN = function(x)paste0("rs",x[2])))
+  }
+  
+  #rsXXXX:A1:A2 - format
+  if(sum(grepl(pattern = "^\\w+:\\w+:\\w+", x= head(x = text, n=100000)))>90000){
+    indexesLengths<-regexec(pattern = "^(\\w+):\\w+", text=text)
+    matches<-regmatches(text,indexesLengths)
+    return(lapply(X = matches, FUN = function(x) ifelse(is.na(x[2]),x[1],x[2])))
   }
   
   text<-sub(pattern = "^chr",replacement = "",x = text, ignore.case = T)
@@ -130,11 +136,14 @@ readFile <- function(filePath,nThreads=5){
 # list_df=list(highld=p$highld_b37)
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
-# filePaths = "../data/gwas_sumstats/cleaned/ANXI03.gz"
-# refFilePath = "../data/variant_lists/hc1kgp3.b38.eur.l2.jz2022.gz"
-# rsSynonymsFilePath = "../data/variant_lists/dbsnp151.synonyms.gz"
-# traitNames = "ANXI03"
-# N = 83566
+#test with hard coded values
+filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
+refFilePath = "../data/variant_lists/hc1kgp3.b38.eur.l2.jz2022.gz"
+rsSynonymsFilePath = "../data/variant_lists/dbsnp151.synonyms.gz"
+traitNames = "BODY11"
+N = 681275
+pathDirOutput = "../data/gwas_sumstats/munged_1kg_eur_supermunge"
+
 
 
 #test with settings from analysis script
@@ -296,16 +305,47 @@ supermunge <- function(
   cat("\npathDirOutput=",pathDirOutput)
   cat("\n--------------------------------\n")
   
+  #read reference variant list
   ref<-NULL
   if(!is.null(ref_df)){
     ref<-ref_df
-    cat("\nUsing reference from provided dataframe.\n")
+    cat("\nUsing reference variants from provided dataframe.\n")
   } else if(!is.null(refFilePath)){
-    cat(paste0("\nReading reference file..."))
+    cat(paste0("\nReading reference variant file..."))
     ref<-fread(file = refFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
     #ref <- read.table(refFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
-    cat(paste0("\nRead reference file:\n",refFilePath))
+    cat(paste0("\nRead reference variant file:\n",refFilePath))
   }
+  
+  #read SNP id synonyms
+  if(!is.null(rsSynonymsFilePath)){
+    cat("\nReading variant ID synonyms...")
+    
+    idSynonyms <- fread(file = rsSynonymsFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",header = F, fill=T,  blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F, skip = 2, sep = "")
+    cat(".")
+    #idSynonyms.map<-as.data.frame(matrix(data = NA, nrow = 0, ncol = 0))
+    idSynonyms$parts<-strsplit(x = idSynonyms$V1, split = " ")
+    cat(".")
+    idSynonyms[,V1:=NULL]
+    #idSynonyms[,parts2:=paste0("rs",parts)]
+    #idSynonyms$parts2<-lapply(idSynonyms$parts,FUN = function(x){paste0("rs",x)})
+    idSynonyms$parts.n<-lapply(idSynonyms$parts,FUN = function(x){length(x)})
+    idSynonyms[,parts.n:=as.integer(parts.n)]
+    idSynonyms$first.rs<-lapply(idSynonyms$parts,FUN = function(x){x[[1]]}) #current
+    idSynonyms[,first.rs:=paste0("rs",first.rs)]
+    idSynonyms[,first.rs:=as.character(first.rs)]
+    setkeyv(idSynonyms, cols = c("first.rs","parts.n"))
+    cat(".")
+    
+    uniqueSynonyms<-data.table(SNP=paste0("rs",unique(unlist(idSynonyms$parts))))
+    setkeyv(uniqueSynonyms, cols = c("SNP"))
+    cat(".")
+    
+    # idSynonyms2<-read.table(file = rsSynonymsFilePath,header = F,na.strings = c(".",NA,"NA",""), blank.lines.skip = T, encoding = "UTF-8", fill = T)
+    # rm(idSynonyms2)
+    cat("Done!\n")
+  }
+  
   
   if(!is.null(ldDirPath) & is.null(ref)) stop("You must have a specified reference to append LD scores to!")
   
@@ -359,36 +399,6 @@ supermunge <- function(
       ref[ldscores, on='SNP', c('L2','M') := list(i.L2,i.M)]
       cat("Done!\n")
     }
-    
-    #read SNP id synonyms
-    if(!is.null(rsSynonymsFilePath)){
-      cat("\nReading variant ID synonyms...")
-      
-      idSynonyms <- fread(file = rsSynonymsFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",header = F, fill=T,  blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F, skip = 2, sep = "")
-      cat(".")
-      #idSynonyms.map<-as.data.frame(matrix(data = NA, nrow = 0, ncol = 0))
-      idSynonyms$parts<-strsplit(x = idSynonyms$V1, split = " ")
-      cat(".")
-      idSynonyms[,V1:=NULL]
-      #idSynonyms[,parts2:=paste0("rs",parts)]
-      #idSynonyms$parts2<-lapply(idSynonyms$parts,FUN = function(x){paste0("rs",x)})
-      idSynonyms$parts.n<-lapply(idSynonyms$parts,FUN = function(x){length(x)})
-      idSynonyms[,parts.n:=as.integer(parts.n)]
-      idSynonyms$first.rs<-lapply(idSynonyms$parts,FUN = function(x){x[[1]]}) #current
-      idSynonyms[,first.rs:=paste0("rs",first.rs)]
-      idSynonyms[,first.rs:=as.character(first.rs)]
-      setkeyv(idSynonyms, cols = c("first.rs","parts.n"))
-      cat(".")
-      
-      uniqueSynonyms<-data.table(SNP=paste0("rs",unique(unlist(idSynonyms$parts))))
-      setkeyv(uniqueSynonyms, cols = c("SNP"))
-      cat(".")
-      
-      # idSynonyms2<-read.table(file = rsSynonymsFilePath,header = F,na.strings = c(".",NA,"NA",""), blank.lines.skip = T, encoding = "UTF-8", fill = T)
-      # rm(idSynonyms2)
-      cat("Done!\n")
-    }
-    
     
     #rename reference columns as to distinguish them from the dataset columns
     colnames(ref)<-paste0(names(ref),"_REF")
