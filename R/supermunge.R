@@ -1323,7 +1323,7 @@ supermunge <- function(
       setkeyv(cSumstats.merged.snp, cols = paste0(ref.keys,"_REF"))
       
       if(any(colnames(cSumstats)=="N")) cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE','N') :=list(i.EFFECT,i.SE,i.N)] else cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE') :=list(i.EFFECT,i.SE)]
-      cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[is.na(BETA),]
+      cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[is.na(BETA) & MAF_REF>0.001,]
       
       #remove non-trustworthy variants according to specified regions in the df
       if(!is.null(region.imputation.filter_df)){
@@ -1346,7 +1346,7 @@ supermunge <- function(
       if(length(chrsToImpute)>0){
         for(cCHR in chrsToImpute){
           #cCHR<-"22"
-          cSS<-cSumstats.merged.snp[CHR_REF==eval(cCHR) & !is.na(BETA),.(SNP=SNP_REF,BP=BP_REF,BETA,SE,L2=L2_REF,VAR=SE^2)] #Z=EFFECT/SE
+          cSS<-cSumstats.merged.snp[CHR_REF==eval(cCHR) & !is.na(BETA) & !is.na(L2_REF) & MAF_REF>0.01,.(SNP=SNP_REF,BP=BP_REF,BETA,SE,L2=L2_REF,VAR=SE^2)] #Z=EFFECT/SE
           setkeyv(cSS, cols = c("SNP","BP")) #chromosome is fixed per chromosome loop
           cI<-cSumstats.merged.snp.toimpute[CHR_REF==eval(cCHR) & !is.na(L2_REF),.(SNP=SNP_REF,BP=BP_REF,A1_REF,A2_REF,MAF_REF,L2=L2_REF,BETA,SE,VAR=SE^2)]
           #cI<-cI[1:100,] #FOR TEST ONLY
