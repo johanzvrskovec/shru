@@ -90,14 +90,14 @@ parseSNPColumnAsRSNumber <- function(text){
     #extract and format rs-no
     indexesLengths<-regexec(pattern = "^\\d+:(\\w+)_\\w+_\\w+", text=text)
     matches<-regmatches(text,indexesLengths)
-    return(lapply(X = matches, FUN = function(x)paste0("rs",x[2])))
+    return(unlist(lapply(X = matches, FUN = function(x)paste0("rs",x[2]))))
   }
   
   #rsXXXX:A1:A2 - format
   if(sum(grepl(pattern = "^\\w+:\\w+:\\w+", x= head(x = text, n=100000)))>90000){
     indexesLengths<-regexec(pattern = "^(\\w+):\\w+", text=text)
     matches<-regmatches(text,indexesLengths)
-    return(lapply(X = matches, FUN = function(x) ifelse(is.na(x[2]),x[1],x[2])))
+    return(unlist(lapply(X = matches, FUN = function(x) ifelse(is.na(x[2]),x[1],x[2]))))
   }
   
   text<-sub(pattern = "^chr",replacement = "",x = text, ignore.case = T)
