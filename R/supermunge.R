@@ -318,6 +318,7 @@ supermunge <- function(
   }
   
   #read SNP id synonyms
+  idSynonyms<-NA
   if(!is.null(rsSynonymsFilePath)){
     cat("\nReading variant ID synonyms...")
     
@@ -749,7 +750,7 @@ supermunge <- function(
     }
     
     #update variant ID's from synonym list
-    if(!is.null(idSynonyms)){
+    if(!is.na(idSynonyms)){
       # idSynonymsSplitMaxlength<-0
       # crap <- lapply(idSynonyms$parts,FUN = function(x){if(length(x)>idSynonymsSplitMaxlength) idSynonymsSplitMaxlength<<- length(x)})
       # rm(crap)
