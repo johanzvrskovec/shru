@@ -137,12 +137,12 @@ readFile <- function(filePath,nThreads=5){
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
 #test with hard coded values
-filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
-refFilePath = "../data/variant_lists/hc1kgp3.b38.eur.l2.jz2022.gz"
-rsSynonymsFilePath = "../data/variant_lists/dbsnp151.synonyms.gz"
-traitNames = "BODY11"
-N = 681275
-pathDirOutput = "../data/gwas_sumstats/munged_1kg_eur_supermunge"
+# filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
+# refFilePath = "../data/variant_lists/hc1kgp3.b38.eur.l2.jz2022.gz"
+# rsSynonymsFilePath = "../data/variant_lists/dbsnp151.synonyms.gz"
+# traitNames = "BODY11"
+# N = 681275
+# pathDirOutput = "../data/gwas_sumstats/munged_1kg_eur_supermunge"
 
 
 
@@ -152,11 +152,12 @@ pathDirOutput = "../data/gwas_sumstats/munged_1kg_eur_supermunge"
 # rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # traitNames = p$munge$traitNamesToUse
 # #imputeFromLD=T
+# ##process=F
 # #region.imputation.filter_df=p$highld #provide the high-ld regions to not use for imputation
 # #produceVariantTable = T
 # N = p$munge$NToUse
-# pathDirOutput = p$folderpath.data.sumstats.munged
-# chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
+# pathDirOutput = p$folderpath.data.sumstats.imputed
+# #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
 
 
 # set default params for test
@@ -168,9 +169,11 @@ pathDirOutput = "../data/gwas_sumstats/munged_1kg_eur_supermunge"
 # ldDirPath=NULL
 # chainFilePath = NULL
 # traitNames=NULL
+# ancestrySetting=c("ANY")
 # setChangeEffectDirectionOnAlleleFlip=T #set to TRUE to emulate genomic sem munge
 # produceCompositeTable=F
 # imputeFromLD=F
+# imputeFrameLenBp=8000
 # N=NULL
 # forceN=F
 # prop=NULL
@@ -210,6 +213,7 @@ supermunge <- function(
   ldDirPath=NULL,
   chainFilePath = NULL, #chain file for lift-over
   traitNames=NULL,
+  ancestrySetting=c("ANY"), #ancestry setting list per dataset
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F,
   imputeFromLD=F,
@@ -269,6 +273,10 @@ supermunge <- function(
     }
     
     nDatasets <- length(filePaths)
+  }
+  
+  if(length(ancestrySetting)<nDatasets){
+    ancestrySetting<-unlist(rep(ancestrySetting,nDatasets))
   }
   
   
@@ -1323,6 +1331,19 @@ supermunge <- function(
       setkeyv(cSumstats,cols = cSumstats.keys)
       setkeyv(cSumstats.merged.snp, cols = paste0(ref.keys,"_REF"))
       
+      #pick ancestry specific LD scores
+      if(ancestrySetting[iFile]!="ANY" & !any(colnames(cSumstats.merged.snp)=="L2_REF")){
+        if(any(colnames(cSumstats.merged.snp)==paste0("L2.",ancestrySetting[iFile],"_REF"))){
+          sAncestryL2<-c(paste0("L2.",ancestrySetting[iFile],"_REF"))
+          cSumstats.merged.snp$L2_REF<-cSumstats.merged.snp[,..sAncestryL2]
+        }
+      }
+      
+      if(!any(colnames(cSumstats.merged.snp)=="L2_REF") & any(grepl(pattern = "L2\\.+",x = colnames(cSumstats.merged.snp)))){
+        sAncestryL2<-colnames(cSumstats.merged.snp)[grepl(pattern = "L2\\.+",x = colnames(cSumstats.merged.snp))]
+        cSumstats.merged.snp$L2_REF<-cSumstats.merged.snp[,..sAncestryL2]
+      }
+      
       if(any(colnames(cSumstats)=="N")) cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE','N') :=list(i.EFFECT,i.SE,i.N)] else cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE') :=list(i.EFFECT,i.SE)]
       cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[is.na(BETA) & MAF_REF>0.001,]
       
@@ -1347,9 +1368,9 @@ supermunge <- function(
       if(length(chrsToImpute)>0){
         for(cCHR in chrsToImpute){
           #cCHR<-"22"
-          cSS<-cSumstats.merged.snp[CHR_REF==eval(cCHR) & !is.na(BETA) & !is.na(L2_REF) & MAF_REF>0.01,.(SNP=SNP_REF,BP=BP_REF,BETA,SE,L2=L2_REF,VAR=SE^2)] #Z=EFFECT/SE
+          cSS<-cSumstats.merged.snp[CHR_REF==eval(cCHR) & !is.na(BETA) & L2_REF>0 & MAF_REF>0.01,.(SNP=SNP_REF,BP=BP_REF,BETA,SE,L2=L2_REF,VAR=SE^2)] #Z=EFFECT/SE
           setkeyv(cSS, cols = c("SNP","BP")) #chromosome is fixed per chromosome loop
-          cI<-cSumstats.merged.snp.toimpute[CHR_REF==eval(cCHR) & !is.na(L2_REF),.(SNP=SNP_REF,BP=BP_REF,A1_REF,A2_REF,MAF_REF,L2=L2_REF,BETA,SE,VAR=SE^2)]
+          cI<-cSumstats.merged.snp.toimpute[CHR_REF==eval(cCHR) & L2_REF>0,.(SNP=SNP_REF,BP=BP_REF,A1_REF,A2_REF,MAF_REF,L2=L2_REF,BETA,SE,VAR=SE^2)]
           #cI<-cI[1:100,] #FOR TEST ONLY
           setkeyv(cI, cols = c("SNP","BP"))
           if(nrow(cI)<1 || nrow(cSS)<1) next;
