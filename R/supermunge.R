@@ -145,22 +145,23 @@ readFile <- function(filePath,nThreads=5){
 # pathDirOutput = "../data/gwas_sumstats/munged_1kg_eur_supermunge"
 
 
-
-#test with settings from analysis script
+# 
+# #test with settings from analysis script
 # filePaths = p$munge$filesToUse
 # refFilePath = p$filepath.SNPReference.1kg
-# rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
+# #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # traitNames = p$munge$traitNamesToUse
-# #imputeFromLD=T
+# imputeFromLD=T
 # ##process=F
 # #region.imputation.filter_df=p$highld #provide the high-ld regions to not use for imputation
 # #produceVariantTable = T
 # N = p$munge$NToUse
 # pathDirOutput = p$folderpath.data.sumstats.imputed
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
+# test=T
+# 
 
-
-# set default params for test
+#set default params for test
 # list_df=NULL
 # filePaths=NULL
 # ref_df=NULL
@@ -202,6 +203,7 @@ readFile <- function(filePath,nThreads=5){
 # GC="none" #"reinflate"
 # nThreads = 5
 # lossless = F
+# test = F
 
 
 supermunge <- function(
@@ -245,7 +247,8 @@ supermunge <- function(
   region.imputation.filter_df=NULL, #dataframe with columns CHR,BP1,BP2 specifying regions to be excluded from acting as support for imputation, due to high LD for example.
   GC="none", #"reinflate",
   nThreads = 5,
-  lossless = F #If true, include all original and additional columns, otherwise restrict output to standard column set (default)
+  lossless = F, #If true, include all original and additional columns, otherwise restrict output to standard column set (default)
+  test = F #set test mode - for quickly testing the function
 ){
   
   timeStart <- Sys.time()
@@ -323,6 +326,9 @@ supermunge <- function(
     ref<-fread(file = refFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
     #ref <- read.table(refFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
     cat(paste0("\nRead reference variant file:\n",refFilePath))
+    if(test){
+      ref<-ref[1:(nrow(ref)/4)]
+    }
   }
   
   #read SNP id synonyms
@@ -453,6 +459,10 @@ supermunge <- function(
       #cSumstats <- read.table(cFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
     }
     cat("\nReading.")
+    
+    if(test){
+      cSumstats<-cSumstats[1:1000000,]
+    }
     
     cSumstats.meta<-data.table(message=NA_character_,display=NA_character_)
     cSumstats.warnings<-list()
@@ -1345,7 +1355,10 @@ supermunge <- function(
       }
       
       if(any(colnames(cSumstats)=="N")) cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE','N') :=list(i.EFFECT,i.SE,i.N)] else cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE') :=list(i.EFFECT,i.SE)]
-      cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[is.na(BETA) & MAF_REF>0.001,]
+      
+      #filtering and selecting the subset to impute
+      cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[is.na(BETA) & L2_REF>0 & MAF_REF>0.001,]
+      cSumstats.merged.snp<-cSumstats.merged.snp[!is.na(BETA) & L2_REF>0 & MAF_REF>0.01,]
       
       #remove non-trustworthy variants according to specified regions in the df
       if(!is.null(region.imputation.filter_df)){
@@ -1360,17 +1373,35 @@ supermunge <- function(
         cSumstats.meta<-rbind(cSumstats.meta,list(paste("Ignored variants (imputation); custom regions"),as.character(cSumstats.merged.snp.nSNP-nrow(cSumstats.merged.snp))))
       }
       
+      #truncate the imputation job when testing
+      if(test){
+        cSumstats.merged.snp.toimpute<-cSumstats.merged.snp.toimpute[1:10000,]
+      }
+      
       #cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.na(BETA),] #for validation
       setkeyv(cSumstats.merged.snp.toimpute,cols = "CHR_REF")
       chrsToImpute<-unique(cSumstats.merged.snp.toimpute$CHR_REF)
       cat(paste0("\nATTENTION!: Imputing ",nrow(cSumstats.merged.snp.toimpute)," variants!\n"))
       cat("I")
+      #read intermediate results
+      if(file.exists(file.path(pathDirOutput,paste0(traitNames[iFile],".LD-IMP.TEMP.Rds")))){
+        intermediateResults<-readRDS(file=file.path(pathDirOutput,paste0(traitNames[iFile],".LD-IMP.TEMP.Rds")))
+        cSumstats<-intermediateResults$cSumstats
+        previousCHR<-intermediateResults$cCHR
+        nChrIndex<-match(x = previousCHR, table = chrsToImpute)[1]+1
+        if(nChrIndex<=length(chrsToImpute)) {
+          chrsToImpute<-chrsToImpute[nChrIndex:length(chrsToImpute)]
+        } else {
+          chrsToImpute<-c()
+        }
+      }
+      
       if(length(chrsToImpute)>0){
         for(cCHR in chrsToImpute){
-          #cCHR<-"22"
-          cSS<-cSumstats.merged.snp[CHR_REF==eval(cCHR) & !is.na(BETA) & L2_REF>0 & MAF_REF>0.01,.(SNP=SNP_REF,BP=BP_REF,BETA,SE,L2=L2_REF,VAR=SE^2)] #Z=EFFECT/SE
+          #cCHR<-10
+          cSS<-cSumstats.merged.snp[CHR_REF==eval(cCHR),.(SNP=SNP_REF,BP=BP_REF,BETA,SE,L2=L2_REF,VAR=SE^2)] #Z=EFFECT/SE
           setkeyv(cSS, cols = c("SNP","BP")) #chromosome is fixed per chromosome loop
-          cI<-cSumstats.merged.snp.toimpute[CHR_REF==eval(cCHR) & L2_REF>0,.(SNP=SNP_REF,BP=BP_REF,A1_REF,A2_REF,MAF_REF,L2=L2_REF,BETA,SE,VAR=SE^2)]
+          cI<-cSumstats.merged.snp.toimpute[CHR_REF==eval(cCHR),.(SNP=SNP_REF,BP=BP_REF,A1_REF,A2_REF,MAF_REF,L2=L2_REF,BETA,SE,VAR=SE^2)]
           #cI<-cI[1:100,] #FOR TEST ONLY
           setkeyv(cI, cols = c("SNP","BP"))
           if(nrow(cI)<1 || nrow(cSS)<1) next;
@@ -1415,6 +1446,11 @@ supermunge <- function(
               cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,EFFECT=BETA.I,SE=SE.I,K,LD_IMP=INFO)],fill=T)
             }
           }
+          
+          #write intermediate results
+          #if(!(test & match(x = cCHR, table = chrsToImpute)[1]>length(chrsToImpute)/2)){
+            saveRDS(object = list(cCHR=cCHR,cSumstats=cSumstats), file = file.path(pathDirOutput,paste0(traitNames[iFile],".LD-IMP.TEMP.Rds")))
+          #}
           cat("I")
         }
       }
@@ -1583,6 +1619,9 @@ supermunge <- function(
           cat(paste("\nSupermunged dataset saved as one file per chromosome under", paste0(nfilepath,".chr")))
       }
     }
+    
+    #remove intermediate results
+    if(file.exists(file.path(pathDirOutput,paste0(traitNames[iFile],".LD-IMP.TEMP.Rds")))) file.remove(file.path(pathDirOutput,paste0(traitNames[iFile],".LD-IMP.TEMP.Rds")))
     
     timeStop.ds <- Sys.time()
     timeDiff <- difftime(time1=timeStop.ds,time2=timeStart.ds,units="sec")
