@@ -1357,7 +1357,7 @@ supermunge <- function(
       if(any(colnames(cSumstats)=="N")) cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE','N') :=list(i.EFFECT,i.SE,i.N)] else cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE') :=list(i.EFFECT,i.SE)]
       
       #filtering and selecting the subset to impute
-      cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[is.na(BETA) & L2_REF>0 & MAF_REF>0.001,]
+      cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[is.na(BETA) & MAF_REF>0.001,] #L2_REF>0
       cSumstats.merged.snp<-cSumstats.merged.snp[!is.na(BETA) & L2_REF>0 & MAF_REF>0.01,]
       
       #remove non-trustworthy variants according to specified regions in the df
@@ -1424,6 +1424,11 @@ supermunge <- function(
               set(x = cI,i = i,j = "K",
                   value = k
               )
+              if(is.na(cI[i,L2]) | is.na(cI[i,L2])==0){
+                set(x = cI,i = i,j = "LD",
+                    value = median(frame$L2,na.rm = T)
+                )
+              }
               set(x = cI,i = i,j = "INFO",
                   value = k*cI[i,L2]/sqrt(W.sum)
               )
