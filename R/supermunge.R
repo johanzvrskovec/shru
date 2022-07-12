@@ -1445,7 +1445,7 @@ supermunge <- function(
           # rmse2
           #View(cI)
           
-          cI[,CHR:=eval(cCHR)][W.SUM>0,INFO=k*L2/sqrt(W.SUM)]
+          cI[,CHR:=eval(cCHR)][W.SUM>0,INFO:=k*L2/sqrt(W.SUM)]
           
           #add imputed variants
           if(any(colnames(cI)=="BETA.I") && any(colnames(cI)=="SE.I") && any(colnames(cI)=="K") && any(colnames(cI)=="INFO")){
