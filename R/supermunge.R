@@ -1429,9 +1429,12 @@ supermunge <- function(
                     value = median(frame$L2,na.rm = T)
                 )
               }
-              set(x = cI,i = i,j = "INFO",
-                  value = k*cI[i,L2]/sqrt(W.sum)
+              set(x = cI,i = i,j = "W.SUM",
+                  value = W.sum
               )
+              # set(x = cI,i = i,j = "INFO",
+              #     value = k*cI[i,L2]/sqrt(W.sum)
+              # )
             }
           } #for
           #validation
@@ -1441,14 +1444,16 @@ supermunge <- function(
           # rmse2<-sqrt(median(cI$ZDIFF2,na.rm=T))
           # rmse2
           #View(cI)
-          cI[,CHR:=eval(cCHR)]
+          
+          cI[,CHR:=eval(cCHR)][W.SUM>0,INFO=k*L2/sqrt(W.SUM)]
+          
           #add imputed variants
           if(any(colnames(cI)=="BETA.I") && any(colnames(cI)=="SE.I") && any(colnames(cI)=="K") && any(colnames(cI)=="INFO")){
             if(any(colnames(cSumstats)=="N")) {
               cI[,N:=round(mean(cSumstats.merged.snp$N,na.rm=T))]
-              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,N,EFFECT=BETA.I,SE=SE.I,K,LD_IMP=INFO)],fill=T)
+              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,N,EFFECT=BETA.I,SE=SE.I,LD_IMP.K=K,LD_IMP.SUM=W.SUM,LD_IMP=INFO)],fill=T)
             } else {
-              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,EFFECT=BETA.I,SE=SE.I,K,LD_IMP=INFO)],fill=T)
+              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,EFFECT=BETA.I,SE=SE.I,LD_IMP.K=K,LD_IMP.SUM=W.SUM,LD_IMP=INFO)],fill=T)
             }
           }
           
@@ -1554,7 +1559,8 @@ supermunge <- function(
     if("N_CON" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CON")
     if("NEF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"NEF")
     if("DF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"DF")
-    if("K" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"K")
+    if("LD_IMP.K" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LD_IMP.K")
+    if("LD_IMP.SUM" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LD_IMP.SUM")
     if("LD_IMP" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LD_IMP")
     
     output.colnames.more<-colnames(cSumstats)[!(colnames(cSumstats) %in% output.colnames)]
@@ -1573,7 +1579,7 @@ supermunge <- function(
       cNames.toJoin<-c("SNP","EFFECT","SE")
       if(any(colnames(cSumstats)=="FRQ")) cNames.toJoin <- c(cNames.toJoin,"FRQ")
       if(any(colnames(cSumstats)=="LD_IMP")) cNames.toJoin <- c(cNames.toJoin,"LD_IMP")
-      if(any(colnames(cSumstats)=="K")) cNames.toJoin <- c(cNames.toJoin,"K")
+      if(any(colnames(cSumstats)=="LD_IMP.K")) cNames.toJoin <- c(cNames.toJoin,"LD_IMP.K")
       toJoin <- cSumstats[,..cNames.toJoin]
       setkeyv(toJoin,cols = 'SNP')
       #update variantTable by reference
@@ -1585,9 +1591,9 @@ supermunge <- function(
       cName.infolimp <- paste0("LD_IMP",traitNames[iFile])
       cName.k <- paste0("K.",traitNames[iFile])
       if(!any(colnames(toJoin)=="FRQ")) toJoin[,FRQ=NA_real_]
-      if(!any(colnames(toJoin)=="LD_IMP")) toJoin[,INFO.LIMP=NA_real_]
-      if(!any(colnames(toJoin)=="K")) toJoin[,K=NA_integer_]
-      variantTable[toJoin, on='SNP', c(cName.beta,cName.se,cName.frq,cName.infolimp,cName.k):=.(i.EFFECT,i.SE,i.FRQ,i.INFO.LIMP,i.K)]
+      if(!any(colnames(toJoin)=="LD_IMP")) toJoin[,LD_IMP=NA_real_]
+      if(!any(colnames(toJoin)=="LD_IMP.K")) toJoin[,LD_IMP.K=NA_integer_]
+      variantTable[toJoin, on='SNP', c(cName.beta,cName.se,cName.frq,cName.LD_IMP,cName.LD_IMP.K):=.(i.EFFECT,i.SE,i.FRQ,i.LD_IMP,i.LD_IMP.K)]
     }
     
     
