@@ -19,7 +19,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
                                c.N_CON = c("N_CON","NCONTROL","N_CONTROL","N_CONTROLS","NCON","NCO","N_CON","NCONTROLS","CONTROLS","CONTROLS_N","FRQ_U"),
                                c.NEF = c("NEF","NEFF","NEFFECTIVE","NE"),
                                #include FRQ_A?
-                               c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF","FREQ1.HAPMAP","FREQALLELE1HAPMAPCEU", "FREQ.ALLELE1.HAPMAPCEU","EFFECT_ALLELE_FREQ","FREQ.A1","F_A","F_U","FREQ_A","FREQ_U","MA_FREQ","MAF_NW","FREQ_A1","A1FREQ","CODED_ALLELE_FREQUENCY","FREQ_TESTED_ALLELE","FREQ_TESTED_ALLELE_IN_HRS","EAF_HRC","EAF_UKB","FREQ_TESTED_ALLELE"),
+                               c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF","FREQ1.HAPMAP","FREQALLELE1HAPMAPCEU", "FREQ.ALLELE1.HAPMAPCEU","EFFECT_ALLELE_FREQ","FREQ.A1","F_A","F_U","FREQ_A","FREQ_U","MA_FREQ","MAF_NW","FREQ_A1","A1FREQ","CODED_ALLELE_FREQUENCY","FREQ_TESTED_ALLELE","FREQ_TESTED_ALLELE_IN_HRS","EAF_HRC","EAF_UKB","EAF_EUR_UKB","FREQ_TESTED_ALLELE"),
                                c.CHR = c("CHR","CH","CHROMOSOME","CHROM","CHR_BUILD38","CHR_BUILD37","CHR_BUILD36","CHR_B38","CHR_B37","CHR_B36","CHR_ID","SCAFFOLD","HG19CHR","CHR.HG19","CHR_HG19","HG18CHR","CHR.HG18","CHR_HG18","CHR_BP_HG19B37","HG19CHRC","#CHROM"),
                                c.BP = c("BP","BP1","ORIGBP","POS","POSITION","LOCATION","PHYSPOS","GENPOS","CHR_POSITION","POS_B38","POS_BUILD38","POS_B37","POS_BUILD37","BP_HG19B37","POS_B36","POS_BUILD36","POS.HG19","POS.HG18","POS_HG19","POS_HG18","BP_HG19","BP_HG18","BP.GRCH38","BP.GRCH37","POSITION(HG19)","POSITION(HG18)","POS(B38)","POS(B37)"),
                                c.BP2 =c("BP2"),
@@ -174,7 +174,8 @@ readFile <- function(filePath,nThreads=5){
 # setChangeEffectDirectionOnAlleleFlip=T #set to TRUE to emulate genomic sem munge
 # produceCompositeTable=F
 # imputeFromLD=F
-# imputeFrameLenBp=8000
+# imputeFrameLenBp=500000 #500000 for comparison with SSIMP and ImpG
+# imputeFrameLenCM=0.5 #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
 # N=NULL
 # forceN=F
 # prop=NULL
@@ -219,7 +220,8 @@ supermunge <- function(
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F,
   imputeFromLD=F,
-  imputeFrameLenBp=8000, #this may be set higher to 500000 for decent imputation as compared to other methods, but may be very slow.
+  imputeFrameLenBp=500000, #500000 for comparison with SSIMP and ImpG
+  imputeFrameLenCM=0.5, #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
   N=NULL,
   forceN=F,
   prop=NULL,
@@ -311,6 +313,7 @@ supermunge <- function(
   cat("\nprocess=",process)
   cat("\nimputeFromLD=",imputeFromLD)
   if(imputeFromLD) cat("\nimputeFrameLenBp=",imputeFrameLenBp)
+  if(imputeFromLD) cat("\nimputeFrameLenCM=",imputeFrameLenCM)
   cat("\nproduceCompositeTable=",produceCompositeTable)
   if(length(invertEffectDirectionOn)>0) cat("\ninvertEffectDirectionOn=", paste(invertEffectDirectionOn,sep = ","))
   cat("\npathDirOutput=",pathDirOutput)
@@ -634,7 +637,7 @@ supermunge <- function(
         }
         rm(cSumstatsBuildCheck)
       }
-      
+      cat(".")
       
       chain <- fread(file = chainFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8", header = F, check.names = T, fill = T, blank.lines.skip = T, data.table = T,showProgress = F, nThread=nThreads)
       
@@ -766,6 +769,7 @@ supermunge <- function(
         cSumstats.warnings<-c(cSumstats.warnings,"No chromosome or base-pair position information available - no filtering of custom provided regions was done!")
       }
     }
+    cat(".")
     
     #update variant ID's from synonym list
     if(!is.na(idSynonyms)){
@@ -789,7 +793,7 @@ supermunge <- function(
     
     
     if(process){
-      cat("Processing.")
+      cat("\nProcessing.")
       # QC, and data management before merge with reference
       
       ## Remove SNPs with missing P
@@ -1333,9 +1337,11 @@ supermunge <- function(
     #impute effects and standard errors; LD-IMP - highly experimental
     if(imputeFromLD){
       #impute betas using LD
-      if(!(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP"))) stop("LD imputation is not possible without the columns EFFECT,SE,CHR,BP!")
+      if(!(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="CHR") & ((!is.null(imputeFrameLenBp) & any(colnames(cSumstats)=="BP")) | (!is.null(imputeFrameLenCM) & any(colnames(cSumstats)=="CM"))))) stop("LD imputation is not possible without the columns EFFECT,SE,CHR,(BP or CM)!")
       
-      frameLen<-imputeFrameLenBp
+      do.ldimp.cm<-!is.null(imputeFrameLenCM)
+      
+      frameLen<-ifelse(do.ldimp.cm,imputeFrameLenCM,imputeFrameLenBp)
       frameLenHalf<-frameLen/2
       cSumstats.merged.snp<-ref
       setkeyv(cSumstats,cols = cSumstats.keys)
@@ -1399,18 +1405,34 @@ supermunge <- function(
       if(length(chrsToImpute)>0){
         for(cCHR in chrsToImpute){
           #cCHR<-10
-          cSS<-cSumstats.merged.snp[CHR_REF==eval(cCHR),.(SNP=SNP_REF,BP=BP_REF,BETA,SE,L2=L2_REF,VAR=SE^2)] #Z=EFFECT/SE
-          setkeyv(cSS, cols = c("SNP","BP")) #chromosome is fixed per chromosome loop
-          cI<-cSumstats.merged.snp.toimpute[CHR_REF==eval(cCHR),.(SNP=SNP_REF,BP=BP_REF,A1_REF,A2_REF,MAF_REF,L2=L2_REF,BETA,SE,VAR=SE^2)]
+          cSS<-cSumstats.merged.snp[CHR_REF==eval(cCHR),.(SNP=SNP_REF,BP=BP_REF,BETA,SE,L2=L2_REF,VAR=SE^2,CM=CM_REF)] #Z=EFFECT/SE
+          
+          if(do.ldimp.cm){
+            setkeyv(cSS, cols = c("SNP","BP","CM")) #chromosome is fixed per chromosome loop
+          } else {
+            setkeyv(cSS, cols = c("SNP","BP")) #chromosome is fixed per chromosome loop
+          }
+          
+          cI<-cSumstats.merged.snp.toimpute[CHR_REF==eval(cCHR),.(SNP=SNP_REF,BP=BP_REF,A1_REF,A2_REF,MAF_REF,L2=L2_REF,BETA,SE,VAR=SE^2,CM=CM_REF)]
           #cI<-cI[1:100,] #FOR TEST ONLY
-          setkeyv(cI, cols = c("SNP","BP"))
+          
+          if(do.ldimp.cm){
+            setkeyv(cI, cols = c("SNP","BP","CM"))
+          } else {
+            setkeyv(cI, cols = c("SNP","BP"))
+          }
+          
           if(nrow(cI)<1 || nrow(cSS)<1) next;
           #1 cM equates to ~1M bp
           for(i in 1L:nrow(cI)){
             #i<-1L
             cBP<-cI[i,BP]
-            frame<-cSS[BP!=cBP & BP< cBP+frameLenHalf & BP > cBP-frameLenHalf, .(BETA,SE,VAR,L2,W=L2/VAR)][,.(BETA,SE,VAR,L2,W,WBETA=W*BETA,WSE=W*SE)]
-            
+            if(do.ldimp.cm){
+              cCM<-cI[i,CM]
+              frame<-cSS[BP!=cBP & CM< cCM+frameLenHalf & CM > cCM-frameLenHalf, .(BETA,SE,VAR,L2,W=L2/VAR)][,.(BETA,SE,VAR,L2,W,WBETA=W*BETA,WSE=W*SE)]
+            } else {
+              frame<-cSS[BP!=cBP & BP< cBP+frameLenHalf & BP > cBP-frameLenHalf, .(BETA,SE,VAR,L2,W=L2/VAR)][,.(BETA,SE,VAR,L2,W,WBETA=W*BETA,WSE=W*SE)]
+            }
             k<-nrow(frame[!is.na(BETA),])
             W.sum<-sum(frame$W,na.rm = T)
             frame[,IMP.TERM:=WBETA/W.sum][,IMPSE.TERM:=WSE/W.sum]
