@@ -174,6 +174,7 @@ readFile <- function(filePath,nThreads=5){
 # setChangeEffectDirectionOnAlleleFlip=T #set to TRUE to emulate genomic sem munge
 # produceCompositeTable=F
 # imputeFromLD=F
+# imputeAdjustN=T
 # imputeFrameLenBp=500000 #500000 for comparison with SSIMP and ImpG
 # imputeFrameLenCM=0.5 #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
 # N=NULL
@@ -220,6 +221,7 @@ supermunge <- function(
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F,
   imputeFromLD=F,
+  imputeAdjustN=F,
   imputeFrameLenBp=500000, #500000 for comparison with SSIMP and ImpG
   imputeFrameLenCM=0.5, #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
   N=NULL,
@@ -1497,6 +1499,13 @@ supermunge <- function(
       cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
       cat(".")
       
+    }
+    
+    #adjust N to reflect uncertainty of imputed variants
+    if((imputeFromLD | imputeAdjustN) & any(colnames(merged)=="LD_IMP")){
+      LD_IMP.median<-median(cSumstats$LD_IMP, na.rm = T)
+      cSumstats[!is.na(LD_IMP),]$N <- round(N[iFile]*shru::clipValues(cSumstats[!is.na(LD_IMP),]$LD_IMP/LD_IMP.median,0,1))
+      cSumstats.meta<-rbind(cSumstats.meta,list("N","Adjusted N to reflect uncertainty of imputed variants (LD-IMP)"))
     }
     
     #calculate genomic inflation factor
