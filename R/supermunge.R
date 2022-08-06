@@ -1141,7 +1141,7 @@ supermunge <- function(
         
         ## Inspect new and old Z-values
         if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="Z_ORIG")){
-          if(mean(cSumstats$Z)-mean(cSumstats$Z_ORIG)>1) cSumstats.warnings<-c(cSumstats.warnings,"New Z differ from old by more than 1sd!")
+          if(mean(cSumstats$Z,na.rm=T)-mean(cSumstats$Z_ORIG,na.rm=T)>1) cSumstats.warnings<-c(cSumstats.warnings,"New Z differ from old by more than 1sd!")
         }
         
         
