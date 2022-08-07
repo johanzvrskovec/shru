@@ -1192,25 +1192,23 @@ supermunge <- function(
           
           cSumstats[,WEFFECT:=EFFECT/(SE^2)]
           
+          nFlipReference<-nrow(cSumstats[!(cond.invertedAlleleOrder),])
+          nFlipCandiate<-nrow(cSumstats[(cond.invertedAlleleOrder),])
           
-          meffects.reference<-sum(cSumstats[is.finite(WEFFECT) & !cond.invertedAlleleOrder,]$WEFFECT,na.rm = T)/sum(cSumstats[is.finite(SE) & !cond.invertedAlleleOrder,]$SE^2,na.rm = T)
-          meffects.candidate<-sum(cSumstats[is.finite(WEFFECT) & cond.invertedAlleleOrder,]$WEFFECT,na.rm = T)/sum(cSumstats[is.finite(SE) & cond.invertedAlleleOrder,]$SE^2,na.rm = T)
+          meffects.reference<-sum(cSumstats[is.finite(WEFFECT) & !(cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(cSumstats[is.finite(SE) & !(cond.invertedAlleleOrder),]$SE^2,na.rm = T)
+          meffects.candidate<-sum(cSumstats[is.finite(WEFFECT) & (cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(cSumstats[is.finite(SE) & (cond.invertedAlleleOrder),]$SE^2,na.rm = T)
           
           
           meffects.candidate.inverted<-meffects.candidate*-1
           meffects.reference.inverted<-meffects.reference*-1
           
-          sdeffects.reference<-sd(cSumstats[is.finite(EFFECT) & !cond.invertedAlleleOrder,]$EFFECT,na.rm = T)
-          sdeffects.candidate<-sd(cSumstats[is.finite(EFFECT) & cond.invertedAlleleOrder,]$EFFECT,na.rm = T)
-          cSumstats.meta<-rbind(cSumstats.meta,list("Number variants, reference, candidate:",paste0(as.character(length(cSumstats$EFFECT[!cSumstats$cond.invertedAlleleOrder])),",",as.character(length(cSumstats$EFFECT[cSumstats$cond.invertedAlleleOrder])))))
+          sdeffects.reference<-sd(cSumstats[is.finite(EFFECT) & !(cond.invertedAlleleOrder),]$EFFECT,na.rm = T)
+          sdeffects.candidate<-sd(cSumstats[is.finite(EFFECT) & (cond.invertedAlleleOrder),]$EFFECT,na.rm = T)
+          cSumstats.meta<-rbind(cSumstats.meta,list("Number variants, reference, candidate:",paste0(as.character(nFlipReference),",",as.character(nFlipCandiate))))
           cSumstats.meta<-rbind(cSumstats.meta,list("Mean reference effect (sd)",paste0(as.character(round(meffects.reference,digits = 5))," (",round(sdeffects.reference,digits = 5),")")))
           cSumstats.meta<-rbind(cSumstats.meta,list("Mean candidate effect (sd)",paste0(as.character(round(meffects.candidate,digits = 5))," (",round(sdeffects.candidate,digits = 5),")")))
-          #cSumstats.meta<-rbind(cSumstats.meta,list("Mean candidate effect, inverted",as.character(round(abs(meffects.candidate.inverted),digits = 5))))
-          #cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect, plain",as.character(round(abs(meffects.reference-meffects.candidate),digits = 5))))
-          #cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect, inverted",as.character(round(abs(meffects.reference-meffects.candidate.inverted),digits = 5))))
           
-          nFlipReference<-nrow(cSumstats[!cond.invertedAlleleOrder,])
-          nFlipCandiate<-nrow(cSumstats[cond.invertedAlleleOrder,])
+          
           sumstats.meta[iFile,c("Reference variants")]<-nFlipReference
           sumstats.meta[iFile,c("Candidate variants")]<-nFlipCandiate
           
