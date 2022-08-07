@@ -986,11 +986,11 @@ supermunge <- function(
         hasN<-T
         if(forceN && any(colnames(cSumstats)=="N")) {
           if(
-            abs((median(cSumstats$N, na.rm = T)-N[iFile])/median(cSumstats$N, na.rm = T))>0.05
+            abs((median(cSumstats[is.finite(N),]$N, na.rm = T)-N[iFile])/median(cSumstats[is.finite(N),]$N, na.rm = T))>0.05
             |
-            (N[iFile]-min(cSumstats$N, na.rm = T))/N[iFile]>0.05
+            (N[iFile]-min(cSumstats[is.finite(N),]$N, na.rm = T))/N[iFile]>0.05
             |
-            (N[iFile]-max(cSumstats$N, na.rm = T))/N[iFile]>0.05
+            (N[iFile]-max(cSumstats[is.finite(N),]$N, na.rm = T))/N[iFile]>0.05
           ) cSumstats.warnings<-c(cSumstats.warnings,"Large (>5%) N discrepancies found between provided and existing N!")
           cSumstats$N<-N[iFile]
           cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile])))
@@ -1002,7 +1002,7 @@ supermunge <- function(
           }
         } else cSumstats[,N:=eval(N)]
         
-        cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats$N, na.rm = T),", ",min(cSumstats$N, na.rm = T),", ", max(cSumstats$N, na.rm = T))))
+        cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats[is.finite(N),]$N, na.rm = T),", ",min(cSumstats[is.finite(N),]$N, na.rm = T),", ", max(cSumstats[is.finite(N),]$N, na.rm = T))))
       } else if(!(any(colnames(cSumstats)=="N"))) {
         hasN<-F
         if(any(colnames(cSumstats)=="NEF")){
@@ -1113,7 +1113,7 @@ supermunge <- function(
       if(any(colnames(cSumstats)=="EFFECT")) {
         
         ## Determine effect type, and set effect to log(EFFECT) if odds ratio
-        if(round(median(cSumstats$EFFECT,na.rm=T),digits = 1) == 1) {
+        if(round(median(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm=T),digits = 1) == 1) {
           ###is odds ratio
           cSumstats[,EFFECT:=log(EFFECT)]
           sumstats.meta[iFile,c("effect_type")]<-"OR"
@@ -1182,7 +1182,7 @@ supermunge <- function(
       
       #compute minimum variance for later calculations
       if(any(colnames(cSumstats)=="SE")){
-        minv<-min(cSumstats$SE, na.rm = T)^2
+        minv<-min(cSumstats[is.finite(SE),]$SE, na.rm = T)^2
       }
       
       #compare hypothesised inverted allele effects with non-inverted allele effects for validation
@@ -1191,19 +1191,15 @@ supermunge <- function(
       if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="cond.invertedAlleleOrder")){
         if(any(cSumstats$cond.invertedAlleleOrder)){
           sumstats.meta[iFile,c("Inverted allele order variants")]<-sum(cSumstats$cond.invertedAlleleOrder)
-          if(any(colnames(cSumstats)=="SE")){
-            cSumstats.meta<-rbind(cSumstats.meta,list("Mean effect","ivw"))
-            meffects.reference<-weighted.mean(cSumstats$EFFECT[!cSumstats$cond.invertedAlleleOrder], w = 1/(minv + cSumstats$SE[!cSumstats$cond.invertedAlleleOrder]^2), na.rm = T)
-            meffects.candidate<-weighted.mean(cSumstats$EFFECT[cSumstats$cond.invertedAlleleOrder], w = 1/(minv + cSumstats$SE[cSumstats$cond.invertedAlleleOrder]^2), na.rm = T)
-          } else {
-            cSumstats.meta<-rbind(cSumstats.meta,list("Mean effect","plain"))
-            meffects.reference<-mean(cSumstats$EFFECT[!cSumstats$cond.invertedAlleleOrder],na.rm = T)
-            meffects.candidate<-mean(cSumstats$EFFECT[cSumstats$cond.invertedAlleleOrder],na.rm = T)
-          }
+          
+          cSumstats.meta<-rbind(cSumstats.meta,list("Mean effect","plain"))
+          meffects.reference<-mean(cSumstats[is.finite(EFFECT) & !cond.invertedAlleleOrder,]$EFFECT,na.rm = T)
+          meffects.candidate<-mean(cSumstats[is.finite(EFFECT) & cond.invertedAlleleOrder,]$EFFECT,na.rm = T)
+          
           
           meffects.candidate.inverted<-meffects.candidate*-1
-          sdeffects.reference<-sd(cSumstats$EFFECT[!cSumstats$cond.invertedAlleleOrder],na.rm = T)
-          sdeffects.candidate<-sd(cSumstats$EFFECT[cSumstats$cond.invertedAlleleOrder],na.rm = T)
+          sdeffects.reference<-sd(cSumstats[is.finite(EFFECT) & !cond.invertedAlleleOrder,]$EFFECT,na.rm = T)
+          sdeffects.candidate<-sd(cSumstats[is.finite(EFFECT) & cond.invertedAlleleOrder,]$EFFECT,na.rm = T)
           cSumstats.meta<-rbind(cSumstats.meta,list("Number variants, reference, candidate:",paste0(as.character(length(cSumstats$EFFECT[!cSumstats$cond.invertedAlleleOrder])),",",as.character(length(cSumstats$EFFECT[cSumstats$cond.invertedAlleleOrder])))))
           cSumstats.meta<-rbind(cSumstats.meta,list("Mean reference effect (sd)",paste0(as.character(round(meffects.reference,digits = 5))," (",round(sdeffects.reference,digits = 5),")")))
           cSumstats.meta<-rbind(cSumstats.meta,list("Mean candidate effect (sd)",paste0(as.character(round(meffects.candidate,digits = 5))," (",round(sdeffects.candidate,digits = 5),")")))
@@ -1242,11 +1238,9 @@ supermunge <- function(
       ##invert effect if inverted allele order
       if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="cond.invertedAlleleOrder") & changeEffectDirectionOnAlleleFlip) {
         if(any(cSumstats$cond.invertedAlleleOrder)) cSumstats[,EFFECT:=ifelse(cond.invertedAlleleOrder,(EFFECT*-1),EFFECT)]
-        if(any(colnames(cSumstats)=="SE")){
-          meffects.new<-weighted.mean(cSumstats$EFFECT, w = 1/(minv + cSumstats$SE^2), na.rm = T)
-        } else {
-          meffects.new<-mean(cSumstats$EFFECT,na.rm = T)
-        }
+        
+        meffects.new<-mean(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm = T)
+        
         cSumstats.meta<-rbind(cSumstats.meta,list("New effect mean",as.character(round(meffects.new,digits = 5))))
       }
       sumstats.meta[iFile,c("changeEffectDirectionOnAlleleFlip")]<-changeEffectDirectionOnAlleleFlip
@@ -1278,7 +1272,7 @@ supermunge <- function(
       #quickfix backstop for missing N
       if(any(colnames(cSumstats)=="N")){
         if(any(is.na(cSumstats$N))){
-          mN<-mean(cSumstats$N,na.rm=T)
+          mN<-mean(cSumstats[is.finite(N),]$N,na.rm=T)
           cSumstats[is.na(get("N")), N:=mN]
         }
       }
@@ -1482,7 +1476,7 @@ supermunge <- function(
           #add imputed variants
           if(any(colnames(cI)=="BETA.I") && any(colnames(cI)=="SE.I") && any(colnames(cI)=="K") && any(colnames(cI)=="INFO")){
             if(any(colnames(cSumstats)=="N")) {
-              cI[,N:=round(mean(cSumstats.merged.snp$N,na.rm=T))]
+              cI[,N:=round(mean(cSumstats.merged.snp[is.finite(N),]$N,na.rm=T))]
               cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,N,EFFECT=BETA.I,SE=SE.I,LD_IMP.K=K,LD_IMP.SUM=W.SUM,LD_IMP=INFO)],fill=T)
             } else {
               cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,EFFECT=BETA.I,SE=SE.I,LD_IMP.K=K,LD_IMP.SUM=W.SUM,LD_IMP=INFO)],fill=T)
@@ -1511,13 +1505,13 @@ supermunge <- function(
     
     #adjust N to reflect uncertainty of imputed variants
     if((imputeFromLD | imputeAdjustN) & any(colnames(cSumstats)=="LD_IMP")){
-      LD_IMP.median<-median(cSumstats$LD_IMP, na.rm = T)
+      LD_IMP.median<-median(cSumstats[is.finite(LD_IMP),]$LD_IMP, na.rm = T)
       cSumstats[!is.na(LD_IMP),]$N <- round(N[iFile]*shru::clipValues(cSumstats[!is.na(LD_IMP),]$LD_IMP/LD_IMP.median,0,1))
       cSumstats.meta<-rbind(cSumstats.meta,list("N","Adjusted N to reflect uncertainty of imputed variants (LD-IMP)"))
     }
     
     #calculate genomic inflation factor
-    medianChisq<-median(cSumstats$Z^2, na.rm = T)
+    medianChisq<-median(cSumstats[is.finite(Z),]$Z^2, na.rm = T)
     genomicInflationFactor<-medianChisq/qchisq(0.5,1)
     sumstats.meta[iFile,c("genomicInflationFactor")]<-genomicInflationFactor
     cSumstats.meta<-rbind(cSumstats.meta,list("Genomic inflation factor",as.character(round(genomicInflationFactor,digits = 4))))
@@ -1550,8 +1544,8 @@ supermunge <- function(
           round(
             mean(
               ifelse(any(colnames(cSumstats)=="MAF"),
-                     cSumstats[MAF<0.4&MAF>0.1,NEF],
-                     cSumstats$NEF),
+                     cSumstats[MAF<0.4&MAF>0.1&is.finite(NEF),NEF],
+                     cSumstats[is.finite(NEF),]$NEF),
             na.rm=T),
           digits = 0))
           )
@@ -1565,9 +1559,9 @@ supermunge <- function(
     if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE")) {
       if(any(colnames(cSumstats)=="MAF")) {
         # only for common + uncommon (non-rare) SNPs if MAF available
-        if(mean(abs(cSumstats[MAF>0.001,EFFECT/SE]), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nNon-rare variant EFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
+        if(mean(abs(cSumstats[MAF>0.001 & is.finite(EFFECT) & is.finite(SE),EFFECT/SE]), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nNon-rare variant EFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
       } else {
-        if(mean(abs(cSumstats[,EFFECT/SE]), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nOverall EFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
+        if(mean(abs(cSumstats[is.finite(EFFECT) & is.finite(SE),EFFECT/SE]), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nOverall EFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
       }
     }
     cat(".")
