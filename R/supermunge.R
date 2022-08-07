@@ -437,7 +437,7 @@ supermunge <- function(
 
   for(iFile in 1:nDatasets){
     #for testing!
-    #iFile=1
+    #iFile=3
     timeStart.ds <- Sys.time()
     
     #temporary variables which has to be reset for each file/dataset
@@ -1149,7 +1149,7 @@ supermunge <- function(
         
         ## Inspect new and old Z-values
         if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="Z_ORIG")){
-          if(mean(cSumstats$Z,na.rm=T)-mean(cSumstats$Z_ORIG,na.rm=T)>1) cSumstats.warnings<-c(cSumstats.warnings,"New Z differ from old by more than 1sd!")
+          if(mean(cSumstats[is.finite(Z),]$Z)-mean(cSumstats[is.finite(Z_ORIG),]$Z_ORIG,na.rm=T)>1) cSumstats.warnings<-c(cSumstats.warnings,"New Z differ from old by more than 1sd!")
         }
         
         
