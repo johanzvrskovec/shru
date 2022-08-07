@@ -1195,8 +1195,8 @@ supermunge <- function(
           nFlipReference<-nrow(cSumstats[!(cond.invertedAlleleOrder),])
           nFlipCandiate<-nrow(cSumstats[(cond.invertedAlleleOrder),])
           
-          meffects.reference<-sum(cSumstats[is.finite(WEFFECT) & !(cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(cSumstats[is.finite(SE) & !(cond.invertedAlleleOrder),]$SE^2,na.rm = T)
-          meffects.candidate<-sum(cSumstats[is.finite(WEFFECT) & (cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(cSumstats[is.finite(SE) & (cond.invertedAlleleOrder),]$SE^2,na.rm = T)
+          meffects.reference<-sum(cSumstats[is.finite(WEFFECT) & !(cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(1/(cSumstats[is.finite(SE) & !(cond.invertedAlleleOrder),]$SE^2),na.rm = T)
+          meffects.candidate<-sum(cSumstats[is.finite(WEFFECT) & (cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(1/(cSumstats[is.finite(SE) & (cond.invertedAlleleOrder),]$SE^2),na.rm = T)
           
           
           meffects.candidate.inverted<-meffects.candidate*-1
