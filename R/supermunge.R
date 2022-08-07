@@ -194,6 +194,7 @@ readFile <- function(filePath,nThreads=5){
 # stopOnMissingEssential=F
 # maxSNPDistanceBpPadding=0
 # invertEffectDirectionOn=NULL
+# parse=T
 # process=T
 # standardiseEffectsToExposure=F
 # writeOutput=T
@@ -241,6 +242,7 @@ supermunge <- function(
   stopOnMissingEssential=F,
   maxSNPDistanceBpPadding=5,
   invertEffectDirectionOn=NULL,
+  parse=T,
   process=T,
   standardiseEffectsToExposure=F,
   writeOutput=T,
@@ -567,11 +569,17 @@ supermunge <- function(
     cat(".")
     
     #parse SNP if needed
-    cSumstats[,SNP:=parseSNPColumnAsRSNumber(SNP)]
-    cat(".")
+    if(parse){
+      cSumstats[,SNP:=parseSNPColumnAsRSNumber(SNP)]
+      cat(".")
+    }
     
     if(any(colnames(cSumstats)=="CHR")) {
-      cSumstats[,CHR:=parseCHRColumn(CHR)]
+      if(parse) { 
+        cSumstats[,CHR:=parseCHRColumn(CHR)] 
+        } else {
+        cSumstats[,CHR:=as.integer(CHR)]
+        }
       cSumstats.keys<-c(cSumstats.keys,'CHR') 
     }
     cat(".")
