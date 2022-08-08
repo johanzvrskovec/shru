@@ -437,7 +437,7 @@ supermunge <- function(
 
   for(iFile in 1:nDatasets){
     #for testing!
-    #iFile=3
+    #iFile=1
     timeStart.ds <- Sys.time()
     
     #temporary variables which has to be reset for each file/dataset
@@ -1184,6 +1184,7 @@ supermunge <- function(
       }
       
       #compare hypothesised inverted allele effects with non-inverted allele effects for validation
+      #use weighting because uncertain associations tend to skew the mean effect towards a negative value
       if(is.null(changeEffectDirectionOnAlleleFlip)) changeEffectDirectionOnAlleleFlip<-T
       
       if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="cond.invertedAlleleOrder")){
@@ -1205,16 +1206,16 @@ supermunge <- function(
           sdeffects.reference<-sd(cSumstats[is.finite(EFFECT) & !(cond.invertedAlleleOrder),]$EFFECT,na.rm = T)
           sdeffects.candidate<-sd(cSumstats[is.finite(EFFECT) & (cond.invertedAlleleOrder),]$EFFECT,na.rm = T)
           cSumstats.meta<-rbind(cSumstats.meta,list("Number variants, reference, candidate:",paste0(as.character(nFlipReference),",",as.character(nFlipCandiate))))
-          cSumstats.meta<-rbind(cSumstats.meta,list("Mean reference effect (sd)",paste0(as.character(round(meffects.reference,digits = 5))," (",round(sdeffects.reference,digits = 5),")")))
-          cSumstats.meta<-rbind(cSumstats.meta,list("Mean candidate effect (sd)",paste0(as.character(round(meffects.candidate,digits = 5))," (",round(sdeffects.candidate,digits = 5),")")))
+          cSumstats.meta<-rbind(cSumstats.meta,list("Mean reference effect (sd)",paste0(as.character(round(meffects.reference,digits = 5))," (",round(sdeffects.reference,digits = 4),")")))
+          cSumstats.meta<-rbind(cSumstats.meta,list("Mean candidate effect (sd)",paste0(as.character(round(meffects.candidate,digits = 5))," (",round(sdeffects.candidate,digits = 4),")")))
           
           
           sumstats.meta[iFile,c("Reference variants")]<-nFlipReference
           sumstats.meta[iFile,c("Candidate variants")]<-nFlipCandiate
           
           sumstats.meta[iFile,c("Mean reference effect")]<-round(meffects.reference,digits = 5)
-          sumstats.meta[iFile,c("Mean reference effect sd")]<-round(sdeffects.reference,digits = 5)
-          sumstats.meta[iFile,c("Mean candidate effect")]<-round(meffects.candidate,digits = 5)
+          sumstats.meta[iFile,c("Mean reference effect sd")]<-round(sdeffects.reference,digits = 4)
+          sumstats.meta[iFile,c("Mean candidate effect")]<-round(meffects.candidate,digits = 4)
           sumstats.meta[iFile,c("Mean candidate effect sd")]<-round(sdeffects.candidate,digits = 5)
           
           if(nFlipCandiate>nFlipReference){
