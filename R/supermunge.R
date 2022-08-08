@@ -1224,7 +1224,7 @@ supermunge <- function(
           
           if(
             (nFlipCandiate <= nFlipReference & abs(meffects.candidate.inverted - meffects.reference) > (abs(meffects.candidate - meffects.reference) + 1*sdeffects.reference)) |
-            (nFlipCandiate > nFlipReference & abs(meffects.reference.inverted - meffects.candidate) > (abs(meffects.reference - meffects.candidate) + 1*sdeffects.reference))
+            (nFlipCandiate > nFlipReference & abs(meffects.reference.inverted - meffects.candidate) > (abs(meffects.reference - meffects.candidate) + 1*sdeffects.candidate))
             ){
             cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","inverted > plain+1sd"))
             sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-T
