@@ -809,7 +809,7 @@ supermunge <- function(
       ## Remove SNPs with missing/non-finite P
       if(any(colnames(cSumstats)=="P")) {
         cSumstats.n<-nrow(cSumstats)
-        cSumstats<-cSumstats[!is.finite(P),]  #cSumstats[!is.na(P),]
+        cSumstats<-cSumstats[is.finite(P),]  #cSumstats[!is.na(P),]
         cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; non-finite P",as.character(cSumstats.n-nrow(cSumstats))))
       }
       cat(".")
@@ -817,7 +817,7 @@ supermunge <- function(
       ## Remove SNPs with missing/non-finite effects
       if(any(colnames(cSumstats)=="EFFECT")) {
         cSumstats.n<-nrow(cSumstats)
-        cSumstats<-cSumstats[!is.finite(EFFECT),] #cSumstats[!is.na(EFFECT),]
+        cSumstats<-cSumstats[is.finite(EFFECT),] #cSumstats[!is.na(EFFECT),]
         cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; non-finite EFFECT",as.character(cSumstats.n-nrow(cSumstats))))
       }
       cat(".")
@@ -825,7 +825,7 @@ supermunge <- function(
       ## Remove SNPs with missing/non-finite FRQ
       if(any(colnames(cSumstats)=="FRQ")) {
         cSumstats.n<-nrow(cSumstats)
-        cSumstats<-cSumstats[!is.finite(FRQ),]
+        cSumstats<-cSumstats[is.finite(FRQ),]
         cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; non-finite FRQ",as.character(cSumstats.n-nrow(cSumstats))))
       }
       cat(".")
