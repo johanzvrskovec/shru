@@ -806,19 +806,19 @@ supermunge <- function(
       cat("\nProcessing.")
       # QC, and data management before merge with reference
       
-      ## Remove SNPs with missing P
+      ## Remove SNPs with missing/non-finite P
       if(any(colnames(cSumstats)=="P")) {
         cSumstats.n<-nrow(cSumstats)
-        cSumstats<-cSumstats[!is.na(P),]
-        cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; missing P",as.character(cSumstats.n-nrow(cSumstats))))
+        cSumstats<-cSumstats[!is.finite(P),]  #cSumstats[!is.na(P),]
+        cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; non-finite P",as.character(cSumstats.n-nrow(cSumstats))))
       }
       cat(".")
       
-      ## Remove SNPs with missing effects
+      ## Remove SNPs with missing/non-finite effects
       if(any(colnames(cSumstats)=="EFFECT")) {
         cSumstats.n<-nrow(cSumstats)
-        cSumstats<-cSumstats[!is.na(EFFECT),]
-        cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; missing EFFECT",as.character(cSumstats.n-nrow(cSumstats))))
+        cSumstats<-cSumstats[!is.finite(EFFECT),] #cSumstats[!is.na(EFFECT),]
+        cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; non-finite EFFECT",as.character(cSumstats.n-nrow(cSumstats))))
       }
       cat(".")
       
