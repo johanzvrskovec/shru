@@ -822,6 +822,14 @@ supermunge <- function(
       }
       cat(".")
       
+      ## Remove SNPs with missing/non-finite FRQ
+      if(any(colnames(cSumstats)=="FRQ")) {
+        cSumstats.n<-nrow(cSumstats)
+        cSumstats<-cSumstats[!is.finite(FRQ),]
+        cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; non-finite FRQ",as.character(cSumstats.n-nrow(cSumstats))))
+      }
+      cat(".")
+      
       ##Alleles, deal with indels
       if(keepIndel == T){
         #we already formatted these earlier
@@ -1045,13 +1053,13 @@ supermunge <- function(
         #cSumstats.meta<-rbind(cSumstats.meta,list("FRQ (median, min(abs), max(abs))",paste(median(cSumstats$FRQ, na.rm = T),", ",min(abs(cSumstats$FRQ), na.rm = T),", ", max(abs(cSumstats$FRQ), na.rm = T))))
         #### Check if value is within limits [0,1]
         if(any(cSumstats$FRQ>1) || any(cSumstats$FRQ<0)) {
-          stop(paste0('\nThere are FRQ values larger than 1 (',sum(cSumstats$FRQ>1),') or less than 0 (',sum(cSumstats$FRQ<0),') which is outside of the possible FRQ range.'))
+          stop(paste0('\nThere are FRQ values larger than 1 (',sum(cSumstats[is.finite(FRQ),]$FRQ>1),') or less than 0 (',sum(cSumstats[is.finite(FRQ),]$FRQ<0),') which is outside of the possible FRQ range.'))
         }
         
         ### Invert FRQ based on the previous reference matching
         if(any(colnames(cSumstats)=="cond.invertedAlleleOrder") & !harmoniseAllelesToReference) {
           alleleFRQ <- ifelse(cSumstats$cond.invertedAlleleOrder, (1-cSumstats$FRQ), cSumstats$FRQ)
-          if(mean(alleleFRQ) < mean(cSumstats$FRQ) * 1.1){
+          if(mean(alleleFRQ[is.finite(alleleFRQ)]) < mean(cSumstats[is.finite(FRQ),]$FRQ) * 1.1){
             cSumstats$FRQ<-alleleFRQ
             cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Fitted (flipped) according to reference allele order"))
             sumstats.meta[iFile,c("FRQ.flipped")]<-T
