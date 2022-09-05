@@ -36,13 +36,14 @@ plot.manhattan.custom<-function(
     df,
     maxNLogP=24,
     pointColorValuesVector = rep(c("grey","#66CCCC"),23),
-    y_limits=NULL
+    y_limits=NULL,
+    var="P" #or "BETA" or "SE"
     ){
   #df<-cSumstats
   
   df$P<- shru::clipValues(df$P,min = 10^(-maxNLogP), max = NULL)
   df<-df[!is.na(df$P),]
-  df<-df[,c("SNP","BP","CHR","P")]
+  df<-df[,c("SNP","BP","CHR","P","BETA","SE")]
   #df$CHR<-as.integer(df$CHR)
   
   df<-df[df$P<0.07,]
@@ -67,9 +68,13 @@ plot.manhattan.custom<-function(
 
   axisdefinition = df %>% group_by(CHR) %>% summarize(center=( max(BP.tot) + min(BP.tot) ) / 2 )
   
-  df$y <- (-log10(df$P))
-  
-  
+  if(var=="BETA"){
+    df$y <- df$BETA
+  } else if(var=="SE"){
+    df$y <- df$SE
+  } else { #fallback to P
+    df$y <- (-log10(df$P))
+  }
 
   plot <- ggplot(df, aes(x=BP.tot, y=y)) +
   
@@ -83,12 +88,7 @@ plot.manhattan.custom<-function(
   
   #geom_label_repel(data=head(setorder(subset(df, y>7),y),n=20), aes(label=SNP), size=3) +
     
-  geom_hline(yintercept = 5, color=theme.color$contrastDark1, linetype="dashed") +
-    
-  geom_hline(yintercept = 8, color=theme.color$contrastDark2, linetype="dashed") +
-    
-  xlab(expression("Chromosome number")) +
-  ylab(expression(paste("-log"[10], plain(P)))) +
+  
   
   # Custom the theme:
   theme_bw() +
@@ -97,7 +97,27 @@ plot.manhattan.custom<-function(
     panel.border = element_blank(),
     panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank()
-  )
+  ) + 
+  
+  xlab(expression("Chromosome number"))
+  
+  if(var=="BETA"){
+    plot <- plot +
+    ylab("BETA")
+  } else if(var=="SE"){
+    plot <- plot +
+    ylab("SE")
+  } else { #fallback to P
+    
+    plot <- plot +
+    
+    geom_hline(yintercept = 5, color=theme.color$contrastDark1, linetype="dashed") +
+      
+    geom_hline(yintercept = 8, color=theme.color$contrastDark2, linetype="dashed") +
+    
+    ylab(expression(paste("-log"[10], plain(P))))
+  }
+  
 
   return(plot)
 }

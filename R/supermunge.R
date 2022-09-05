@@ -173,6 +173,7 @@ readFile <- function(filePath,nThreads=5){
 # ancestrySetting=c("ANY")
 # setChangeEffectDirectionOnAlleleFlip=T #set to TRUE to emulate genomic sem munge
 # produceCompositeTable=F
+# unite=F
 # imputeFromLD=F
 # imputeAdjustN=T
 # imputeFrameLenBp=500000 #500000 for comparison with SSIMP and ImpG
@@ -220,7 +221,8 @@ supermunge <- function(
   traitNames=NULL,
   ancestrySetting=c("ANY"), #ancestry setting list per dataset
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
-  produceCompositeTable=F,
+  produceCompositeTable=F, #create a dataframe with all effects and standard errors across datasets, as for Genomic SEM latent factor GWAS.
+  unite=F, #bind rows of datasets into one dataset
   imputeFromLD=F,
   imputeAdjustN=F,
   imputeFrameLenBp=500000, #500000 for comparison with SSIMP and ImpG
@@ -400,24 +402,12 @@ supermunge <- function(
     
     
     #read and merge with ld scores from directory
-    #TODO Fix so it can work with any type of ld-score files in a folder rather than a set of chromosomes
     if(!is.null(ldDirPath)){
       cat("\nReading LD-scores from specified directory...")
-      ldscores<-c()
-      for(iChr in 1:22){
-        #iChr<-1
-        ldscores[[iChr]]<-suppressMessages(read_delim(
-          file.path(ldDirPath, paste0(iChr, ".l2.ldscore.gz")),
-          delim = "\t", escape_double = FALSE, trim_ws = TRUE, progress = FALSE))
-        ldscM<-suppressMessages(read_csv(file.path(ldDirPath, paste0(iChr, ".l2.M_5_50")), col_names = FALSE))
-        ldscores[[iChr]]$M<-ldscM[[1]]
-      }
-      ldscores<-rbindlist(ldscores)
+      ldscores<- do.call("rbind", lapply(list.files(path = ldDirPath, pattern = "\\.l2\\.ldscore\\.gz$"), function(i) {
+        suppressMessages(fread(file = file.path(ldDirPath, i), na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, showProgress = F, nThread = nThreads, data.table=T))
+      }))
       setkeyv(ldscores, cols = c("SNP"))
-      #ref.allsnps<-data.table(SNP=unique(ref[,c("SNP")]))
-      #colnames(ref.allsnps)<-c("SNP") #needed for some strange error when SNP column is renamed here
-      #setkeyv(ref.allsnps, cols = "SNP")
-      #ref[ldscores[ref.allsnps, on='SNP'], on='SNP', c('L2','M') := list(i.L2,i.M)]
       ref[ldscores, on='SNP', c('L2','M') := list(i.L2,i.M)]
       cat("Done!\n")
     }
@@ -457,15 +447,33 @@ supermunge <- function(
     cat("\nlinprob=",linprob[iFile])
     cat("\nse.logit=",se.logit[iFile])
     cat("\nprop=",prop[iFile])
-    if(!is.null(list_df)){
-      cSumstats <- list_df[[iFile]]
-    } else {
-      cFilePath<-filePaths[iFile]
-      cat(paste("\nFile:", cFilePath,"\n"))
-      cSumstats<-fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
-      #cSumstats <- read.table(cFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
-    }
+    
     cat("\nReading.")
+    
+    #unite is untested
+    if(unite){
+      if(!is.null(list_df)){
+        cSumstats <- rbindlist(list_df,use.names = T,fill = T)
+      } else {
+        ldscores<-c()
+        for(iDf in 1:length(filePaths)){
+          cFilePath<-filePaths[iDf]
+          cat(paste("\nFile:", cFilePath,"\n"))
+          ldscores[[iDf]] <- fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
+        }
+        cSumstats <- rbindlist(list_df,use.names = T,fill = T)
+      }
+    } else {
+      if(!is.null(list_df)){
+        cSumstats <- list_df[[iFile]]
+      } else {
+        cFilePath<-filePaths[iFile]
+        cat(paste("\nFile:", cFilePath,"\n"))
+        cSumstats<-fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
+        #cSumstats <- read.table(cFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
+      }
+    }
+    
     
     if(test){
       cSumstats<-cSumstats[1:1000000,]
@@ -1692,6 +1700,8 @@ supermunge <- function(
     timeDiff.seconds <- timeDiff-timeDiff.minutes*60
     
     cat("\nSupermunge of ",traitNames[iFile]," was done in",timeDiff.minutes, "minutes and",timeDiff.seconds," seconds.\n")
+    #all datasets should have been bound to the first - do not process more datasets
+    if(unite) break
     gc() #do garbage collect if this can help with out of memory issues.
   }
   
