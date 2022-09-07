@@ -32,6 +32,7 @@ semplate$generateIndicatorLoadingPatternsFromFactorLoadings<-function(factorLoad
   return(unique(indicatorLoadingPatterns))
 }
 
+#deprecated
 semplate$generateIndicatorLoadingPatterns<-function(searchBitValues=c(0), indicatorLocks.include=c(), indicatorLocks.exclude=c()){
   
   indicatorLocks<-(indicatorLocks.include | indicatorLocks.exclude)
