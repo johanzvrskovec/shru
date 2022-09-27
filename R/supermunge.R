@@ -161,6 +161,16 @@ readFile <- function(filePath,nThreads=5){
 # test=T
 # 
 
+# filePaths = p$sumstats.sel$imputedpath.ssimp
+# refFilePath = p$filepath.SNPReference.1kg
+# traitNames = p$sumstats.sel$code
+# info.filter = 0.6
+# maf.filter = 0.01
+# N = p$sumstats.sel$n_total
+# region.filter_df = p$highld_b38
+# pathDirOutput = p$folderpath.data.sumstats.export.ssimp.cleaned.nohighld
+
+
 #set default params for test
 # list_df=NULL
 # filePaths=NULL
@@ -427,7 +437,7 @@ supermunge <- function(
 
   for(iFile in 1:nDatasets){
     #for testing!
-    #iFile=1
+    #iFile=2
     timeStart.ds <- Sys.time()
     
     #temporary variables which has to be reset for each file/dataset
@@ -780,7 +790,7 @@ supermunge <- function(
         cSumstats.nSNP<-nrow(cSumstats)
         for(isegment in 1:nrow(region.filter_df)){
           #isegment<-1
-          cSumstats <- cSumstats[!(CHR==region.filter_df$CHR[isegment] & BP>=region.filter_df$BP[isegment] & BP<=region.filter_df$BP2[isegment]),]
+          cSumstats <- cSumstats[!is.na(CHR) & !is.na(BP) & !(CHR==region.filter_df$CHR[isegment] & BP>=region.filter_df$BP[isegment] & BP<=region.filter_df$BP2[isegment]),]
         }
         cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; custom regions"),as.character(cSumstats.nSNP-nrow(cSumstats))))
       } else {
@@ -851,15 +861,6 @@ supermunge <- function(
       }
       cat(".")
       
-      ## Remove duplicated variants across SNP, A1 and A2 - DEPRECATED! - MOVED TO LATER
-      # if(any(colnames(cSumstats)=="SNP") & any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")) {
-      #   cSumstats.n <- nrow(cSumstats)
-      #   cSumstats <- unique(cSumstats,by = c("SNP","A1","A2"))
-      #   #TODO replace with a solution according to this syntax:
-      #   #ul2<-l2[, .(L2 = head(L2,1)), by = c("CHR","SNP","BP")]
-      #   cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; duplicate SNP,A1,A2",as.character(cSumstats.n-nrow(cSumstats))))
-      # }
-      # cat(".")
       
       # Merge with reference
       if(!is.null(ref)){
