@@ -6,9 +6,18 @@ clipValues <- function(x,min,max) {
   return(x)
 }
 
-
 padList <- function(l,padding,targetLength){
   pl<-targetLength-length(l)
   if(pl>0) {c(l,rep(padding,pl))} else {l}
+}
+
+padListRight <- function(l,padding,targetLength){
+  pl<-targetLength-length(l)
+  if(pl>0) {c(l,rep(padding,pl))} else {l}
+}
+
+padStringLeft <- function(s,padding,targetLength){
+  pl<-targetLength-nchar(s)
+  if(pl>0) {paste0(c(rep(padding,pl),s),collapse = "")} else {s}
 }
 

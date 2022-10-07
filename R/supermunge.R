@@ -94,8 +94,8 @@ parseSNPColumnAsRSNumber <- function(text){
   }
   
   #rsXXXX:A1:A2 - format
-  if(sum(grepl(pattern = "^\\w+:\\w+:\\w+", x= head(x = text, n=100000)))>90000){
-    indexesLengths<-regexec(pattern = "^(\\w+):\\w+", text=text)
+  if(sum(grepl(pattern = "^rs\\w+:\\w+:\\w+", x= head(x = text, n=100000)))>90000){
+    indexesLengths<-regexec(pattern = "^(rs\\w+):\\w+", text=text)
     matches<-regmatches(text,indexesLengths)
     return(unlist(lapply(X = matches, FUN = function(x) ifelse(is.na(x[2]),x[1],x[2]))))
   }
@@ -254,8 +254,8 @@ supermunge <- function(
   stopOnMissingEssential=F,
   maxSNPDistanceBpPadding=5,
   invertEffectDirectionOn=NULL,
-  parse=T,
-  process=T,
+  parse=T, #run advanced parsing routines (for SNP and CHR columns) - may take a long time and is not 100% foolproof - check the results!
+  process=T, #apply 'lossy' procedures apart from the explicit filters (incuding reference merging)
   standardiseEffectsToExposure=F,
   writeOutput=T,
   info.filter=NULL,
@@ -486,7 +486,7 @@ supermunge <- function(
     
     
     if(test){
-      cSumstats<-cSumstats[1:1000000,]
+      cSumstats<-cSumstats[1:5000000,]
     }
     
     cSumstats.meta<-data.table(message=NA_character_,display=NA_character_)
@@ -588,13 +588,16 @@ supermunge <- function(
     
     #parse SNP if needed
     if(parse){
-      cSumstats[,SNP:=parseSNPColumnAsRSNumber(SNP)]
+      cSumstats$SNP<-parseSNPColumnAsRSNumber(cSumstats$SNP) #this has to be run on the whole vector of SNP's as it contains tests for parsing in certain ways!
       cat(".")
     }
     
+    cSumstats.meta<-rbind(cSumstats.meta,list("#RS variants",as.character(sum(grepl(pattern = "^rs.+",x = cSumstats$SNP,ignore.case = T)))))
+    
+    
     if(any(colnames(cSumstats)=="CHR")) {
       if(parse) { 
-        cSumstats[,CHR:=parseCHRColumn(CHR)] 
+        cSumstats$CHR<-parseCHRColumn(cSumstats$CHR)
         } else {
         cSumstats[,CHR:=as.integer(CHR)]
         }
@@ -1680,13 +1683,13 @@ supermunge <- function(
         if(!doChrSplit | ((!any(colnames(cSumstats)=="CHR") & doChrSplit))){
           #write.table(x = cSumstats,file = nfilepath,sep="\t", quote = FALSE, row.names = F, append = F)
           #nfilepath.gzip<-gzip(nfilepath)
-          fwrite(x = cSumstats,file = paste0(nfilepath,".gz"),append = F,quote = F,sep = "\t",col.names = T)
+          fwrite(x = cSumstats,file = paste0(nfilepath,".gz"),append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
           cat(paste("\nSupermunged dataset saved as", paste0(nfilepath,".gz")))
         } else {
           dir.create(paste0(nfilepath,".chr"), showWarnings = FALSE)
           chromosomes<-unique(cSumstats$CHR)
           for(cChr in chromosomes){
-            fwrite(x = cSumstats[CHR==cChr,],file = file.path(paste0(nfilepath,".chr"),paste0(traitNames[iFile],"_",cChr,".gz")),append = F,quote = F,sep = "\t",col.names = T)
+            fwrite(x = cSumstats[CHR==cChr,],file = file.path(paste0(nfilepath,".chr"),paste0(traitNames[iFile],"_",cChr,".gz")),append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
           }
           cat(paste("\nSupermunged dataset saved as one file per chromosome under", paste0(nfilepath,".chr")))
       }
