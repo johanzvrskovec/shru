@@ -263,6 +263,7 @@ supermunge <- function(
   mhc.filter=NULL, #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
   region.filter_df=NULL, #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
   region.imputation.filter_df=NULL, #dataframe with columns CHR,BP1,BP2 specifying regions to be excluded from acting as support for imputation, due to high LD for example.
+  chr.filter=NULL, #list of whole chromosomes to exclude from the datasets
   GC="none", #"reinflate",
   nThreads = 5,
   lossless = F, #If true, include all original and additional columns, otherwise restrict output to standard column set (default)
@@ -798,6 +799,19 @@ supermunge <- function(
         cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; custom regions"),as.character(cSumstats.nSNP-nrow(cSumstats))))
       } else {
         cSumstats.warnings<-c(cSumstats.warnings,"No chromosome or base-pair position information available - no filtering of custom provided regions was done!")
+      }
+    }
+    cat(".")
+    
+    if(length(chr.filter)>0){
+      if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
+        cSumstats.nSNP<-nrow(cSumstats)
+        for(chrToLeave in leave.chr){
+          cSumstats <- cSumstats[!is.na(CHR) & CHR!=eval(chrToLeave),]
+        }
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; specific chromosomes"),as.character(cSumstats.nSNP-nrow(cSumstats))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"No chromosome information available - no filtering of chromosomes was done!")
       }
     }
     cat(".")
