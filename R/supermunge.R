@@ -806,7 +806,7 @@ supermunge <- function(
     if(length(chr.filter)>0){
       if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
         cSumstats.nSNP<-nrow(cSumstats)
-        for(chrToLeave in leave.chr){
+        for(chrToLeave in chr.filter){
           cSumstats <- cSumstats[!is.na(CHR) & CHR!=eval(chrToLeave),]
         }
         cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; specific chromosomes"),as.character(cSumstats.nSNP-nrow(cSumstats))))
