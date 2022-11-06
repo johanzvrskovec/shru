@@ -1551,6 +1551,7 @@ supermunge <- function(
     #adjust N to reflect uncertainty of imputed variants
     if((imputeFromLD | imputeAdjustN) & any(colnames(cSumstats)=="LD_IMP")){
       LD_IMP.median<-median(cSumstats[is.finite(LD_IMP),]$LD_IMP, na.rm = T)
+      #TODO - add a fallback to an N value when N not specified
       cSumstats[!is.na(LD_IMP),]$N <- round(N[iFile]*shru::clipValues(cSumstats[!is.na(LD_IMP),]$LD_IMP/LD_IMP.median,0,1))
       cSumstats.meta<-rbind(cSumstats.meta,list("N","Adjusted N to reflect uncertainty of imputed variants (LD-IMP)"))
     }

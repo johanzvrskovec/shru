@@ -224,6 +224,7 @@ semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, 
   
 }
 
+#Most of the code here was probably stolen from this example here: https://rpubs.com/tjmahr/sem_diagrammer
 semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
   paths <- resultDf %>%
     select(lhs, op, rhs, Unstand_Est, Unstand_SE, STD_Genotype, STD_Genotype_SE, p_value)
