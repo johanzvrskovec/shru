@@ -6,13 +6,14 @@
 stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
                                c.SNP = c("SNP","PREDICTOR","SNPID","MARKERNAME","MARKER_NAME","SNPTESTID","ID_DBSNP49","RSID","ID","RS_NUMBER","MARKER", "RS", "RSNUMBER", "RS_NUMBERS", "SNP.NAME","SNP ID", "SNP_ID","LOCATIONALID","ASSAY_NAME"),
                                c.A1 = c("A1","ALLELE1","ALLELE_1","INC_ALLELE","EA","A1_EFFECT","REF","EFFECT_ALLELE","RISK_ALLELE","EFFECTALLELE","EFFECT_ALL","REFERENCE_ALLELE","REF_ALLELE","REFERENCEALLELE","EA","ALLELE_1","INC_ALLELE","ALLELE1","A","A_1","CODED_ALLELE","TESTED_ALLELE"),
-                               c.A2 = c("A2","ALLELE2","ALLELE_2","OTHER_ALLELE","NON_EFFECT_ALLELE","DEC_ALLELE","OA","NEA","ALT","A2_OTHER","NONREF_ALLELE","NEFFECT_ALLELE","NEFFECTALLELE","NONEFFECT_ALLELE","OTHER_ALL","OTHERALLELE","NONEFFECTALLELE","ALLELE0","ALLELE_0","ALT_ALLELE","A_0","NONCODED_ALLELE"),
+                               c.A2 = c("A2","A0","ALLELE2","ALLELE_2","OTHER_ALLELE","NON_EFFECT_ALLELE","DEC_ALLELE","OA","NEA","ALT","A2_OTHER","NONREF_ALLELE","NEFFECT_ALLELE","NEFFECTALLELE","NONEFFECT_ALLELE","OTHER_ALL","OTHERALLELE","NONEFFECTALLELE","ALLELE0","ALLELE_0","ALT_ALLELE","A_0","NONCODED_ALLELE"),
                                #c.EFFECT = c("EFFECT","OR","B","BETA","LOG_ODDS","EFFECTS","SIGNED_SUMSTAT","EST"),
                                c.BETA = c("BETA","B","EFFECT_BETA","EFFECT","EFFECTS","SIGNED_SUMSTAT","EST","GWAS_BETA","EFFECT_A1","EFFECTA1","EFFECT_NW"),
                                c.OR = c("OR","LOG_ODDS","OR","ODDS-RATIO","ODDS_RATIO","ODDSRATIO","OR(MINALLELE)","OR.LOGISTIC","OR_RAN","OR(A1)"),
                                c.SE = c("SE","STDER","STDERR","STD","STANDARD_ERROR","OR_SE","STANDARDERROR", "STDERR_NW","META.SE","SE_DGC","SE.2GC"),
                                c.Z = c("Z","ZSCORE","Z-SCORE","ZSTAT","ZSTATISTIC","GC_ZSCORE","BETAZSCALE"),
                                c.INFO = c("INFO","IMPINFO","IMPQUALITY", "INFO.PLINK", "INFO_UKBB","INFO_UKB"),
+                               c.SINFO = c("SINFO"),
                                c.P = c("P","PVALUE","PVAL","P_VALUE","GC_PVALUE","WALD_P","P.VAL","GWAS_P","P-VALUE","P-VAL","FREQUENTIST_ADD_PVALUE","P.VALUE","P_VAL","SCAN-P","P.LMM","META.PVAL","P_RAN","P.ADD","P_BOLT_LMM","PVAL_ESTIMATE"),
                                c.N = c("N","WEIGHT","NCOMPLETESAMPLES","TOTALSAMPLESIZE","TOTALN","TOTAL_N","N_COMPLETE_SAMPLES","N_TOTAL","N_SAMPLES","N_ANALYZED","NSAMPLES","SAMPLESIZE","SAMPLE_SIZE","TOTAL_SAMPLE_SIZE","TOTALSAMPLESIZE"),
                                c.N_CAS = c("N_CAS","NCASE","N_CASE","N_CASES","NCAS","NCA","NCASES","CASES","CASES_N","FRQ_A"),
@@ -33,13 +34,14 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
   columnNames.orig<-columnNames
   
   columnNames[columnNames.upper %in% c.SNP] <- c.SNP[1]
+  columnNames[columnNames.upper %in% c.A2] <- c.A2[1] #set first in case of A0 use as alternate allele
   columnNames[columnNames.upper %in% c.A1] <- c.A1[1]
-  columnNames[columnNames.upper %in% c.A2] <- c.A2[1]
   columnNames[columnNames.upper %in% c.BETA] <- c.BETA[1]
   columnNames[columnNames.upper %in% c.OR] <- c.OR[1] 
   columnNames[columnNames.upper %in% c.Z] <- c.Z[1] 
   columnNames[columnNames.upper %in% c.SE] <- c.SE[1]
   columnNames[columnNames.upper %in% c.INFO] <- c.INFO[1]
+  columnNames[columnNames.upper %in% c.SINFO] <- c.SINFO[1]
   columnNames[columnNames.upper %in% c.P] <- c.P[1]
   columnNames[columnNames.upper %in% c.N] <- c.N[1]
   columnNames[columnNames.upper %in% c.N_CAS] <- c.N_CAS[1]
@@ -153,7 +155,7 @@ readFile <- function(filePath,nThreads=5){
 # traitNames = p$munge$traitNamesToUse
 # imputeFromLD=T
 # ##process=F
-# #region.imputation.filter_df=p$highld #provide the high-ld regions to not use for imputation
+# #filter.region.imputation.df=p$highld #provide the high-ld regions to not use for imputation
 # #produceVariantTable = T
 # N = p$munge$NToUse
 # pathDirOutput = p$folderpath.data.sumstats.imputed
@@ -164,10 +166,10 @@ readFile <- function(filePath,nThreads=5){
 # filePaths = p$sumstats.sel$imputedpath.ssimp
 # refFilePath = p$filepath.SNPReference.1kg
 # traitNames = p$sumstats.sel$code
-# info.filter = 0.6
-# maf.filter = 0.01
+# filter.info = 0.6
+# filter.maf = 0.01
 # N = p$sumstats.sel$n_total
-# region.filter_df = p$highld_b38
+# filter.region.df = p$highld_b38
 # pathDirOutput = p$folderpath.data.sumstats.export.ssimp.cleaned.nohighld
 
 
@@ -209,11 +211,11 @@ readFile <- function(filePath,nThreads=5){
 # process=T
 # standardiseEffectsToExposure=F
 # writeOutput=T
-# info.filter=NULL
-# maf.filter=NULL
-# mhc.filter=NULL #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
-# region.filter_df=NULL #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
-# region.imputation.filter_df=NULL #dataframe with columns CHR,BP1,BP2 specifying regions to be excluded from acting as support for imputation, due to high LD for example.
+# filter.info=NULL
+# filter.maf=NULL
+# filter.mhc=NULL #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
+# filter.region.df=NULL #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
+# filter.region.imputation.df=NULL #dataframe with columns CHR,BP1,BP2 specifying regions to be excluded from acting as support for imputation, due to high LD for example.
 # GC="none" #"reinflate"
 # nThreads = 5
 # lossless = F
@@ -233,6 +235,7 @@ supermunge <- function(
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F, #create a dataframe with all effects and standard errors across datasets, as for Genomic SEM latent factor GWAS.
   unite=F, #bind rows of datasets into one dataset
+  diff=F, #compare the resulting first dataset with the rest of the datasets pairwise and detect differences, write these to separate files - NOT IMPLEMENTED YET!
   imputeFromLD=F,
   imputeAdjustN=F,
   imputeFrameLenBp=500000, #500000 for comparison with SSIMP and ImpG
@@ -258,12 +261,12 @@ supermunge <- function(
   process=T, #apply 'lossy' procedures apart from the explicit filters (incuding reference merging)
   standardiseEffectsToExposure=F,
   writeOutput=T,
-  info.filter=NULL,
-  maf.filter=NULL,
-  mhc.filter=NULL, #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
-  region.filter_df=NULL, #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
-  region.imputation.filter_df=NULL, #dataframe with columns CHR,BP1,BP2 specifying regions to be excluded from acting as support for imputation, due to high LD for example.
-  chr.filter=NULL, #list of whole chromosomes to exclude from the datasets
+  filter.info=NULL,
+  filter.maf=NULL,
+  filter.mhc=NULL, #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
+  filter.region.df=NULL, #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
+  filter.region.imputation.df=NULL, #dataframe with columns CHR,BP1,BP2 specifying regions to be excluded from acting as support for imputation, due to high LD for example.
+  filter.chr=NULL, #list of whole chromosomes to exclude from the datasets
   GC="none", #"reinflate",
   nThreads = 5,
   lossless = F, #If true, include all original and additional columns, otherwise restrict output to standard column set (default)
@@ -631,24 +634,24 @@ supermunge <- function(
     cat(".")
     
     
-    #Filter variants MAF<maf.filter
-    if(!is.null(maf.filter)){
+    #Filter variants MAF<filter.maf
+    if(!is.null(filter.maf)){
       if("FRQ" %in% names(cSumstats)){
-        rm <- (!is.na(cSumstats$FRQ) & ((cSumstats$FRQ<maf.filter & cSumstats$FRQ<0.5) | (1-cSumstats$FRQ)<maf.filter))
+        rm <- (!is.na(cSumstats$FRQ) & ((cSumstats$FRQ<filter.maf & cSumstats$FRQ<0.5) | (1-cSumstats$FRQ)<filter.maf))
         cSumstats <- cSumstats[!rm, ]
-        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; MAF <",maf.filter),as.character(sum(rm))))
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; MAF <",filter.maf),as.character(sum(rm))))
       } else {
         cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
       }
     }
     cat(".")
     
-    #Filter variants INFO<info.filter
-    if(!is.null(info.filter)){
+    #Filter variants INFO<filter.info
+    if(!is.null(filter.info)){
       if("INFO" %in% names(cSumstats)){
-        rm <- (!is.na(cSumstats$INFO) & cSumstats$INFO<info.filter)
+        rm <- (!is.na(cSumstats$INFO) & cSumstats$INFO<filter.info)
         cSumstats <- cSumstats[!rm, ]
-        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; INFO <",info.filter),as.character(sum(rm))))
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; INFO <",filter.info),as.character(sum(rm))))
       } else {
         cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain an INFO column to apply the specified filter on.")
       }
@@ -774,11 +777,11 @@ supermunge <- function(
     #references
     #https://www.ncbi.nlm.nih.gov/grc/human/regions/MHC?asm=GRCh37
     #https://www.ncbi.nlm.nih.gov/grc/human/regions/MHC
-    if(!is.null(mhc.filter)){
+    if(!is.null(filter.mhc)){
       if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
         cSumstats.nSNP<-nrow(cSumstats)
-        if(mhc.filter==37) cSumstats <- cSumstats[!is.na(CHR) & !is.na(BP) & CHR=="6" & BP>=28477797 & BP<=33448354, ] else if (mhc.filter==38) cSumstats <- cSumstats[!is.na(CHR) & !is.na(BP) & CHR=="6" & BP>=28510120 & BP<=33480577, ] else cSumstats.warnings<-c(cSumstats.warnings,"Invalid assembly version provided - no filtering of the MHC was done!")
-        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; GRCh",mhc.filter,"MHC"),as.character(cSumstats.nSNP-nrow(cSumstats))))
+        if(filter.mhc==37) cSumstats <- cSumstats[!is.na(CHR) & !is.na(BP) & CHR=="6" & BP>=28477797 & BP<=33448354, ] else if (filter.mhc==38) cSumstats <- cSumstats[!is.na(CHR) & !is.na(BP) & CHR=="6" & BP>=28510120 & BP<=33480577, ] else cSumstats.warnings<-c(cSumstats.warnings,"Invalid assembly version provided - no filtering of the MHC was done!")
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; GRCh",filter.mhc,"MHC"),as.character(cSumstats.nSNP-nrow(cSumstats))))
       } else {
         cSumstats.warnings<-c(cSumstats.warnings,"No chromosome or base-pair position information available - no filtering of the MHC was done!")
       }
@@ -786,15 +789,15 @@ supermunge <- function(
     cat(".")
     
     #remove custom regions according to specified dataframe
-    if(!is.null(region.filter_df)){
+    if(!is.null(filter.region.df)){
       if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
-        if(!(any(colnames(region.filter_df)=="CHR") & any(colnames(region.filter_df)=="BP" & any(colnames(region.filter_df)=="BP2")))) stop("Dataframe containing regions to be removed must contain the columns CHR, BP, and BP2!")
-        setDT(region.filter_df)
-        setkeyv(region.filter_df, cols = c("CHR","BP","BP2"))
+        if(!(any(colnames(filter.region.df)=="CHR") & any(colnames(filter.region.df)=="BP" & any(colnames(filter.region.df)=="BP2")))) stop("Dataframe containing regions to be removed must contain the columns CHR, BP, and BP2!")
+        setDT(filter.region.df)
+        setkeyv(filter.region.df, cols = c("CHR","BP","BP2"))
         cSumstats.nSNP<-nrow(cSumstats)
-        for(isegment in 1:nrow(region.filter_df)){
+        for(isegment in 1:nrow(filter.region.df)){
           #isegment<-1
-          cSumstats <- cSumstats[!is.na(CHR) & !is.na(BP) & !(CHR==region.filter_df$CHR[isegment] & BP>=region.filter_df$BP[isegment] & BP<=region.filter_df$BP2[isegment]),]
+          cSumstats <- cSumstats[!is.na(CHR) & !is.na(BP) & !(CHR==filter.region.df$CHR[isegment] & BP>=filter.region.df$BP[isegment] & BP<=filter.region.df$BP2[isegment]),]
         }
         cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; custom regions"),as.character(cSumstats.nSNP-nrow(cSumstats))))
       } else {
@@ -803,10 +806,10 @@ supermunge <- function(
     }
     cat(".")
     
-    if(length(chr.filter)>0){
+    if(length(filter.chr)>0){
       if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
         cSumstats.nSNP<-nrow(cSumstats)
-        for(chrToLeave in chr.filter){
+        for(chrToLeave in filter.chr){
           cSumstats <- cSumstats[!is.na(CHR) & CHR!=eval(chrToLeave),]
         }
         cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; specific chromosomes"),as.character(cSumstats.nSNP-nrow(cSumstats))))
@@ -1416,14 +1419,14 @@ supermunge <- function(
       cSumstats.merged.snp<-cSumstats.merged.snp[!is.na(BETA) & L2_REF>0 & MAF_REF>0.01,]
       
       #remove non-trustworthy variants according to specified regions in the df
-      if(!is.null(region.imputation.filter_df)){
-        if(!(any(colnames(region.imputation.filter_df)=="CHR") & any(colnames(region.imputation.filter_df)=="BP" & any(colnames(region.imputation.filter_df)=="BP2")))) stop("Dataframe containing regions to be excluded as imputation support must contain the columns CHR, BP, and BP2!")
+      if(!is.null(filter.region.imputation.df)){
+        if(!(any(colnames(filter.region.imputation.df)=="CHR") & any(colnames(filter.region.imputation.df)=="BP" & any(colnames(filter.region.imputation.df)=="BP2")))) stop("Dataframe containing regions to be excluded as imputation support must contain the columns CHR, BP, and BP2!")
         cSumstats.merged.snp.nSNP<-nrow(cSumstats.merged.snp)
-        setDT(region.imputation.filter_df)
-        setkeyv(region.imputation.filter_df, cols = c("CHR","BP","BP2"))
-        for(isegment in 1:nrow(region.imputation.filter_df)){
+        setDT(filter.region.imputation.df)
+        setkeyv(filter.region.imputation.df, cols = c("CHR","BP","BP2"))
+        for(isegment in 1:nrow(filter.region.imputation.df)){
           #isegment<-1
-          cSumstats.merged.snp <- cSumstats.merged.snp[!(CHR_REF==region.imputation.filter_df$CHR[isegment] & BP_REF>=region.imputation.filter_df$BP[isegment] & BP_REF<=region.imputation.filter_df$BP2[isegment]),]
+          cSumstats.merged.snp <- cSumstats.merged.snp[!(CHR_REF==filter.region.imputation.df$CHR[isegment] & BP_REF>=filter.region.imputation.df$BP[isegment] & BP_REF<=filter.region.imputation.df$BP2[isegment]),]
         }
         cSumstats.meta<-rbind(cSumstats.meta,list(paste("Ignored variants (imputation); custom regions"),as.character(cSumstats.merged.snp.nSNP-nrow(cSumstats.merged.snp))))
       }
@@ -1439,8 +1442,8 @@ supermunge <- function(
       cat(paste0("\nATTENTION!: Imputing ",nrow(cSumstats.merged.snp.toimpute)," variants!\n"))
       cat("I")
       #read intermediate results
-      if(file.exists(file.path(pathDirOutput,paste0(traitNames[iFile],".LD-IMP.TEMP.Rds")))){
-        intermediateResults<-readRDS(file=file.path(pathDirOutput,paste0(traitNames[iFile],".LD-IMP.TEMP.Rds")))
+      if(file.exists(file.path(pathDirOutput,paste0(traitNames[iFile],".LDIMP.TEMP.Rds")))){
+        intermediateResults<-readRDS(file=file.path(pathDirOutput,paste0(traitNames[iFile],".LDIMP.TEMP.Rds")))
         cSumstats<-intermediateResults$cSumstats
         previousCHR<-intermediateResults$cCHR
         nChrIndex<-match(x = previousCHR, table = chrsToImpute)[1]+1
@@ -1522,15 +1525,15 @@ supermunge <- function(
           if(any(colnames(cI)=="BETA.I") && any(colnames(cI)=="SE.I") && any(colnames(cI)=="K") && any(colnames(cI)=="INFO")){
             if(any(colnames(cSumstats)=="N")) {
               cI[,N:=round(mean(cSumstats.merged.snp[is.finite(N),]$N,na.rm=T))]
-              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,N,EFFECT=BETA.I,SE=SE.I,LD_IMP.K=K,LD_IMP.SUM=W.SUM,LD_IMP=INFO)],fill=T)
+              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,N,EFFECT=BETA.I,SE=SE.I,LDIMP.K=K,LDIMP.SUM=W.SUM,SINFO=INFO)],fill=T)
             } else {
-              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,EFFECT=BETA.I,SE=SE.I,LD_IMP.K=K,LD_IMP.SUM=W.SUM,LD_IMP=INFO)],fill=T)
+              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,EFFECT=BETA.I,SE=SE.I,LDIMP.K=K,LDIMP.SUM=W.SUM,SINFO=INFO)],fill=T)
             }
           }
           
           #write intermediate results
           #if(!(test & match(x = cCHR, table = chrsToImpute)[1]>length(chrsToImpute)/2)){
-            saveRDS(object = list(cCHR=cCHR,cSumstats=cSumstats), file = file.path(pathDirOutput,paste0(traitNames[iFile],".LD-IMP.TEMP.Rds")))
+            saveRDS(object = list(cCHR=cCHR,cSumstats=cSumstats), file = file.path(pathDirOutput,paste0(traitNames[iFile],".LDIMP.TEMP.Rds")))
           #}
           cat("I")
         }
@@ -1548,13 +1551,13 @@ supermunge <- function(
       
     }
     
-    #adjust N to reflect uncertainty of imputed variants
-    if((imputeFromLD | imputeAdjustN) & any(colnames(cSumstats)=="LD_IMP")){
-      LD_IMP.median<-median(cSumstats[is.finite(LD_IMP),]$LD_IMP, na.rm = T)
-      #TODO - add a fallback to an N value when N not specified
-      cSumstats[!is.na(LD_IMP),]$N <- round(N[iFile]*shru::clipValues(cSumstats[!is.na(LD_IMP),]$LD_IMP/LD_IMP.median,0,1))
-      cSumstats.meta<-rbind(cSumstats.meta,list("N","Adjusted N to reflect uncertainty of imputed variants (LD-IMP)"))
-    }
+    # #adjust N to reflect uncertainty of imputed variants - NO, DON'T DO THIS ANYMORE!
+    # if((imputeFromLD | imputeAdjustN) & any(colnames(cSumstats)=="SINFO")){
+    #   SINFO.median<-median(cSumstats[is.finite(SINFO),]$SINFO, na.rm = T)
+    #   #TODO - add a fallback to an N value when N not specified
+    #   cSumstats[!is.na(SINFO),]$N <- round(N[iFile]*shru::clipValues(cSumstats[!is.na(SINFO),]$SINFO/SINFO.median,0,1))
+    #   cSumstats.meta<-rbind(cSumstats.meta,list("N","Adjusted N to reflect uncertainty of imputed variants (LD-IMP)"))
+    # }
     
     #calculate genomic inflation factor
     medianChisq<-median(cSumstats[is.finite(Z),]$Z^2, na.rm = T)
@@ -1638,9 +1641,9 @@ supermunge <- function(
     if("N_CON" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CON")
     if("NEF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"NEF")
     if("DF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"DF")
-    if("LD_IMP.K" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LD_IMP.K")
-    if("LD_IMP.SUM" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LD_IMP.SUM")
-    if("LD_IMP" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LD_IMP")
+    if("LDIMP.K" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.K")
+    if("LDIMP.SUM" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.SUM")
+    if("SINFO" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"SINFO")
     
     output.colnames.more<-colnames(cSumstats)[!(colnames(cSumstats) %in% output.colnames)]
     output.colnames.all<-c(output.colnames,output.colnames.more)
@@ -1657,8 +1660,8 @@ supermunge <- function(
       cat("\nProducing composite variant table.\n")
       cNames.toJoin<-c("SNP","EFFECT","SE")
       if(any(colnames(cSumstats)=="FRQ")) cNames.toJoin <- c(cNames.toJoin,"FRQ")
-      if(any(colnames(cSumstats)=="LD_IMP")) cNames.toJoin <- c(cNames.toJoin,"LD_IMP")
-      if(any(colnames(cSumstats)=="LD_IMP.K")) cNames.toJoin <- c(cNames.toJoin,"LD_IMP.K")
+      if(any(colnames(cSumstats)=="SINFO")) cNames.toJoin <- c(cNames.toJoin,"SINFO")
+      if(any(colnames(cSumstats)=="LDIMP.K")) cNames.toJoin <- c(cNames.toJoin,"LDIMP.K")
       toJoin <- cSumstats[,..cNames.toJoin]
       setkeyv(toJoin,cols = 'SNP')
       #update variantTable by reference
@@ -1667,12 +1670,12 @@ supermunge <- function(
       cName.beta <- paste0("BETA.",traitNames[iFile])
       cName.se <- paste0("SE.",traitNames[iFile])
       cName.frq <- paste0("FRQ.",traitNames[iFile])
-      cName.infolimp <- paste0("LD_IMP",traitNames[iFile])
+      cName.infolimp <- paste0("SINFO",traitNames[iFile])
       cName.k <- paste0("K.",traitNames[iFile])
       if(!any(colnames(toJoin)=="FRQ")) toJoin[,FRQ=NA_real_]
-      if(!any(colnames(toJoin)=="LD_IMP")) toJoin[,LD_IMP=NA_real_]
-      if(!any(colnames(toJoin)=="LD_IMP.K")) toJoin[,LD_IMP.K=NA_integer_]
-      variantTable[toJoin, on='SNP', c(cName.beta,cName.se,cName.frq,cName.LD_IMP,cName.LD_IMP.K):=.(i.EFFECT,i.SE,i.FRQ,i.LD_IMP,i.LD_IMP.K)]
+      if(!any(colnames(toJoin)=="SINFO")) toJoin[,SINFO=NA_real_]
+      if(!any(colnames(toJoin)=="LDIMP.K")) toJoin[,LDIMP.K=NA_integer_]
+      variantTable[toJoin, on='SNP', c(cName.beta,cName.se,cName.frq,cName.SINFO,cName.LDIMP.K):=.(i.EFFECT,i.SE,i.FRQ,i.SINFO,i.LDIMP.K)]
     }
     
     
@@ -1712,6 +1715,18 @@ supermunge <- function(
     
     #remove intermediate results
     if(file.exists(file.path(pathDirOutput,paste0(traitNames[iFile],".LD-IMP.TEMP.Rds")))) file.remove(file.path(pathDirOutput,paste0(traitNames[iFile],".LD-IMP.TEMP.Rds")))
+    
+    #untested!!! NOT COMPLETE!!
+    if(diff){
+      if(iFile==1){
+        cat("\nStoring first dataset as reference for diff")
+        cSumstats.diffIndex <- cSumstats
+      } else {
+        cat("\nWriting diff from diff reference")
+        cSumstats.diff<-merge(cSumstats,cSumstats.diffIndex, by="SNP", all=T)
+        #NOT DONE!!!
+      }
+    }
     
     timeStop.ds <- Sys.time()
     timeDiff <- difftime(time1=timeStop.ds,time2=timeStart.ds,units="sec")
