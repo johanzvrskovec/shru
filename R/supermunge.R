@@ -5,9 +5,11 @@
 
 stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
                                c.SNP = c("SNP","PREDICTOR","SNPID","MARKERNAME","MARKER_NAME","SNPTESTID","ID_DBSNP49","RSID","ID","RS_NUMBER","MARKER", "RS", "RSNUMBER", "RS_NUMBERS", "SNP.NAME","SNP ID", "SNP_ID","LOCATIONALID","ASSAY_NAME"),
-                               c.A1 = c("A1","ALLELE1","ALLELE_1","INC_ALLELE","EA","A1_EFFECT","REF","EFFECT_ALLELE","RISK_ALLELE","EFFECTALLELE","EFFECT_ALL","REFERENCE_ALLELE","REF_ALLELE","REFERENCEALLELE","EA","ALLELE_1","INC_ALLELE","ALLELE1","A","A_1","CODED_ALLELE","TESTED_ALLELE"),
-                               c.A2 = c("A2","A0","ALLELE2","ALLELE_2","OTHER_ALLELE","NON_EFFECT_ALLELE","DEC_ALLELE","OA","NEA","ALT","A2_OTHER","NONREF_ALLELE","NEFFECT_ALLELE","NEFFECTALLELE","NONEFFECT_ALLELE","OTHER_ALL","OTHERALLELE","NONEFFECTALLELE","ALLELE0","ALLELE_0","ALT_ALLELE","A_0","NONCODED_ALLELE"),
-                               #c.EFFECT = c("EFFECT","OR","B","BETA","LOG_ODDS","EFFECTS","SIGNED_SUMSTAT","EST"),
+                               c.A1 = c("A1","ALLELE1","ALLELE_1","A_1","A"),
+                               c.A2 = c("A2","ALLELE2","ALLELE_2","A_2"),
+                               c.A0 = c("A0","ALLELE0","ALLELE_0","A_0"),
+                               c.AEFFECT = c("INC_ALLELE","EA","REF","A1_EFFECT","EFFECT_ALLELE","RISK_ALLELE","EFFECTALLELE","EFFECT_ALL","REFERENCE_ALLELE","REF_ALLELE","REFERENCEALLELE","EA","INC_ALLELE","CODED_ALLELE","TESTED_ALLELE"),
+                               c.ANOEFFECT = c("OTHER_ALLELE","NON_EFFECT_ALLELE","DEC_ALLELE","OA","NEA","ALT","A1_OTHER","A2_OTHER","NONREF_ALLELE","NEFFECT_ALLELE","NEFFECTALLELE","NONEFFECT_ALLELE","OTHER_ALL","OTHERALLELE","NONEFFECTALLELE","ALT_ALLELE","NONCODED_ALLELE"),
                                c.BETA = c("BETA","B","EFFECT_BETA","EFFECT","EFFECTS","SIGNED_SUMSTAT","EST","GWAS_BETA","EFFECT_A1","EFFECTA1","EFFECT_NW"),
                                c.OR = c("OR","LOG_ODDS","OR","ODDS-RATIO","ODDS_RATIO","ODDSRATIO","OR(MINALLELE)","OR.LOGISTIC","OR_RAN","OR(A1)"),
                                c.SE = c("SE","STDER","STDERR","STD","STANDARD_ERROR","OR_SE","STANDARDERROR", "STDERR_NW","META.SE","SE_DGC","SE.2GC"),
@@ -34,8 +36,15 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
   columnNames.orig<-columnNames
   
   columnNames[columnNames.upper %in% c.SNP] <- c.SNP[1]
-  columnNames[columnNames.upper %in% c.A2] <- c.A2[1] #set first in case of A0 use as alternate allele
-  columnNames[columnNames.upper %in% c.A1] <- c.A1[1]
+  if(any(columnNames.upper==c.A0)){
+    columnNames[columnNames.upper %in% c.A1] <- c.A2[1]
+    columnNames[columnNames.upper %in% c.A2] <- c.A0[1]
+  } else {
+    columnNames[columnNames.upper %in% c.A1] <- c.A1[1]
+    columnNames[columnNames.upper %in% c.A2] <- c.A2[1]
+  }
+  columnNames[columnNames.upper %in% c.AEFFECT] <- c.A1[1]
+  columnNames[columnNames.upper %in% c.ANOEFFECT] <- c.A2[1]
   columnNames[columnNames.upper %in% c.BETA] <- c.BETA[1]
   columnNames[columnNames.upper %in% c.OR] <- c.OR[1] 
   columnNames[columnNames.upper %in% c.Z] <- c.Z[1] 
@@ -148,7 +157,7 @@ readFile <- function(filePath,nThreads=5){
 
 
 # 
-# #test with settings from analysis script
+#test with settings from analysis script
 # filePaths = p$munge$filesToUse
 # refFilePath = p$filepath.SNPReference.1kg
 # #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
@@ -161,7 +170,7 @@ readFile <- function(filePath,nThreads=5){
 # pathDirOutput = p$folderpath.data.sumstats.imputed
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
 # test=T
-# 
+
 
 # filePaths = p$sumstats.sel$imputedpath.ssimp
 # refFilePath = p$filepath.SNPReference.1kg
@@ -190,6 +199,7 @@ readFile <- function(filePath,nThreads=5){
 # imputeAdjustN=T
 # imputeFrameLenBp=500000 #500000 for comparison with SSIMP and ImpG
 # imputeFrameLenCM=0.5 #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
+# imputeFromLD.validate.m=100000
 # N=NULL
 # forceN=F
 # prop=NULL
@@ -216,6 +226,7 @@ readFile <- function(filePath,nThreads=5){
 # filter.mhc=NULL #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
 # filter.region.df=NULL #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
 # filter.region.imputation.df=NULL #dataframe with columns CHR,BP1,BP2 specifying regions to be excluded from acting as support for imputation, due to high LD for example.
+# filter.chr=NULL
 # GC="none" #"reinflate"
 # nThreads = 5
 # lossless = F
@@ -240,6 +251,7 @@ supermunge <- function(
   imputeAdjustN=F,
   imputeFrameLenBp=500000, #500000 for comparison with SSIMP and ImpG
   imputeFrameLenCM=0.5, #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
+  imputeFromLD.validate.m=100000,
   N=NULL,
   forceN=F,
   prop=NULL,
@@ -441,7 +453,7 @@ supermunge <- function(
 
   for(iFile in 1:nDatasets){
     #for testing!
-    #iFile=2
+    #iFile=1
     timeStart.ds <- Sys.time()
     
     #temporary variables which has to be reset for each file/dataset
@@ -1386,7 +1398,7 @@ supermunge <- function(
     }
     
     
-    #impute effects and standard errors; LD-IMP - highly experimental
+    #impute effects and standard errors; LDIMP - highly experimental
     if(imputeFromLD){
       #impute betas using LD
       if(!(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="CHR") & ((!is.null(imputeFrameLenBp) & any(colnames(cSumstats)=="BP")) | (!is.null(imputeFrameLenCM) & any(colnames(cSumstats)=="CM"))))) stop("LD imputation is not possible without the columns EFFECT,SE,CHR,(BP or CM)!")
@@ -1412,11 +1424,22 @@ supermunge <- function(
         cSumstats.merged.snp$L2_REF<-cSumstats.merged.snp[,..sAncestryL2]
       }
       
-      if(any(colnames(cSumstats)=="N")) cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE','N') :=list(i.EFFECT,i.SE,i.N)] else cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE') :=list(i.EFFECT,i.SE)]
+      #update from cSumstats
+      cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE','N','FRQ') :=list(i.EFFECT,i.SE,i.N,i.FRQ)]
       
       #filtering and selecting the subset to impute
-      cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[is.na(BETA) & MAF_REF>0.001,] #L2_REF>0
-      cSumstats.merged.snp<-cSumstats.merged.snp[!is.na(BETA) & L2_REF>0 & MAF_REF>0.01,]
+      cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.finite(BETA) & MAF_REF>0.001,] #L2_REF>0
+      
+      #prepare known variants to be imputed for validation
+      if(imputeFromLD.validate.m>0){
+        cSumstats.merged.snp.toimpute.known <- head(cSumstats.merged.snp[is.finite(BETA) & is.finite(SE) & FRQ<0.90 & MAF_REF>0.001,][order(-(FRQ*N*((BETA/SE)^2)*L2_REF)),],imputeFromLD.validate.m)
+        cSumstats.merged.snp.toimpute <- rbind(cSumstats.merged.snp.toimpute.known,cSumstats.merged.snp.toimpute) #add the known imputations first, in case of testing
+      }
+      
+      #imputation source
+      cSumstats.merged.snp<-cSumstats.merged.snp[is.finite(BETA) & is.finite(SE) & L2_REF>0 & MAF_REF>0.01,]
+      
+     
       
       #remove non-trustworthy variants according to specified regions in the df
       if(!is.null(filter.region.imputation.df)){
@@ -1523,12 +1546,14 @@ supermunge <- function(
           
           #add imputed variants
           if(any(colnames(cI)=="BETA.I") && any(colnames(cI)=="SE.I") && any(colnames(cI)=="K") && any(colnames(cI)=="INFO")){
-            if(any(colnames(cSumstats)=="N")) {
-              cI[,N:=round(mean(cSumstats.merged.snp[is.finite(N),]$N,na.rm=T))]
-              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,N,EFFECT=BETA.I,SE=SE.I,LDIMP.K=K,LDIMP.SUM=W.SUM,SINFO=INFO)],fill=T)
-            } else {
-              cSumstats<-rbind(cSumstats,cI[,.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,EFFECT=BETA.I,SE=SE.I,LDIMP.K=K,LDIMP.SUM=W.SUM,SINFO=INFO)],fill=T)
-            }
+            cI[,N:=round(mean(cSumstats.merged.snp[is.finite(N),]$N,na.rm=T))]
+            #add not previously known variants
+            cSumstats<-rbind(cSumstats,cI[is.na(BETA),.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,N,BETA.I,SE.I,LDIMP.K=K,LDIMP.SUM=W.SUM,SINFO=INFO)],fill=T)
+            #update known variants
+            cSumstats[cI[is.finite(BETA),],on=c("SNP"),c('BETA.I','SE.I','LDIMP.K','LDIMP.SUM','SINFO') :=list(i.BETA.I,i.SE.I,i.K,i.W.SUM,i.INFO)]
+            
+            #correct SINFO to 0 - 1 range - affected by the validation imputations
+            cSumstats$SINFO<-(ecdf(cSumstats$SINFO)(cSumstats$SINFO))
           }
           
           #write intermediate results
@@ -1539,8 +1564,27 @@ supermunge <- function(
         }
       }
       
+      
+      ## Compute validation statistics
+      if(imputeFromLD.validate.m>0){
+        cSumstats.impval <- cSumstats[is.finite(EFFECT) & is.finite(BETA.I) & is.finite(SE.I),][,c('d.z','d.beta','d.se') :=list((BETA.I/SE.I)-(EFFECT/SE),BETA.I-EFFECT,SE.I-SE)]
+        sumstats.meta[iFile,c("m_ldimp_val")]<-nrow(cSumstats.impval)
+        cSumstats.impval.rmse.z<-sqrt(mean(cSumstats.impval$d.z^2,na.rm=T))
+        sumstats.meta[iFile,c("cSumstats_impval_rmse_z")]<-cSumstats.impval.rmse.z
+        cSumstats.impval.rmse.beta<-sqrt(mean(cSumstats.impval$d.beta^2,na.rm=T))
+        sumstats.meta[iFile,c("cSumstats_impval_rmse_beta")]<-cSumstats.impval.rmse.beta
+        cSumstats.impval.rmse.se<-sqrt(mean(cSumstats.impval$d.se^2,na.rm=T))
+        sumstats.meta[iFile,c("cSumstats_impval_rmse_se")]<-cSumstats.impval.rmse.se
+      }
+      
       ## Remove failed imputations
-      cSumstats<-cSumstats[!is.na(EFFECT) && !is.na(SE),]
+      cSumstats<-cSumstats[is.finite(EFFECT) | (is.finite(BETA.I) && is.finite(SE.I)),]
+      
+      ## Save statistics
+      sumstats.meta[iFile,c("m_ldimp")] <- nrow(cSumstats[is.na(EFFECT) & is.finite(BETA.I),])
+      
+      ## Transfer imputed values to standard columns
+      cSumstats[!is.finite(EFFECT) & is.finite(BETA.I),c('EFFECT','SE') :=list(BETA.I,SE.I)]
       
       ## Compute Z,P,VSNP again after imputation
       cSumstats$Z <- cSumstats$EFFECT/cSumstats$SE
@@ -1687,6 +1731,9 @@ supermunge <- function(
       cat(as.character(x[1]),"\t\t\t",as.character(x[2]),"\n")
     })
     
+    cat("\nDataset metdata:\n")
+    print(paste0(names(sumstats.meta[iFile]),":   ",sumstats.meta[iFile]))
+    
     if(length(cSumstats.warnings)>0){
       cat("\nShowing warnings below.\n")
       lapply(X = cSumstats.warnings, FUN = cat)
@@ -1714,7 +1761,7 @@ supermunge <- function(
     }
     
     #remove intermediate results
-    if(file.exists(file.path(pathDirOutput,paste0(traitNames[iFile],".LD-IMP.TEMP.Rds")))) file.remove(file.path(pathDirOutput,paste0(traitNames[iFile],".LD-IMP.TEMP.Rds")))
+    if(file.exists(file.path(pathDirOutput,paste0(traitNames[iFile],".LDIMP.TEMP.Rds")))) file.remove(file.path(pathDirOutput,paste0(traitNames[iFile],".LDIMP.TEMP.Rds")))
     
     #untested!!! NOT COMPLETE!!
     if(diff){
