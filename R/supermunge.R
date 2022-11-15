@@ -199,7 +199,7 @@ readFile <- function(filePath,nThreads=5){
 # imputeAdjustN=T
 # imputeFrameLenBp=500000 #500000 for comparison with SSIMP and ImpG
 # imputeFrameLenCM=0.5 #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
-# imputeFromLD.validate.m=100000
+# imputeFromLD.validate.q=0.05
 # N=NULL
 # forceN=F
 # prop=NULL
@@ -251,7 +251,7 @@ supermunge <- function(
   imputeAdjustN=F,
   imputeFrameLenBp=500000, #500000 for comparison with SSIMP and ImpG
   imputeFrameLenCM=0.5, #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
-  imputeFromLD.validate.m=100000,
+  imputeFromLD.validate.q=0.05, #fraction of variants of the input variants with known effects that will be used for estimating RMSD values.
   N=NULL,
   forceN=F,
   prop=NULL,
@@ -1431,6 +1431,7 @@ supermunge <- function(
       cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.finite(BETA) & MAF_REF>0.001,] #L2_REF>0
       
       #prepare known variants to be imputed for validation
+      imputeFromLD.validate.m <- imputeFromLD.validate.q * nrow(cSumstats.merged.snp[is.finite(BETA) & is.finite(SE),])
       if(imputeFromLD.validate.m>0){
         cSumstats.merged.snp.toimpute.known <- head(cSumstats.merged.snp[is.finite(BETA) & is.finite(SE) & FRQ<0.90 & MAF_REF>0.001,][order(-(FRQ*N*((BETA/SE)^2)*L2_REF)),],imputeFromLD.validate.m)
         cSumstats.merged.snp.toimpute <- rbind(cSumstats.merged.snp.toimpute.known,cSumstats.merged.snp.toimpute) #add the known imputations first, in case of testing
@@ -1463,6 +1464,7 @@ supermunge <- function(
       setkeyv(cSumstats.merged.snp.toimpute,cols = "CHR_REF")
       chrsToImpute<-unique(cSumstats.merged.snp.toimpute$CHR_REF)
       cat(paste0("\nATTENTION!: Imputing ",nrow(cSumstats.merged.snp.toimpute)," variants!\n"))
+      if(imputeFromLD.validate.m>0) cat(paste0("\n\tof which ",imputeFromLD.validate.m," are imputed for validation.\n"))
       cat("I")
       #read intermediate results
       if(file.exists(file.path(pathDirOutput,paste0(traitNames[iFile],".LDIMP.TEMP.Rds")))){
@@ -1569,12 +1571,24 @@ supermunge <- function(
       if(imputeFromLD.validate.m>0){
         cSumstats.impval <- cSumstats[is.finite(EFFECT) & is.finite(BETA.I) & is.finite(SE.I),][,c('d.z','d.beta','d.se') :=list((BETA.I/SE.I)-(EFFECT/SE),BETA.I-EFFECT,SE.I-SE)]
         sumstats.meta[iFile,c("m_ldimp_val")]<-nrow(cSumstats.impval)
-        cSumstats.impval.rmse.z<-sqrt(mean(cSumstats.impval$d.z^2,na.rm=T))
-        sumstats.meta[iFile,c("cSumstats_impval_rmse_z")]<-cSumstats.impval.rmse.z
-        cSumstats.impval.rmse.beta<-sqrt(mean(cSumstats.impval$d.beta^2,na.rm=T))
-        sumstats.meta[iFile,c("cSumstats_impval_rmse_beta")]<-cSumstats.impval.rmse.beta
-        cSumstats.impval.rmse.se<-sqrt(mean(cSumstats.impval$d.se^2,na.rm=T))
-        sumstats.meta[iFile,c("cSumstats_impval_rmse_se")]<-cSumstats.impval.rmse.se
+        sumstats.meta[iFile,c("cSumstats_impval_rmse_z")]<-sqrt(mean(cSumstats.impval$d.z^2,na.rm=T))
+        sumstats.meta[iFile,c("cSumstats_impval_rmse_beta")]<-sqrt(mean(cSumstats.impval$d.beta^2,na.rm=T))
+        sumstats.meta[iFile,c("cSumstats_impval_rmse_se")]<-sqrt(mean(cSumstats.impval$d.se^2,na.rm=T))
+        sumstats.meta[iFile,c("cSumstats_impval_bias_z")]<-mean(cSumstats.impval$d.z,na.rm=T)
+        sumstats.meta[iFile,c("cSumstats_impval_bias_beta")]<-mean(cSumstats.impval$d.beta,na.rm=T)
+        sumstats.meta[iFile,c("cSumstats_impval_bias_se")]<-mean(cSumstats.impval$d.se,na.rm=T)
+        sumstats.meta[iFile,c("cSumstats_impval_rmse_z_01_05")]<-sqrt(mean(cSumstats.impval[MAF>0.01 & MAF<=0.05,]$d.z^2,na.rm=T))
+        sumstats.meta[iFile,c("cSumstats_impval_rmse_beta_01_05")]<-sqrt(mean(cSumstats.impval[MAF>0.01 & MAF<=0.05,]$d.beta^2,na.rm=T))
+        sumstats.meta[iFile,c("cSumstats_impval_rmse_se_01_05")]<-sqrt(mean(cSumstats.impval[MAF>0.01 & MAF<=0.05,]$d.se^2,na.rm=T))
+        sumstats.meta[iFile,c("cSumstats_impval_bias_z_01_05")]<-mean(cSumstats.impval[MAF>0.01 & MAF<=0.05,]$d.z,na.rm=T)
+        sumstats.meta[iFile,c("cSumstats_impval_bias_beta_01_05")]<-mean(cSumstats.impval[MAF>0.01 & MAF<=0.05,]$d.beta,na.rm=T)
+        sumstats.meta[iFile,c("cSumstats_impval_bias_se_01_05")]<-mean(cSumstats.impval[MAF>0.01 & MAF<=0.05,]$d.se,na.rm=T)
+        sumstats.meta[iFile,c("cSumstats_impval_rmse_z_05_50")]<-sqrt(mean(cSumstats.impval[MAF>0.05 & MAF<=0.5,]$d.z^2,na.rm=T))
+        sumstats.meta[iFile,c("cSumstats_impval_rmse_beta_05_50")]<-sqrt(mean(cSumstats.impval[MAF>0.05 & MAF<=0.5,]$d.beta^2,na.rm=T))
+        sumstats.meta[iFile,c("cSumstats_impval_rmse_se_05_50")]<-sqrt(mean(cSumstats.impval[MAF>0.05 & MAF<=0.5,]$d.se^2,na.rm=T))
+        sumstats.meta[iFile,c("cSumstats_impval_bias_z_05_50")]<-mean(cSumstats.impval[MAF>0.05 & MAF<=0.5,]$d.z,na.rm=T)
+        sumstats.meta[iFile,c("cSumstats_impval_bias_beta_05_50")]<-mean(cSumstats.impval[MAF>0.05 & MAF<=0.5,]$d.beta,na.rm=T)
+        sumstats.meta[iFile,c("cSumstats_impval_bias_se_05_50")]<-mean(cSumstats.impval[MAF>0.05 & MAF<=0.5,]$d.se,na.rm=T)
       }
       
       ## Remove failed imputations
