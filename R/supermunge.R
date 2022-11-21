@@ -1114,6 +1114,9 @@ supermunge <- function(
         ### Compute MAF
         cond.invertedMAF<-cSumstats$FRQ > .5
         cSumstats$MAF<-ifelse(cond.invertedMAF,1-cSumstats$FRQ,cSumstats$FRQ)
+      } else if(any(colnames(cSumstats)=="MAF_REF")){
+        #no FRQ present - fallback on reference MAF if exists
+        cSumstats[,FRQ:=MAF_REF][,MAF:=FRQ]
       }
       cat(".")
       
@@ -1550,7 +1553,7 @@ supermunge <- function(
           if(any(colnames(cI)=="BETA.I") && any(colnames(cI)=="SE.I") && any(colnames(cI)=="K") && any(colnames(cI)=="INFO")){
             cI[,N:=round(mean(cSumstats.merged.snp[is.finite(N),]$N,na.rm=T))]
             #add not previously known variants
-            cSumstats<-rbind(cSumstats,cI[is.na(BETA),.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,N,BETA.I,SE.I,LDIMP.K=K,LDIMP.SUM=W.SUM,SINFO=INFO)],fill=T)
+            cSumstats<-rbind(cSumstats,cI[is.na(BETA),.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,MAF=MAF_REF,N,BETA.I,SE.I,LDIMP.K=K,LDIMP.SUM=W.SUM,SINFO=INFO)],fill=T)
             #update known variants
             cSumstats[cI[is.finite(BETA),],on=c("SNP"),c('BETA.I','SE.I','LDIMP.K','LDIMP.SUM','SINFO') :=list(i.BETA.I,i.SE.I,i.K,i.W.SUM,i.INFO)]
             
