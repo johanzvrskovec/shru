@@ -1616,10 +1616,11 @@ supermunge <- function(
         sumstats.meta[iFile,c("cSumstats_impval_bias_z_05_50")]<-mean(cSumstats.impval[MAF>0.05 & MAF<=0.5,]$d.z,na.rm=T)
         sumstats.meta[iFile,c("cSumstats_impval_bias_beta_05_50")]<-mean(cSumstats.impval[MAF>0.05 & MAF<=0.5,]$d.beta,na.rm=T)
         sumstats.meta[iFile,c("cSumstats_impval_bias_se_05_50")]<-mean(cSumstats.impval[MAF>0.05 & MAF<=0.5,]$d.se,na.rm=T)
+        #cat("S")
       }
       
       ## Remove failed imputations
-      cSumstats<-cSumstats[is.finite(EFFECT) | (is.finite(BETA.I) && is.finite(SE.I)),]
+      cSumstats<-cSumstats[is.finite(EFFECT) | (is.finite(BETA.I) & is.finite(SE.I)),]
       
       ## Save statistics
       sumstats.meta[iFile,c("m_ldimp")] <- nrow(cSumstats[is.na(EFFECT) & is.finite(BETA.I),])
@@ -1628,7 +1629,7 @@ supermunge <- function(
       cSumstats[!is.finite(EFFECT) & is.finite(BETA.I),c('EFFECT','SE') :=list(BETA.I,SE.I)]
       
       ## Compute Z,P,VSNP again after imputation
-      cSumstats$Z <- cSumstats$EFFECT/cSumstats$SE
+      cSumstats[,Z:=EFFECT/SE]
       cSumstats$P <- 2*pnorm(q = abs(cSumstats$Z),mean = 0, sd = 1, lower.tail = F)
       setkeyv(cSumstats,cols = cSumstats.keys)
       cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
