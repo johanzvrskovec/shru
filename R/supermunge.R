@@ -1475,14 +1475,14 @@ supermunge <- function(
       
       #truncate the imputation job when testing
       if(test){
-        cSumstats.merged.snp.toimpute<-cSumstats.merged.snp.toimpute[1:1000,]
+        cSumstats.merged.snp.toimpute<-cSumstats.merged.snp.toimpute[1:100000,]
       }
       
       #cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.na(BETA),] #for validation
       setkeyv(cSumstats.merged.snp.toimpute,cols = "CHR_REF")
       chrsToImpute<-unique(cSumstats.merged.snp.toimpute$CHR_REF)
       cat(paste0("\nATTENTION!: Imputing ",nrow(cSumstats.merged.snp.toimpute)," variants!\n"))
-      if(imputeFromLD.validate.m>0) cat(paste0("\n\tof which ",imputeFromLD.validate.m," are imputed for validation.\n"))
+      if(imputeFromLD.validate.m>0) cat(paste0("\tof which ",imputeFromLD.validate.m," are imputed for validation.\n"))
       cat("I")
       #read intermediate results
       if(file.exists(file.path(pathDirOutput,paste0(traitNames[iFile],".LDIMP.TEMP.Rds")))){
