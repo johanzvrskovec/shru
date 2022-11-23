@@ -1550,6 +1550,7 @@ supermunge <- function(
               set(x = cI,i = i,j = "W.SUM",
                   value = W.sum
               )
+              
               set(x = cI,i = i,j = "L2.SUM",
                   value = sum(frame$L2,na.rm = T)
               )
@@ -1616,7 +1617,7 @@ supermunge <- function(
         sumstats.meta[iFile,c("cSumstats_impval_bias_z_05_50")]<-mean(cSumstats.impval[MAF>0.05 & MAF<=0.5,]$d.z,na.rm=T)
         sumstats.meta[iFile,c("cSumstats_impval_bias_beta_05_50")]<-mean(cSumstats.impval[MAF>0.05 & MAF<=0.5,]$d.beta,na.rm=T)
         sumstats.meta[iFile,c("cSumstats_impval_bias_se_05_50")]<-mean(cSumstats.impval[MAF>0.05 & MAF<=0.5,]$d.se,na.rm=T)
-        #cat("S")
+        cat("S")
       }
       
       ## Remove failed imputations
@@ -1810,16 +1811,16 @@ supermunge <- function(
     if(file.exists(file.path(pathDirOutput,paste0(traitNames[iFile],".LDIMP.TEMP.Rds")))) file.remove(file.path(pathDirOutput,paste0(traitNames[iFile],".LDIMP.TEMP.Rds")))
     
     #untested!!! NOT COMPLETE!!
-    if(diff){
-      if(iFile==1){
-        cat("\nStoring first dataset as reference for diff")
-        cSumstats.diffIndex <- cSumstats
-      } else {
-        cat("\nWriting diff from diff reference")
-        cSumstats.diff<-merge(cSumstats,cSumstats.diffIndex, by="SNP", all=T)
-        #NOT DONE!!!
-      }
-    }
+    # if(diff){
+    #   if(iFile==1){
+    #     cat("\nStoring first dataset as reference for diff")
+    #     cSumstats.diffIndex <- cSumstats
+    #   } else {
+    #     cat("\nWriting diff from diff reference")
+    #     cSumstats.diff<-merge(cSumstats,cSumstats.diffIndex, by="SNP", all=T)
+    #     #NOT DONE!!!
+    #   }
+    # }
     
     timeStop.ds <- Sys.time()
     timeDiff <- difftime(time1=timeStop.ds,time2=timeStart.ds,units="sec")
