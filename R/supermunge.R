@@ -223,6 +223,7 @@ readFile <- function(filePath,nThreads=5){
 # writeOutput=T
 # filter.info=NULL
 # filter.maf=NULL
+# filter.mac=NULL
 # filter.mhc=NULL #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
 # filter.region.df=NULL #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
 # filter.region.imputation.df=NULL #dataframe with columns CHR,BP1,BP2 specifying regions to be excluded from acting as support for imputation, due to high LD for example.
@@ -275,6 +276,7 @@ supermunge <- function(
   writeOutput=T,
   filter.info=NULL,
   filter.maf=NULL,
+  filter.mac=NULL, #filter on minor allele count
   filter.mhc=NULL, #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
   filter.region.df=NULL, #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
   filter.region.imputation.df=NULL, #dataframe with columns CHR,BP1,BP2 specifying regions to be excluded from acting as support for imputation, due to high LD for example.
@@ -654,6 +656,19 @@ supermunge <- function(
         cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; MAF <",filter.maf),as.character(sum(rm))))
       } else {
         cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
+      }
+    }
+    cat(".")
+    
+    #Filter variants MAC<filter.mac
+    if(!is.null(filter.mac)){
+      if("FRQ" %in% names(cSumstats) & "N" %in% names(cSumstats)){
+        tempMAC<-ifelse(cSumstats$FRQ<0.5,cSumstats$FRQ*cSumstats$N,(1-cSumstats$FRQ)*cSumstats$N)
+        rm <- (!is.na(cSumstats$FRQ) & !is.na(cSumstats$N) & tempMAC<filter.mac)
+        cSumstats <- cSumstats[!rm, ]
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; MAC <",filter.maf),as.character(sum(rm))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column (together with an N column) to apply the specified filter on.")
       }
     }
     cat(".")
@@ -1526,13 +1541,17 @@ supermunge <- function(
               set(x = cI,i = i,j = "K",
                   value = k
               )
-              if(is.na(cI[i,L2]) | is.na(cI[i,L2])==0){
-                set(x = cI,i = i,j = "LD",
-                    value = median(frame$L2,na.rm = T)
-                )
-              }
+              #this is not used? set missing LD scores
+              # if(is.na(cI[i,L2]) | is.na(cI[i,L2])==0){
+              #   set(x = cI,i = i,j = "LD",
+              #       value = median(frame$L2,na.rm = T)
+              #   )
+              # }
               set(x = cI,i = i,j = "W.SUM",
                   value = W.sum
+              )
+              set(x = cI,i = i,j = "L2.SUM",
+                  value = sum(frame$L2,na.rm = T)
               )
               # set(x = cI,i = i,j = "INFO",
               #     value = k*cI[i,L2]/sqrt(W.sum)
@@ -1547,18 +1566,23 @@ supermunge <- function(
           # rmse2
           #View(cI)
           
-          cI[,CHR:=eval(cCHR)][W.SUM>0,INFO:=k*L2/sqrt(W.SUM)]
+          cI[,CHR:=eval(cCHR)][L2.SUM>0,L2.SUM.C:=L2.SUM*((BETA.I/SE.I)^2)] #experimental: use L2.SUM rather than W.SUM
+          #cI[,CHR:=eval(cCHR)][W.SUM>0,INFO:=k*L2/sqrt(W.SUM)] #old
           
           #add imputed variants
-          if(any(colnames(cI)=="BETA.I") && any(colnames(cI)=="SE.I") && any(colnames(cI)=="K") && any(colnames(cI)=="INFO")){
+          if(any(colnames(cI)=="BETA.I") && any(colnames(cI)=="SE.I") && any(colnames(cI)=="K") && any(colnames(cI)=="L2.SUM.C")){
             cI[,N:=round(mean(cSumstats.merged.snp[is.finite(N),]$N,na.rm=T))]
             #add not previously known variants
-            cSumstats<-rbind(cSumstats,cI[is.na(BETA),.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,MAF=MAF_REF,N,BETA.I,SE.I,LDIMP.K=K,LDIMP.SUM=W.SUM,SINFO=INFO)],fill=T)
+            cSumstats<-rbind(cSumstats,cI[is.na(BETA),.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,MAF=MAF_REF,N,BETA.I,SE.I,LDIMP.K=K,LDIMP.W.SUM=W.SUM,LDIMP.L2.SUM=L2.SUM,L2.SUM.C)],fill=T)
             #update known variants
-            cSumstats[cI[is.finite(BETA),],on=c("SNP"),c('BETA.I','SE.I','LDIMP.K','LDIMP.SUM','SINFO') :=list(i.BETA.I,i.SE.I,i.K,i.W.SUM,i.INFO)]
+            cSumstats[cI[is.finite(BETA),],on=c("SNP"),c('BETA.I','SE.I','LDIMP.K','LDIMP.W.SUM','LDIMP.L2.SUM','L2.SUM.C') :=list(i.BETA.I,i.SE.I,i.K,i.W.SUM,i.L2.SUM.C)]
             
             #correct SINFO to 0 - 1 range - affected by the validation imputations
-            cSumstats$SINFO<-(ecdf(cSumstats$SINFO)(cSumstats$SINFO))
+            scalingParameter<-1039080898*2.09409 #TEMPORARY! These settings need to be calibrated!
+            cSumstats[,SINFO:=L2.SUM.C/eval(scalingParameter)] #scale to some relevant credibility level
+            scaledSD<-sd(cSumstats$SINFO,na.rm = T)
+            cSumstats[,SINFO:=pnorm(q = SINFO, mean = 1, sd = scaledSD)] #transform to normal CDF scale
+            #cSumstats$SINFO<-(ecdf(cSumstats$SINFO)(cSumstats$SINFO)) #old
           }
           
           #write intermediate results
@@ -1703,8 +1727,10 @@ supermunge <- function(
     if("NEF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"NEF")
     if("DF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"DF")
     if("LDIMP.K" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.K")
-    if("LDIMP.SUM" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.SUM")
+    if("LDIMP.W.SUM" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.W.SUM")
+    if("LDIMP.L2.SUM" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.L2.SUM")
     if("SINFO" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"SINFO")
+    if("L2_REF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"L2_REF")
     
     output.colnames.more<-colnames(cSumstats)[!(colnames(cSumstats) %in% output.colnames)]
     output.colnames.all<-c(output.colnames,output.colnames.more)
