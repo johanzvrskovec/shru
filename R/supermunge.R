@@ -1475,7 +1475,7 @@ supermunge <- function(
       
       #truncate the imputation job when testing
       if(test){
-        cSumstats.merged.snp.toimpute<-cSumstats.merged.snp.toimpute[1:10000,]
+        cSumstats.merged.snp.toimpute<-cSumstats.merged.snp.toimpute[1:1000,]
       }
       
       #cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.na(BETA),] #for validation
