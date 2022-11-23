@@ -1696,7 +1696,7 @@ supermunge <- function(
         # only for common + uncommon (non-rare) SNPs if MAF available
         if(mean(abs(cSumstats[MAF>0.001 & is.finite(EFFECT) & is.finite(SE),EFFECT/SE]), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nNon-rare variant EFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
       } else {
-        if(mean(abs(cSumstats[is.finite(EFFECT) & is.finite(SE),EFFECT/SE]), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nOverall EFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
+        if(mean(abs(cSumstats[is.finite(EFFECT) & is.finite(SE),EFFECT/SE]), na.rm = T) > 10) cSumstats.warnings<-c(cSumstats.warnings,"\nOverall EFFECT/SE ratio >10 which could be a cause of misspecified/misinterpreted arguments!\n")
       }
     }
     cat(".")
