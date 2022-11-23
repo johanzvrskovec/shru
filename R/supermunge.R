@@ -1720,6 +1720,8 @@ supermunge <- function(
     #if("MAF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"MAF")
     if("BETA" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"BETA")
     if("SE" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"SE")
+    if("BETA.I" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"BETA.I")
+    if("SE.I" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"SE.I")
     if("Z" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"Z")
     if("P" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"P")
     if("N" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N")
