@@ -1575,7 +1575,7 @@ supermunge <- function(
             #add not previously known variants
             cSumstats<-rbind(cSumstats,cI[is.na(BETA),.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,MAF=MAF_REF,N,BETA.I,SE.I,LDIMP.K=K,LDIMP.W.SUM=W.SUM,LDIMP.L2.SUM=L2.SUM,L2.SUM.C)],fill=T)
             #update known variants
-            cSumstats[cI[is.finite(BETA),],on=c("SNP"),c('BETA.I','SE.I','LDIMP.K','LDIMP.W.SUM','LDIMP.L2.SUM','L2.SUM.C') :=list(i.BETA.I,i.SE.I,i.K,i.W.SUM,i.L2.SUM.C)]
+            cSumstats[cI[is.finite(BETA),],on=c("SNP"),c('BETA.I','SE.I','LDIMP.K','LDIMP.W.SUM','LDIMP.L2.SUM','L2.SUM.C') :=list(i.BETA.I,i.SE.I,i.K,i.W.SUM,i.L2.SUM,i.L2.SUM.C)]
             
             #correct SINFO to 0 - 1 range - affected by the validation imputations
             scalingParameter<-1039080898*2.09409 #TEMPORARY! These settings need to be calibrated!
