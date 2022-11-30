@@ -1441,7 +1441,7 @@ supermunge <- function(
       
       #fallback to selecting the first available ld-score if present
       if(!any(colnames(cSumstats.merged.snp)=="L2_REF") & any(grepl(pattern = "^L2\\.*.*_REF$", x = colnames(cSumstats.merged.snp)))){
-        sAncestryL2<-colnames(cSumstats.merged.snp)[grepl(pattern = "^L2\\.*.*_REF$",x = colnames(cSumstats.merged.snp))]
+        sAncestryL2<-colnames(cSumstats.merged.snp)[grepl(pattern = "^L2\\.*.*_REF$",x = colnames(cSumstats.merged.snp))][[1]]
         cSumstats.merged.snp$L2_REF<-cSumstats.merged.snp[,..sAncestryL2]
         cSumstats$L2_REF<-cSumstats[,..sAncestryL2] #set LD column for original sumstats also
         cSumstats.meta <- rbind(cSumstats.meta,list("LD-score variable",sAncestryL2))
