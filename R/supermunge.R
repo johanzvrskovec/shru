@@ -1429,17 +1429,22 @@ supermunge <- function(
       setkeyv(cSumstats,cols = cSumstats.keys)
       setkeyv(cSumstats.merged.snp, cols = paste0(ref.keys,"_REF"))
       
-      #pick ancestry specific LD scores
-      if(ancestrySetting[iFile]!="ANY" & !any(colnames(cSumstats.merged.snp)=="L2_REF")){
-        if(any(colnames(cSumstats.merged.snp)==paste0("L2.",ancestrySetting[iFile],"_REF"))){
-          sAncestryL2<-c(paste0("L2.",ancestrySetting[iFile],"_REF"))
+      #Select correct LD score if present and among multiple ancestry specific scores
+      if(ancestrySetting!="ANY" & !any(colnames(cSumstats.merged.snp)=="L2_REF")){
+        if(any(grepl(pattern = paste0("L2.",ancestrySetting,"_REF"), x = colnames(cSumstats.merged.snp), fixed = T))){
+          sAncestryL2<-colnames(cSumstats.merged.snp)[grepl(pattern = "^L2\\..+_REF$", x = colnames(cSumstats.merged.snp))][[1]]
           cSumstats.merged.snp$L2_REF<-cSumstats.merged.snp[,..sAncestryL2]
+          cSumstats$L2_REF<-cSumstats[,..sAncestryL2] #set LD column for original sumstats also
+          cSumstats.meta <- rbind(cSumstats.meta,list("LD-score variable",sAncestryL2))
         }
       }
       
-      if(!any(colnames(cSumstats.merged.snp)=="L2_REF") & any(grepl(pattern = "L2\\.+",x = colnames(cSumstats.merged.snp)))){
-        sAncestryL2<-colnames(cSumstats.merged.snp)[grepl(pattern = "L2\\.+",x = colnames(cSumstats.merged.snp))]
+      #fallback to selecting the first available ld-score if present
+      if(!any(colnames(cSumstats.merged.snp)=="L2_REF") & any(grepl(pattern = "^L2\\.*.*_REF$", x = colnames(cSumstats.merged.snp)))){
+        sAncestryL2<-colnames(cSumstats.merged.snp)[grepl(pattern = "^L2\\.*.*_REF$",x = colnames(cSumstats.merged.snp))]
         cSumstats.merged.snp$L2_REF<-cSumstats.merged.snp[,..sAncestryL2]
+        cSumstats$L2_REF<-cSumstats[,..sAncestryL2] #set LD column for original sumstats also
+        cSumstats.meta <- rbind(cSumstats.meta,list("LD-score variable",sAncestryL2))
       }
       
       #update from cSumstats
@@ -1574,7 +1579,7 @@ supermunge <- function(
           if(any(colnames(cI)=="BETA.I") && any(colnames(cI)=="SE.I") && any(colnames(cI)=="K") && any(colnames(cI)=="L2.SUM.C")){
             cI[,N:=round(mean(cSumstats.merged.snp[is.finite(N),]$N,na.rm=T))]
             #add not previously known variants
-            cSumstats<-rbind(cSumstats,cI[is.na(BETA),.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,MAF=MAF_REF,N,BETA.I,SE.I,LDIMP.K=K,LDIMP.W.SUM=W.SUM,LDIMP.L2.SUM=L2.SUM,L2.SUM.C)],fill=T)
+            cSumstats<-rbind(cSumstats,cI[is.na(BETA),.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,MAF=MAF_REF,N,BETA.I,SE.I,L2_REF=L2,LDIMP.K=K,LDIMP.W.SUM=W.SUM,LDIMP.L2.SUM=L2.SUM,L2.SUM.C)],fill=T)
             #update known variants
             cSumstats[cI[is.finite(BETA),],on=c("SNP"),c('BETA.I','SE.I','LDIMP.K','LDIMP.W.SUM','LDIMP.L2.SUM','L2.SUM.C') :=list(i.BETA.I,i.SE.I,i.K,i.W.SUM,i.L2.SUM,i.L2.SUM.C)]
             
