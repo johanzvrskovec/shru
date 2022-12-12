@@ -158,6 +158,30 @@ readFile <- function(filePath,nThreads=5){
 
 # 
 #test with settings from analysis script
+
+# filePaths = p$munge$filesToUse
+# rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
+# refFilePath = p$filepath.SNPReference.1kg
+# traitNames = p$munge$traitNamesToUse
+# chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
+# N = p$munge$NToUse
+# pathDirOutput = p$folderpath.data.sumstats.munged
+
+
+# filePaths = p$munge$filesToUse
+# refFilePath = p$filepath.SNPReference.1kg
+# process = F
+# traitNames = p$munge$traitNamesToUse
+# imputeFromLD=T
+# imputeFrameLenBp = 500000
+# imputeFrameLenCM=NULL
+# filter.region.imputation.df=p$highld_b38 #provide the high-ld regions to not use for imputation
+# N = p$munge$NToUse
+# #test = T, #REMOVE THIS!
+# imputeFromLD.validate.q=1.0 #validate with all of the original dataset
+# pathDirOutput = p$folderpath.data.sumstats.imputed.500
+
+
 # filePaths = p$munge$filesToUse
 # refFilePath = p$filepath.SNPReference.1kg
 # #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
@@ -847,7 +871,7 @@ supermunge <- function(
     cat(".")
     
     #update variant ID's from synonym list
-    if(!is.na(idSynonyms)){
+    if(length(idSynonyms)>0){
       # idSynonymsSplitMaxlength<-0
       # crap <- lapply(idSynonyms$parts,FUN = function(x){if(length(x)>idSynonymsSplitMaxlength) idSynonymsSplitMaxlength<<- length(x)})
       # rm(crap)
@@ -1216,7 +1240,7 @@ supermunge <- function(
         
         ## Inspect new and old Z-values
         if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="Z_ORIG")){
-          if(mean(cSumstats[is.finite(Z),]$Z)-mean(cSumstats[is.finite(Z_ORIG),]$Z_ORIG,na.rm=T)>1) cSumstats.warnings<-c(cSumstats.warnings,"New Z differ from old by more than 1sd!")
+          if(abs(mean(cSumstats[is.finite(Z),]$Z)-mean(cSumstats[is.finite(Z_ORIG),]$Z_ORIG,na.rm=T))>1) cSumstats.warnings<-c(cSumstats.warnings,"New Z differ from old by more than 1sd!")
         }
         
       } else {
