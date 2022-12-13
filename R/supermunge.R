@@ -16,13 +16,13 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
                                c.Z = c("Z","ZSCORE","Z-SCORE","ZSTAT","ZSTATISTIC","GC_ZSCORE","BETAZSCALE"),
                                c.INFO = c("INFO","IMPINFO","IMPQUALITY", "INFO.PLINK", "INFO_UKBB","INFO_UKB"),
                                c.SINFO = c("SINFO"),
-                               c.P = c("P","PVALUE","PVAL","P_VALUE","GC_PVALUE","WALD_P","P.VAL","GWAS_P","P-VALUE","P-VAL","FREQUENTIST_ADD_PVALUE","P.VALUE","P_VAL","SCAN-P","P.LMM","META.PVAL","P_RAN","P.ADD","P_BOLT_LMM","PVAL_ESTIMATE"),
+                               c.P = c("P","PVALUE","PVAL","P_VALUE","GC_PVALUE","P.2GC","WALD_P","P.VAL","GWAS_P","P-VALUE","P-VAL","FREQUENTIST_ADD_PVALUE","P.VALUE","P_VAL","SCAN-P","P.LMM","META.PVAL","P_RAN","P.ADD","P_BOLT_LMM","PVAL_ESTIMATE"),
                                c.N = c("N","WEIGHT","NCOMPLETESAMPLES","TOTALSAMPLESIZE","TOTALN","TOTAL_N","N_COMPLETE_SAMPLES","N_TOTAL","N_SAMPLES","N_ANALYZED","NSAMPLES","SAMPLESIZE","SAMPLE_SIZE","TOTAL_SAMPLE_SIZE","TOTALSAMPLESIZE"),
                                c.N_CAS = c("N_CAS","NCASE","N_CASE","N_CASES","NCAS","NCA","NCASES","CASES","CASES_N","FRQ_A"),
                                c.N_CON = c("N_CON","NCONTROL","N_CONTROL","N_CONTROLS","NCON","NCO","N_CON","NCONTROLS","CONTROLS","CONTROLS_N","FRQ_U"),
                                c.NEF = c("NEF","NEFF","NEFFECTIVE","NE"),
                                #include FRQ_A?
-                               c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF","FREQ1.HAPMAP","FREQALLELE1HAPMAPCEU", "FREQ.ALLELE1.HAPMAPCEU","EFFECT_ALLELE_FREQ","FREQ.A1","F_A","F_U","FREQ_A","FREQ_U","MA_FREQ","MAF_NW","FREQ_A1","A1FREQ","CODED_ALLELE_FREQUENCY","FREQ_TESTED_ALLELE","FREQ_TESTED_ALLELE_IN_HRS","EAF_HRC","EAF_UKB","EAF_EUR_UKB","FREQ_TESTED_ALLELE"),
+                               c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF","FREQ1.HAPMAP","FREQALLELE1HAPMAPCEU","FREQ.HAPMAP.CEU","FREQ.ALLELE1.HAPMAPCEU","EFFECT_ALLELE_FREQ","FREQ.A1","F_A","F_U","FREQ_A","FREQ_U","MA_FREQ","MAF_NW","FREQ_A1","A1FREQ","CODED_ALLELE_FREQUENCY","FREQ_TESTED_ALLELE","FREQ_TESTED_ALLELE_IN_HRS","EAF_HRC","EAF_UKB","EAF_EUR_UKB","FREQ_TESTED_ALLELE"),
                                c.CHR = c("CHR","CH","CHROMOSOME","CHROM","CHR_BUILD38","CHR_BUILD37","CHR_BUILD36","CHR_B38","CHR_B37","CHR_B36","CHR_ID","SCAFFOLD","HG19CHR","CHR.HG19","CHR_HG19","HG18CHR","CHR.HG18","CHR_HG18","CHR_BP_HG19B37","HG19CHRC","#CHROM"),
                                c.BP = c("BP","BP1","ORIGBP","POS","POSITION","LOCATION","PHYSPOS","GENPOS","CHR_POSITION","POS_B38","POS_BUILD38","POS_B37","POS_BUILD37","BP_HG19B37","POS_B36","POS_BUILD36","POS.HG19","POS.HG18","POS_HG19","POS_HG18","BP_HG19","BP_HG18","BP.GRCH38","BP.GRCH37","POSITION(HG19)","POSITION(HG18)","POS(B38)","POS(B37)"),
                                c.BP2 =c("BP2"),
@@ -1032,19 +1032,34 @@ supermunge <- function(
         
         ## Add in chr and bp from ref if not present in datasets
         if(!any(colnames(cSumstats)=="CHR")){
+          sumstats.meta[iFile,c("no_CHR")]<-T
           cSumstats.warnings<-c(cSumstats.warnings,"No CHR column present!")
           if(any(colnames(cSumstats)=="CHR_REF")){
-            cSumstats[,CHR:=CHR_REF]
+            cSumstats[,CHR:=as.integer(CHR_REF)]
             cSumstats.keys<-c(cSumstats.keys,'CHR')
             cSumstats.warnings<-c(cSumstats.warnings,"Inferring CHR from reference!")
+          } else {
+            cSumstats[,CHR:=NA_integer_]
           }
+        }
+        
+        if(!any(colnames(cSumstats)=="BP")){
+          sumstats.meta[iFile,c("no_BP")]<-T
+          cSumstats.warnings<-c(cSumstats.warnings,"No BP column present!")
+          if(any(colnames(cSumstats)=="BP_REF")){
+            cSumstats[,BP:=as.integer(BP_REF)]
+            cSumstats.warnings<-c(cSumstats.warnings,"Inferring BP from reference!")
+          } else {
+            cSumstats[,BP:=NA_integer_]
+          }
+          
         }
         
         if(!any(colnames(cSumstats)=="FRQ")){
           sumstats.meta[iFile,c("no_FRQ")]<-T
           cSumstats.warnings<-c(cSumstats.warnings,"No FRQ column present!")
           if(any(colnames(cSumstats)=="MAF_REF")){
-            cSumstats[,FRQ:=MAF_REF]
+            cSumstats[,FRQ:=as.numeric(MAF_REF)]
             cSumstats.warnings<-c(cSumstats.warnings,"Inferring FRQ from reference!")
           } else {
             cSumstats[,FRQ:=NA_real_]
