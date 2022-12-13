@@ -612,11 +612,11 @@ supermunge <- function(
     cSumstats.keys<-c('SNP')
     cSumstats[,SNP:=as.character(SNP)]
     if(any(colnames(cSumstats)=="A1")) {
-      cSumstats[,A1:=as.character(A1)]
+      cSumstats[,A1:=toupper(as.character(A1))]
       cSumstats.keys<-c(cSumstats.keys,'A1')
     }
     if(any(colnames(cSumstats)=="A2")) {
-      cSumstats[,A2:=as.character(A2)]
+      cSumstats[,A2:=toupper(as.character(A2))]
       cSumstats.keys<-c(cSumstats.keys,'A2')
     }
 
