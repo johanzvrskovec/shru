@@ -955,7 +955,6 @@ supermunge <- function(
         cSumstats.merged.snp<-ref[cSumstats, on=c(SNP_REF="SNP"), nomatch=0]
         #replace missing columns
         cSumstats.merged.snp[,SNP:=SNP_REF]
-        #cSumstats.merged.snp[,DBPORIG:=BP-BP_ORIG][,DBPREF:=BP-BP_REF]
         
         cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; rsID not in ref",as.character(cSumstats.n-nrow(cSumstats.merged.snp))))
         cat(".")
@@ -1028,7 +1027,7 @@ supermunge <- function(
       if(!is.null(ref)){
         
         ##Synchronise SNP,BP with reference
-        cSumstats[,SNP:=SNP_REF]
+        cSumstats[,SNP:=SNP_REF] #probably not needed
         if(harmoniseBPToReference) cSumstats[,BP:=BP_REF]
         
         ## Add in chr and bp from ref if not present in datasets
@@ -1149,9 +1148,12 @@ supermunge <- function(
         
         ### Invert FRQ based on the previous reference matching
         if(any(colnames(cSumstats)=="cond.invertedAlleleOrder") & !harmoniseAllelesToReference) {
-          alleleFRQ <- ifelse(cSumstats$cond.invertedAlleleOrder, (1-cSumstats$FRQ), cSumstats$FRQ)
-          if(mean(alleleFRQ[is.finite(alleleFRQ)]) < mean(cSumstats[is.finite(FRQ),]$FRQ) * 1.1){
-            cSumstats$FRQ<-alleleFRQ
+          #alleleFRQ <- ifelse(cSumstats$cond.invertedAlleleOrder, (1-cSumstats$FRQ), cSumstats$FRQ) #old
+          cSumstats[,TFRQ:=FRQ]
+          cSumstats[cond.invertedAlleleOrder==T,TFRQ:=1-FRQ]
+          if(mean(cSumstats[is.finite(TFRQ),TFRQ][1]) < mean(cSumstats[is.finite(FRQ),FRQ][1]) * 1.1){
+            cSumstats[cond.invertedAlleleOrder==T,FRQ:=1-FRQ][,TFRQ:=NULL]
+            #cSumstats$FRQ<-alleleFRQ
             cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Fitted (flipped) according to reference allele order"))
             sumstats.meta[iFile,c("FRQ.flipped")]<-T
           } else {
