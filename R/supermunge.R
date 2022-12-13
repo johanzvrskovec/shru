@@ -554,11 +554,21 @@ supermunge <- function(
     cat(".")
     
     
-    #deal with duplicate columns - use the first occurrence
+    #deal with duplicate columns - use the first occurrence or find the occurrence containing rs-numbers for the SNP column
     ##SNP
     iDup<-grep(pattern = "^SNP$",colnames(cSumstats))
+    cSumstats.n <- nrow(cSumstats)
     if(length(iDup)>1){
-      iDup<-iDup[2:length(iDup)]
+      iDupPrefIndex<-iDup[1]
+      #find the preferred column
+      for(iDupIndex in 1:length(iDup)){
+        #iDupIndex<-2
+        if(sum(grepl(pattern = "^rs.+",ignore.case = T, x= head(cSumstats[,..iDupIndex]$SNP,n=cSumstats.n/4)))>0.5*cSumstats.n/4){ #check the first 25% of the variants
+          iDupPrefIndex<-iDumIndex
+          break
+        }
+      }
+      iDup<-iDup[iDup != iDupPrefIndex]
       colnames(cSumstats)[iDup]<-"XSNP"
     }
     
