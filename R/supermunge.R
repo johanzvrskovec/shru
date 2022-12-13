@@ -564,7 +564,7 @@ supermunge <- function(
       for(iDupIndex in 1:length(iDup)){
         #iDupIndex<-2
         if(sum(grepl(pattern = "^rs.+",ignore.case = T, x= head(cSumstats[,..iDupIndex]$SNP,n=cSumstats.n/4)))>0.5*cSumstats.n/4){ #check the first 25% of the variants
-          iDupPrefIndex<-iDumIndex
+          iDupPrefIndex<-iDupIndex
           break
         }
       }
