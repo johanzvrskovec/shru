@@ -620,6 +620,7 @@ supermunge <- function(
       cSumstats.keys<-c(cSumstats.keys,'A2')
     }
 
+    if(any(colnames(cSumstats)=="P")) cSumstats[,P:=as.numeric(P)]
     if(any(colnames(cSumstats)=="Z")) cSumstats[,Z:=as.numeric(Z)]
     if(any(colnames(cSumstats)=="FRQ")) cSumstats[,FRQ:=as.numeric(FRQ)]
     #if(any(colnames(cSumstats)=="MAF")) cSumstats[,MAF:=as.numeric(MAF)]
