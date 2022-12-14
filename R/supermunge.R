@@ -1467,9 +1467,9 @@ supermunge <- function(
     }
     
     
-    #impute effects and standard errors; LDIMP - highly experimental
+    #impute effects and standard errors; LDimp - highly experimental
     if(imputeFromLD){
-      #impute betas using LD
+      #impute betas and standard errors using LD
       if(!(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="CHR") & ((!is.null(imputeFrameLenBp) & any(colnames(cSumstats)=="BP")) | (!is.null(imputeFrameLenCM) & any(colnames(cSumstats)=="CM"))))) stop("LD imputation is not possible without the columns EFFECT,SE,CHR,(BP or CM)!")
       
       do.ldimp.cm<-!is.null(imputeFrameLenCM)
@@ -1555,7 +1555,7 @@ supermunge <- function(
       
       if(length(chrsToImpute)>0){
         for(cCHR in chrsToImpute){
-          #cCHR<-10
+          #cCHR<-2
           cSS<-cSumstats.merged.snp[CHR_REF==eval(cCHR),.(SNP=SNP_REF,BP=BP_REF,BETA,SE,L2=L2_REF,VAR=SE^2,CM=CM_REF)] #Z=EFFECT/SE
           
           if(do.ldimp.cm){
@@ -1623,23 +1623,22 @@ supermunge <- function(
           # rmse2
           #View(cI)
           
-          cI[,CHR:=eval(cCHR)][L2.SUM>0,L2.SUM.C:=L2.SUM*((BETA.I/SE.I)^2)] #experimental: use L2.SUM rather than W.SUM
-          #cI[,CHR:=eval(cCHR)][W.SUM>0,INFO:=k*L2/sqrt(W.SUM)] #old
+          cI[,CHR:=eval(cCHR)]
           
           #add imputed variants
-          if(any(colnames(cI)=="BETA.I") && any(colnames(cI)=="SE.I") && any(colnames(cI)=="K") && any(colnames(cI)=="L2.SUM.C")){
+          if(any(colnames(cI)=="BETA.I") && any(colnames(cI)=="SE.I") && any(colnames(cI)=="L2.SUM")){
             cI[,N:=round(mean(cSumstats.merged.snp[is.finite(N),]$N,na.rm=T))]
-            #add not previously known variants
-            cSumstats<-rbind(cSumstats,cI[is.na(BETA),.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,MAF=MAF_REF,N,BETA.I,SE.I,L2_REF=L2,LDIMP.K=K,LDIMP.W.SUM=W.SUM,LDIMP.L2.SUM=L2.SUM,L2.SUM.C)],fill=T)
-            #update known variants
-            cSumstats[cI[is.finite(BETA),],on=c("SNP"),c('BETA.I','SE.I','LDIMP.K','LDIMP.W.SUM','LDIMP.L2.SUM','L2.SUM.C') :=list(i.BETA.I,i.SE.I,i.K,i.W.SUM,i.L2.SUM,i.L2.SUM.C)]
             
-            #correct SINFO to 0 - 1 range - affected by the validation imputations
-            scalingParameter<-1039080898*2.09409 #TEMPORARY! These settings need to be calibrated!
-            cSumstats[,SINFO:=L2.SUM.C/eval(scalingParameter)] #scale to some relevant credibility level
-            scaledSD<-sd(cSumstats$SINFO,na.rm = T)
-            cSumstats[,SINFO:=pnorm(q = SINFO, mean = 1, sd = scaledSD)] #transform to normal CDF scale
+            #scaledSD<-sd(cSumstats$SINFO,na.rm = T)
+            cI[L2.SUM>0,LDIMP.Q:=K*L2/(L2.SUM)][L2.SUM>0,SINFO:=pnorm(q = LDIMP.Q, mean = 1, sd = 1)] #experimental: use L2.SUM rather than W.SUM. transform to normal CDF scale.
             #cSumstats$SINFO<-(ecdf(cSumstats$SINFO)(cSumstats$SINFO)) #old
+            
+            #add not previously known variants
+            cSumstats<-rbind(cSumstats,cI[is.na(BETA),.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,MAF=MAF_REF,N,BETA.I,SE.I,L2_REF=L2,LDIMP.K=K,LDIMP.W.SUM=W.SUM,LDIMP.L2.SUM=L2.SUM,LDIMP.Q,SINFO)],fill=T)
+            #update known variants
+            cSumstats[cI[is.finite(BETA),],on=c("SNP"),c('BETA.I','SE.I','LDIMP.K','LDIMP.W.SUM','LDIMP.L2.SUM','LDIMP.Q','SINFO') :=list(i.BETA.I,i.SE.I,i.K,i.W.SUM,i.L2.SUM,i.LDIMP.Q,i.SINFO)]
+            
+            
           }
           
           #write intermediate results
@@ -1786,11 +1785,12 @@ supermunge <- function(
     if("N_CON" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CON")
     if("NEF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"NEF")
     if("DF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"DF")
+    if("L2_REF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"L2_REF")
     if("LDIMP.K" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.K")
-    if("LDIMP.W.SUM" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.W.SUM")
+    if("LDIMP.Q" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.Q")
     if("LDIMP.L2.SUM" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.L2.SUM")
     if("SINFO" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"SINFO")
-    if("L2_REF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"L2_REF")
+    
     
     output.colnames.more<-colnames(cSumstats)[!(colnames(cSumstats) %in% output.colnames)]
     output.colnames.all<-c(output.colnames,output.colnames.more)
