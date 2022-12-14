@@ -167,17 +167,16 @@ readFile <- function(filePath,nThreads=5){
 # N = p$munge$NToUse
 # pathDirOutput = p$folderpath.data.sumstats.munged
 
-
+# 
 # filePaths = p$munge$filesToUse
 # refFilePath = p$filepath.SNPReference.1kg
-# process = F
 # traitNames = p$munge$traitNamesToUse
 # imputeFromLD=T
 # imputeFrameLenBp = 500000
 # imputeFrameLenCM=NULL
 # filter.region.imputation.df=p$highld_b38 #provide the high-ld regions to not use for imputation
 # N = p$munge$NToUse
-# #test = T, #REMOVE THIS!
+# test = T #REMOVE THIS!
 # imputeFromLD.validate.q=1.0 #validate with all of the original dataset
 # pathDirOutput = p$folderpath.data.sumstats.imputed.500
 
@@ -393,7 +392,7 @@ supermunge <- function(
   }
   
   #read SNP id synonyms
-  idSynonyms<-NA
+  idSynonyms<-NULL
   if(!is.null(rsSynonymsFilePath)){
     cat("\nReading variant ID synonyms...")
     
@@ -882,7 +881,7 @@ supermunge <- function(
     cat(".")
     
     #update variant ID's from synonym list
-    if(length(idSynonyms)>0){
+    if(!is.null(idSynonyms)){
       # idSynonymsSplitMaxlength<-0
       # crap <- lapply(idSynonyms$parts,FUN = function(x){if(length(x)>idSynonymsSplitMaxlength) idSynonymsSplitMaxlength<<- length(x)})
       # rm(crap)
