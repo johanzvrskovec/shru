@@ -921,11 +921,15 @@ supermunge <- function(
       }
       cat(".")
       
-      ## Remove SNPs with missing/non-finite FRQ
+      ## Set missing/non-finite FRQ as NA - changed behaviour here - set FRQ NA and later to reference FRQ if possible when non finite
       if(any(colnames(cSumstats)=="FRQ")) {
         cSumstats.n<-nrow(cSumstats)
-        cSumstats<-cSumstats[is.finite(FRQ),]
-        cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; non-finite FRQ",as.character(cSumstats.n-nrow(cSumstats))))
+        if(!is.null(ref)) {
+          cSumstats[!is.finite(FRQ),FRQ:=NA_real_]
+        } else {
+          cSumstats <- cSumstats[is.finite(FRQ),]
+          cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; non-finite FRQ",as.character(cSumstats.n-nrow(cSumstats))))
+        }
       }
       cat(".")
       
@@ -1025,12 +1029,14 @@ supermunge <- function(
       
       if(!is.null(ref)){
         
-        ##Synchronise SNP,BP with reference
+        ##Synchronise SNP,CHR,BP,FRQ with reference
         cSumstats[,SNP:=SNP_REF] #probably not needed
         if(harmoniseBPToReference) cSumstats[,BP:=BP_REF]
         
         ## Add in chr and bp from ref if not present in datasets
-        if(!any(colnames(cSumstats)=="CHR")){
+        if(any(colnames(cSumstats)=="CHR")){
+          cSumstats[is.na(CHR),CHR:=as.integer(CHR_REF)]
+        } else {
           sumstats.meta[iFile,c("no_CHR")]<-T
           cSumstats.warnings<-c(cSumstats.warnings,"No CHR column present!")
           if(any(colnames(cSumstats)=="CHR_REF")){
@@ -1042,7 +1048,9 @@ supermunge <- function(
           }
         }
         
-        if(!any(colnames(cSumstats)=="BP")){
+        if(any(colnames(cSumstats)=="BP")){
+          cSumstats[is.na(BP),BP:=as.integer(BP_REF)]
+        } else {
           sumstats.meta[iFile,c("no_BP")]<-T
           cSumstats.warnings<-c(cSumstats.warnings,"No BP column present!")
           if(any(colnames(cSumstats)=="BP_REF")){
@@ -1054,7 +1062,9 @@ supermunge <- function(
           
         }
         
-        if(!any(colnames(cSumstats)=="FRQ")){
+        if(any(colnames(cSumstats)=="FRQ")){
+          cSumstats[is.na(FRQ),FRQ:=as.numeric(MAF_REF)]
+        } else {
           sumstats.meta[iFile,c("no_FRQ")]<-T
           cSumstats.warnings<-c(cSumstats.warnings,"No FRQ column present!")
           if(any(colnames(cSumstats)=="MAF_REF")){
@@ -1154,6 +1164,7 @@ supermunge <- function(
       #cond.invertedFRQ<-NULL
       if(any(colnames(cSumstats)=="FRQ")) {
         ### Has FRQ
+        
         #cSumstats.meta<-rbind(cSumstats.meta,list("FRQ (median, min(abs), max(abs))",paste(median(cSumstats$FRQ, na.rm = T),", ",min(abs(cSumstats$FRQ), na.rm = T),", ", max(abs(cSumstats$FRQ), na.rm = T))))
         #### Check if value is within limits [0,1]
         if(any(cSumstats$FRQ>1) || any(cSumstats$FRQ<0)) {
@@ -1630,7 +1641,7 @@ supermunge <- function(
             cI[,N:=round(mean(cSumstats.merged.snp[is.finite(N),]$N,na.rm=T))]
             
             #scaledSD<-sd(cSumstats$SINFO,na.rm = T)
-            cI[L2.SUM>0,LDIMP.Q:=K*L2/(L2.SUM)][L2.SUM>0,SINFO:=pnorm(q = LDIMP.Q, mean = 1, sd = 1)] #experimental: use L2.SUM rather than W.SUM. transform to normal CDF scale.
+            cI[L2.SUM>0,LDIMP.Q:=K*L2/(L2.SUM)][L2.SUM>0,SINFO:=as.double(pnorm(q = LDIMP.Q, mean = 1, sd = 1))] #experimental: use L2.SUM rather than W.SUM. transform to normal CDF scale.
             #cSumstats$SINFO<-(ecdf(cSumstats$SINFO)(cSumstats$SINFO)) #old
             
             #add not previously known variants

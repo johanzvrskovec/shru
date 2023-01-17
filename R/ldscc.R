@@ -1,4 +1,4 @@
-#LD Score Clustering
+#LD Score Clustering - WORK IN PROGRESS!!
 #Johan Zvrskovec, 2022
 
 ldsccClass <- setRefClass("pgDatabaseUtility",
