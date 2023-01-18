@@ -204,6 +204,11 @@ readFile <- function(filePath,nThreads=5){
 # filter.region.df = p$highld_b38
 # pathDirOutput = p$folderpath.data.sumstats.export.ssimp.cleaned.nohighld
 
+# list_df = list(GWIS_BMI)
+# refFilePath = p$filepath.SNPReference.1kg
+# traitNames = c("GWISM")
+# pathDirOutput = p$folderpath.data.sumstats.munged
+
 
 #set default params for test
 # list_df=NULL
@@ -517,6 +522,7 @@ supermunge <- function(
     } else {
       if(!is.null(list_df)){
         cSumstats <- list_df[[iFile]]
+        setDT(as.data.frame(cSumstats)) #in case the provided data is not in DT format
       } else {
         cFilePath<-filePaths[iFile]
         cat(paste("\nFile:", cFilePath,"\n"))
