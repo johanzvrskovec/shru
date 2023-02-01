@@ -1401,7 +1401,7 @@ supermunge <- function(
       
       
       ## Compute Z score (standardised beta) and P or update it according to any corrections just done
-      if(any(colnames(cSumstats)=="SE")) cSumstats[,Z:=EFFECT/SE]
+      if(any(colnames(cSumstats)=="SE")) cSumstats[,Z:=EFFECT/SE] #EFFECT and SE should be unstandardised beta and its corresponding SE here!!!!
       if(any(colnames(cSumstats)=="Z")) cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
       cat(".")
       
@@ -1742,10 +1742,12 @@ supermunge <- function(
     }
     
     #Calculate Effective Sample Size as advised from from the Genomic SEM Wiki
-    ##citation: https://www.biorxiv.org/content/10.1101/603134v3
+    ##citations
+    ## https://doi.org/10.1016/j.biopsych.2022.05.029
+    ## https://doi.org/10.1016/j.xgen.2022.100140
     if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="FRQ")){
       hasNEF <- any(colnames(cSumstats)=="NEF")
-      cSumstats[,NEF:=round(((Z/EFFECT)^2)/VSNP,digits = 0)]
+      cSumstats[,NEF:=round((1/(VSNP*(SE^2)),digits = 0)] #==(Z/EFFECT)^2)/VSNP
       cSumstats.meta <- rbind(
         cSumstats.meta,
         list("NEF (mean total, for MAF<.4, >.1 if available)",paste0(
