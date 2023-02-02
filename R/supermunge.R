@@ -1786,7 +1786,7 @@ supermunge <- function(
     ## https://doi.org/10.1016/j.xgen.2022.100140
     if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="FRQ")){
       hasNEF <- any(colnames(cSumstats)=="NEF")
-      cSumstats[,NEF:=round((1/(VSNP*(SE^2)),digits = 0)] #==(Z/EFFECT)^2)/VSNP
+      cSumstats[,NEF:=round(1/(VSNP*(SE^2)),digits = 0)] #==(Z/EFFECT)^2)/VSNP
       cSumstats.meta <- rbind(
         cSumstats.meta,
         list("NEF (mean total, for MAF<.4, >.1 if available)",paste0(
