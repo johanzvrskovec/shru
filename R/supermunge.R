@@ -160,10 +160,11 @@ readFile <- function(filePath,nThreads=5){
 #test with settings from analysis script
 
 # filePaths = p$munge$filesToUse
-# rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
+# #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
+# #refFilePath = p$filepath.SNPReference.hm3 #fast
 # refFilePath = p$filepath.SNPReference.1kg
 # traitNames = p$munge$traitNamesToUse
-# chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
+# #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
 # N = p$munge$NToUse
 # pathDirOutput = p$folderpath.data.sumstats.munged
 
@@ -481,6 +482,8 @@ supermunge <- function(
   
   sumstats.meta<-data.table(name=traitNames,file_path=ifelse(is.null(filePaths),NA_character_,filePaths),n_snp_raw=NA_integer_,n_snp_res=NA_integer_)
 
+  
+  
   for(iFile in 1:nDatasets){
     #for testing!
     #iFile=1
@@ -533,7 +536,7 @@ supermunge <- function(
     
     
     if(test){
-      cSumstats<-cSumstats[1:5000000,]
+      cSumstats<-cSumstats[1:4000000,]
     }
     
     cSumstats.meta<-data.table(message=NA_character_,display=NA_character_)
@@ -1023,7 +1026,7 @@ supermunge <- function(
           cat(".")
         }
         
-      }
+      } #end of merge with reference
       
       # More QC and data management, after merge with reference
       
@@ -1055,7 +1058,7 @@ supermunge <- function(
         }
         
         if(any(colnames(cSumstats)=="BP")){
-          cSumstats[is.na(BP),BP:=as.integer(BP_REF)]
+          if(any(colnames(cSumstats)=="BP_REF")) cSumstats[is.na(BP),BP:=as.integer(BP_REF)]
         } else {
           sumstats.meta[iFile,c("no_BP")]<-T
           cSumstats.warnings<-c(cSumstats.warnings,"No BP column present!")
@@ -1247,16 +1250,27 @@ supermunge <- function(
       
       if(any(colnames(cSumstats)=="EFFECT")) {
         
+        ##invert overall effect if specified
+        if(!is.null(invertEffectDirectionOn)){
+          if(any(invertEffectDirectionOn==traitNames[iFile])){
+            cSumstats[,EFFECT:=EFFECT*-1]
+            cSumstats.meta<-rbind(cSumstats.meta,list("Inverted overall effect",as.character(length(cSumstats$EFFECT))))
+          }
+          cat(".")
+        }
+        
         ## Determine effect type, and set effect to log(EFFECT) if odds ratio
         if(round(median(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm=T),digits = 1) == 1) {
           ###is odds ratio
           cSumstats[,EFFECT:=log(EFFECT)]
           sumstats.meta[iFile,c("effect_type")]<-"OR"
           cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","OR  =>ln(OR)"))
+          
           if(any(colnames(cSumstats)=="BETA")) {
             cSumstats.warnings<-c(cSumstats.warnings,"The effect format being an ODDS RATIO may not be compatible with the original variable naming scheme!")
             sumstats.meta[iFile,c("effect_type_warning")]<-T
           }
+          
         } else {
           ###is NOT odds ratio
           sumstats.meta[iFile,c("effect_type")]<-"non_OR"
@@ -1268,14 +1282,35 @@ supermunge <- function(
         }
         cat(".")
         
-        ## Compute Z score (standardised beta) - used for effect corrections further and is later corrected accordingly
+        ## Determine effect SE type, and standardise to log scale SE if necessary
+        if(any(colnames(cSumstats)=="SE") && any(colnames(cSumstats)=="P")){
+          cSumstats[,P.SEtest:=pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4] #Effect is now in log-scale
+          if(sum(cSumstats$P.SEtest.is.same.scale)<0.75*nrow(cSumstats)){
+            #transform to logit SE - from the Genomic SEM conversions
+            cSumstats[,SE:=(SE/exp(EFFECT))]
+            cSumstats.meta <- rbind(cSumstats.meta,list("SE","SE(OR) => SE(ln(OR))"))
+            sumstats.meta[iFile,c("se_type")]<-"OR"
+            if(sumstats.meta[iFile,c("effect_type")]!="OR"){
+              cSumstats.warnings<-c(cSumstats.warnings,"The SE was converted into the SE of a ln(OR), while the effect was not confirmed to be an OR. The effect may be a ln(OR) however, which is fine.")
+              sumstats.meta[iFile,c("se_type_warning")]<-T
+            }
+            #cleanup
+            cSumstats[,P.SEtest:=NULL][,P.SEtest.is.same.scale:=NULL]
+          } else {
+            cSumstats.meta <- rbind(cSumstats.meta,list("SE","scale as effect (OLS/ln(OR)/other)"))
+            sumstats.meta[iFile,c("se_type")]<-"non_OR"
+          }
+          cat(".")
+        }
+        
+        ## Compute Z score (standardised beta) - used for effect corrections further and is later corrected accordingly - assumes correct effects and SE
+        ## Also 
         if(any(colnames(cSumstats)=="Z")) cSumstats[,Z_ORIG:=Z] #save original Z-score
         if(any(colnames(cSumstats)=="P")) {
-          
           cSumstats[,Z:=sign(EFFECT) * sqrt(qchisq(P,1,lower=F))]
           cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from P and sign(EFFECT)"))
         } else if(any(colnames(cSumstats)=="SE")){
-          cSumstats[,Z:=EFFECT/SE] #is this less reliable as we cannot know the scale of SE?
+          cSumstats[,Z:=EFFECT/SE] #is this less reliable as we cannot know the scale of SE? Should be more reliable now.
           cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from EFFECT and SE"))
         } else {
           cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT calculated since no P or SE"))
@@ -1285,32 +1320,36 @@ supermunge <- function(
         ## Inspect new and old Z-values
         if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="Z_ORIG")){
           if(abs(mean(cSumstats[is.finite(Z),]$Z)-mean(cSumstats[is.finite(Z_ORIG),]$Z_ORIG,na.rm=T))>1) cSumstats.warnings<-c(cSumstats.warnings,"New Z differ from old by more than 1sd!")
+          cat(".")
         }
+        
+        #Re-compute SE!!! new
+        if(any(colnames(cSumstats)=="Z")){
+          cSumstats[,SE:=EFFECT/Z]
+          cSumstats.meta<-rbind(cSumstats.meta,list("SE","(Re-)calculated from new EFFECT and Z"))
+          cat(".")
+        }
+        
+        #Recommend parameter settings for Genomic SEM sumstats function
+        if(sumstats.meta[iFile,c("effect_type")]=="OR" | sumstats.meta[iFile,c("se_type")]=="OR"){
+          cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Probably F"))
+        } else {
+          cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Maybe T"))
+        }
+        
+        if(sumstats.meta[iFile,c("effect_type")]=="OR" & sumstats.meta[iFile,c("se_type")]=="OR"){
+          cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Probably F"))
+        } else {
+          cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Maybe T"))
+        }
+        
         
       } else {
         ## Does not have EFFECT
         ### Note that EFFECT is not present
         cSumstats.warnings<-c(cSumstats.warnings,"No EFFECT column present.")
         sumstats.meta[iFile,c("no_EFFECT")]<-T
-      }
-      cat(".")
-      
-      
-      
-      
-      ##invert overall effect if specified
-      if(any(colnames(cSumstats)=="EFFECT") & !is.null(invertEffectDirectionOn)){
-        if(any(invertEffectDirectionOn==traitNames[iFile])){
-          cSumstats[,EFFECT:=EFFECT*-1]
-          cSumstats.meta<-rbind(cSumstats.meta,list("Inverted overall effect",as.character(length(cSumstats$EFFECT))))
-        }
-      }
-      cat(".")
-      
-      
-      #add missing SE
-      if(!any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="EFFECT")){
-        cSumstats[,SE:=EFFECT/Z]
+        cat(".")
       }
       
       #compute minimum variance for later calculations
