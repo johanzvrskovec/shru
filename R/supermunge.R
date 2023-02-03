@@ -1609,6 +1609,9 @@ supermunge <- function(
         }
       }
       
+      #prepare new columns for their datatypes to be set correctly
+      cSumstats[,c('BETA.I','SE.I','LDIMP.K','LDIMP.W.SUM','LDIMP.L2.SUM','LDIMP.Q','SINFO'):=c(NA_real_,NA_real_,NA_integer_,NA_real_,NA_real_,NA_real_,NA_real_)]
+      
       if(length(chrsToImpute)>0){
         for(cCHR in chrsToImpute){
           #cCHR<-2
