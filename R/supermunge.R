@@ -147,13 +147,15 @@ readFile <- function(filePath,nThreads=5){
 # list_df=list(highld=p$highld_b37)
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
-#test with hard coded values
-# filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
-# refFilePath = "../data/variant_lists/hc1kgp3.b38.eur.l2.jz2022.gz"
-# rsSynonymsFilePath = "../data/variant_lists/dbsnp151.synonyms.gz"
+#single test with hard coded values
+# filePaths = p$sumstats.sel["BODY11",]$cleanedpath
+# #filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
+# refFilePath = p$filepath.SNPReference.1kg
+# rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
+# chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
 # traitNames = "BODY11"
 # N = 681275
-# pathDirOutput = "../data/gwas_sumstats/munged_1kg_eur_supermunge"
+# pathDirOutput = p$folderpath.data.sumstats.munged
 
 
 # 
@@ -1610,7 +1612,7 @@ supermunge <- function(
       }
       
       #prepare new columns for their datatypes to be set correctly
-      cSumstats[,c('BETA.I','SE.I','LDIMP.K','LDIMP.W.SUM','LDIMP.L2.SUM','LDIMP.Q','SINFO'):=c(NA_real_,NA_real_,NA_integer_,NA_real_,NA_real_,NA_real_,NA_real_)]
+      cSumstats[,c('BETA.I','SE.I','LDIMP.K','LDIMP.W.SUM','LDIMP.L2.SUM','LDIMP.Q','SINFO'):=list(NA_real_,NA_real_,NA_integer_,NA_real_,NA_real_,NA_real_,NA_real_)]
       
       if(length(chrsToImpute)>0){
         for(cCHR in chrsToImpute){
