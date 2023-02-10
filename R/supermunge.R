@@ -1287,7 +1287,7 @@ supermunge <- function(
         ## Determine effect SE type, and standardise to log scale SE if necessary
         if(any(colnames(cSumstats)=="SE") && any(colnames(cSumstats)=="P")){
           cSumstats[,P.SEtest:=pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4] #Effect is now in log-scale
-          if(sum(cSumstats$P.SEtest.is.same.scale)<0.75*nrow(cSumstats)){
+          if(sum(cSumstats$P.SEtest.is.same.scale,na.rm = T)<0.75*nrow(cSumstats)){
             #transform to logit SE - from the Genomic SEM conversions
             cSumstats[,SE:=(SE/exp(EFFECT))]
             cSumstats.meta <- rbind(cSumstats.meta,list("SE","SE(OR) => SE(ln(OR))"))
@@ -1789,8 +1789,9 @@ supermunge <- function(
     ##citations
     ## https://doi.org/10.1016/j.biopsych.2022.05.029
     ## https://doi.org/10.1016/j.xgen.2022.100140
-    if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="FRQ")){
-      hasNEF <- any(colnames(cSumstats)=="NEF")
+    hasNEF <- any(colnames(cSumstats)=="NEF")
+    if(!hasNEF & any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="FRQ")){
+      
       cSumstats[,NEF:=round(1/(VSNP*(SE^2)),digits = 0)] #==(Z/EFFECT)^2)/VSNP
       cSumstats.meta <- rbind(
         cSumstats.meta,
@@ -1804,9 +1805,8 @@ supermunge <- function(
           digits = 0))
           )
         )
-      
-      if(hasNEF & !hasN) cSumstats[,N:=NEF]
     }
+    if(hasNEF & !hasN) cSumstats[,N:=NEF]
     cat(".")
     
     ## Check effect value credibility
