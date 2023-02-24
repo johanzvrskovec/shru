@@ -1,6 +1,5 @@
 exportPattern("^[[:alpha:]]+")
 import(R.utils)
-import(tidyverse)
 import(DiagrammeR)
 import(data.table)
 import(readr)
