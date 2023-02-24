@@ -4,7 +4,8 @@
 
 
 stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
-                               c.SNP = c("SNP","PREDICTOR","SNPID","MARKERNAME","MARKER_NAME","SNPTESTID","ID_DBSNP49","RSID","ID","RS_NUMBER","MARKER", "RS", "RSNUMBER", "RS_NUMBERS", "SNP.NAME","SNP ID", "SNP_ID","LOCATIONALID","ASSAY_NAME"),
+                               c.SNP = c("SNP","PREDICTOR","SNPID","MARKERNAME","MARKER_NAME","SNPTESTID","ID_DBSNP49","ID","MARKER","SNP.NAME","SNP ID", "SNP_ID","LOCATIONALID","ASSAY_NAME"),
+                               c.RSID = c("RSID","RS_NUMBER","RS","RSNUMBER","RS_NUMBERS","RSID_UKB"),
                                c.A1 = c("A1","ALLELE1","ALLELE_1","A_1","A"),
                                c.A2 = c("A2","ALLELE2","ALLELE_2","A_2"),
                                c.A0 = c("A0","ALLELE0","ALLELE_0","A_0"),
@@ -35,7 +36,13 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
   #names(columnNames)<-columnNames
   columnNames.orig<-columnNames
   
-  columnNames[columnNames.upper %in% c.SNP] <- c.SNP[1]
+  if(any(columnNames.upper==c.RSID)){
+    columnNames[columnNames.upper %in% c.SNP] <- "SNPALT"
+    columnNames[columnNames.upper %in% c.RSID] <- c.SNP[1]
+  } else {
+    columnNames[columnNames.upper %in% c.SNP] <- c.SNP[1]
+  }
+  
   if(any(columnNames.upper==c.A0)){
     columnNames[columnNames.upper %in% c.A1] <- c.A2[1]
     columnNames[columnNames.upper %in% c.A2] <- c.A0[1]
@@ -43,6 +50,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
     columnNames[columnNames.upper %in% c.A1] <- c.A1[1]
     columnNames[columnNames.upper %in% c.A2] <- c.A2[1]
   }
+  
   columnNames[columnNames.upper %in% c.AEFFECT] <- c.A1[1]
   columnNames[columnNames.upper %in% c.ANOEFFECT] <- c.A2[1]
   columnNames[columnNames.upper %in% c.BETA] <- c.BETA[1]
