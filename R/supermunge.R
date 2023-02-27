@@ -36,14 +36,14 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
   #names(columnNames)<-columnNames
   columnNames.orig<-columnNames
   
-  if(any(columnNames.upper==c.RSID)){
+  if(any(columnNames.upper %in% c.RSID)){
     columnNames[columnNames.upper %in% c.SNP] <- "SNPALT"
     columnNames[columnNames.upper %in% c.RSID] <- c.SNP[1]
   } else {
     columnNames[columnNames.upper %in% c.SNP] <- c.SNP[1]
   }
   
-  if(any(columnNames.upper==c.A0)){
+  if(any(columnNames.upper %in% c.A0)){
     columnNames[columnNames.upper %in% c.A1] <- c.A2[1]
     columnNames[columnNames.upper %in% c.A2] <- c.A0[1]
   } else {
