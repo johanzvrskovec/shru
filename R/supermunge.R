@@ -287,11 +287,11 @@ supermunge <- function(
   produceCompositeTable=F, #create a dataframe with all effects and standard errors across datasets, as for Genomic SEM latent factor GWAS.
   unite=F, #bind rows of datasets into one dataset
   diff=F, #compare the resulting first dataset with the rest of the datasets pairwise and detect differences, write these to separate files - NOT IMPLEMENTED YET!
-  imputeFromLD=F,
+  imputeFromLD=F, #apply LDimp or not
   imputeAdjustN=F,
   imputeFrameLenBp=500000, #500000 for comparison with SSIMP and ImpG
   imputeFrameLenCM=0.5, #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
-  imputeFromLD.validate.q=0.05, #fraction of variants of the input variants with known effects that will be used for estimating RMSD values.
+  imputeFromLD.validate.q=0, #Fraction of variants of the input variants with known effects that will be used for estimating RMSD values. Setting a non-zero fraction here will lead to previously genotyped variants also receiving imputed effect sizes, standard errors and imputation quality assessments. Whatever program reading the output needs to take this into account if you want tp distinguish between originally genotyped effects and imputed effects. For example, you can test if the imputed effect and standard errors are different from what is displayed in the standard effect and standard error columns, which would indicate that the variant was previously genotyped and has received new values based on GWAS sumstat LDimp imputation.
   N=NULL,
   forceN=F,
   prop=NULL,
@@ -323,7 +323,7 @@ supermunge <- function(
   GC="none", #"reinflate",
   nThreads = 5,
   lossless = F, #If true, include all original and additional columns, otherwise restrict output to standard column set (default)
-  test = F #set test mode - for quickly testing the function
+  test = F #Set test mode - for quickly testing the function. Will produce lossy and incorrect output!
 ){
   
   timeStart <- Sys.time()
@@ -385,9 +385,12 @@ supermunge <- function(
   cat("\nchangeEffectDirectionOnAlleleFlip=",setChangeEffectDirectionOnAlleleFlip)
   cat("\nprocess=",process)
   cat("\nimputeFromLD=",imputeFromLD)
-  if(imputeFromLD) cat("\nimputeFrameLenBp=",imputeFrameLenBp)
-  if(imputeFromLD) cat("\nimputeFrameLenCM=",imputeFrameLenCM)
+  if(imputeFromLD & is.null(imputeFrameLenCM)) cat("\nimputeFrameLenBp=",imputeFrameLenBp)
+  if(imputeFromLD & !is.null(imputeFrameLenCM)) cat("\nimputeFrameLenCM=",imputeFrameLenCM)
   cat("\nproduceCompositeTable=",produceCompositeTable)
+  cat("\nstandardiseEffectsToExposure=",standardiseEffectsToExposure)
+  cat("\nFilters: MAF>",filter.maf,"\tINFO>",filter.info,"\tMAC>",filter.mac)
+  if(!is.null(filter.chr)) cat("\nExclude chromosomes: ",filter.chr)
   if(length(invertEffectDirectionOn)>0) cat("\ninvertEffectDirectionOn=", paste(invertEffectDirectionOn,sep = ","))
   cat("\npathDirOutput=",pathDirOutput)
   cat("\n--------------------------------\n")
