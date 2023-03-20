@@ -21,7 +21,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
                                c.N = c("N","WEIGHT","NCOMPLETESAMPLES","TOTALSAMPLESIZE","TOTALN","TOTAL_N","N_COMPLETE_SAMPLES","N_TOTAL","N_SAMPLES","N_ANALYZED","NSAMPLES","SAMPLESIZE","SAMPLE_SIZE","TOTAL_SAMPLE_SIZE","TOTALSAMPLESIZE"),
                                c.N_CAS = c("N_CAS","NCASE","N_CASE","N_CASES","NCAS","NCA","NCASES","CASES","CASES_N","FRQ_A"),
                                c.N_CON = c("N_CON","NCONTROL","N_CONTROL","N_CONTROLS","NCON","NCO","N_CON","NCONTROLS","CONTROLS","CONTROLS_N","FRQ_U"),
-                               c.NEF = c("NEF","NEFF","NEFFECTIVE","NE"),
+                               c.NEFF = c("NEFF","NEF","NEFFECTIVE","NE","NEFF_HALF"),
                                #include FRQ_A?
                                c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF","FREQ1.HAPMAP","FREQALLELE1HAPMAPCEU","FREQ.HAPMAP.CEU","FREQ.ALLELE1.HAPMAPCEU","EFFECT_ALLELE_FREQ","FREQ.A1","F_A","F_U","FREQ_A","FREQ_U","MA_FREQ","MAF_NW","FREQ_A1","A1FREQ","CODED_ALLELE_FREQUENCY","FREQ_TESTED_ALLELE","FREQ_TESTED_ALLELE_IN_HRS","EAF_HRC","EAF_UKB","EAF_EUR_UKB","FREQ_TESTED_ALLELE"),
                                c.CHR = c("CHR","CH","CHROMOSOME","CHROM","CHR_BUILD38","CHR_BUILD37","CHR_BUILD36","CHR_B38","CHR_B37","CHR_B36","CHR_ID","SCAFFOLD","HG19CHR","CHR.HG19","CHR_HG19","HG18CHR","CHR.HG18","CHR_HG18","CHR_BP_HG19B37","HG19CHRC","#CHROM"),
@@ -63,7 +63,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
   columnNames[columnNames.upper %in% c.N] <- c.N[1]
   columnNames[columnNames.upper %in% c.N_CAS] <- c.N_CAS[1]
   columnNames[columnNames.upper %in% c.N_CON] <- c.N_CON[1]
-  columnNames[columnNames.upper %in% c.NEF] <- c.NEF[1]
+  columnNames[columnNames.upper %in% c.NEFF] <- c.NEFF[1]
   columnNames[columnNames.upper %in% c.FRQ] <- c.FRQ[1]
   columnNames[columnNames.upper %in% c.CHR] <- c.CHR[1]
   columnNames[columnNames.upper %in% c.BP] <- c.BP[1]
@@ -158,7 +158,8 @@ readFile <- function(filePath,nThreads=5){
 #single test with hard coded values
 # filePaths = p$sumstats.sel["BODY11",]$cleanedpath
 # #filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
-# refFilePath = p$filepath.SNPReference.1kg
+# ##refFilePath = p$filepath.SNPReference.1kg
+# refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.eur.l2.jz2023.gz" #test with new refpanel
 # rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
 # traitNames = "BODY11"
@@ -282,7 +283,7 @@ supermunge <- function(
   ldDirPath=NULL,
   chainFilePath = NULL, #chain file for lift-over
   traitNames=NULL,
-  ancestrySetting=c("ANY"), #ancestry setting list per dataset
+  ancestrySetting=c("ANY"), #EUR, #ancestry setting list, one entry per dataset - change this if you want to select MAF and L2 values from a specific ancestry
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F, #create a dataframe with all effects and standard errors across datasets, as for Genomic SEM latent factor GWAS.
   unite=F, #bind rows of datasets into one dataset
@@ -505,7 +506,7 @@ supermunge <- function(
     
     #temporary variables which has to be reset for each file/dataset
     hasN<-F
-    hasNEF<-F
+    hasNEFF<-F
     
     #set changeEffectDirectionOnAlleleFlip -this has to be reset for each file/dataset
     changeEffectDirectionOnAlleleFlip<-NULL
@@ -515,6 +516,7 @@ supermunge <- function(
     
     #print per-dataset info and setting
     cat(paste("\n\nSupermunging\t",traitNames[iFile],"\n @ dataset", iFile,"\n"))
+    cat("\nancestrySetting=",ancestrySetting[iFile])
     cat("\nN=",N[iFile])
     cat("\nOLS=",OLS[iFile])
     cat("\nlinprob=",linprob[iFile])
@@ -655,9 +657,9 @@ supermunge <- function(
       cSumstats[,N:=as.numeric(N)]
       hasN<-T
       }
-    if(any(colnames(cSumstats)=="NEF")) {
-      cSumstats[,NEF:=as.numeric(NEF)]
-      hasNEF<-T
+    if(any(colnames(cSumstats)=="NEFF")) {
+      cSumstats[,NEFF:=as.numeric(NEFF)]
+      hasNEFF<-T
       }
     cat(".")
     
@@ -1052,6 +1054,10 @@ supermunge <- function(
       
       if(!is.null(ref)){
         
+        ##Select dataset specific reference MAF
+        if(ancestrySetting)
+        
+        
         ##Synchronise SNP,CHR,BP,FRQ with reference
         cSumstats[,SNP:=SNP_REF] #probably not needed
         if(harmoniseBPToReference) cSumstats[,BP:=BP_REF]
@@ -1150,9 +1156,9 @@ supermunge <- function(
         cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats[is.finite(N),]$N, na.rm = T),", ",min(cSumstats[is.finite(N),]$N, na.rm = T),", ", max(cSumstats[is.finite(N),]$N, na.rm = T))))
       } else if(!(any(colnames(cSumstats)=="N"))) {
         hasN<-F
-        if(any(colnames(cSumstats)=="NEF")){
-          cSumstats$N<-cSumstats$NEF
-          cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEF"))
+        if(any(colnames(cSumstats)=="NEFF")){
+          cSumstats$N<-cSumstats$NEFF
+          cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF"))
         } else {
           cSumstats.warnings<-c(cSumstats.warnings,"\nNo N column detected!")
           cSumstats.meta<-rbind(cSumstats.meta,list("N","Warning: Not detected!"))
@@ -1801,24 +1807,24 @@ supermunge <- function(
     ##citations
     ## https://doi.org/10.1016/j.biopsych.2022.05.029
     ## https://doi.org/10.1016/j.xgen.2022.100140
-    hasNEF <- any(colnames(cSumstats)=="NEF")
-    if(!hasNEF & any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="FRQ")){
+    hasNEFF <- any(colnames(cSumstats)=="NEFF")
+    if(!hasNEFF & any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="FRQ")){
       
-      cSumstats[,NEF:=round(1/(VSNP*(SE^2)),digits = 0)] #==(Z/EFFECT)^2)/VSNP
+      cSumstats[,NEFF:=round(1/(VSNP*(SE^2)),digits = 0)] #==(Z/EFFECT)^2)/VSNP
       cSumstats.meta <- rbind(
         cSumstats.meta,
-        list("NEF (mean total, for MAF<.4, >.1 if available)",paste0(
+        list("NEFF (mean total, for MAF<.4, >.1 if available)",paste0(
           round(
             mean(
               ifelse(any(colnames(cSumstats)=="MAF"),
-                     cSumstats[MAF<0.4&MAF>0.1&is.finite(NEF),NEF],
-                     cSumstats[is.finite(NEF),]$NEF),
+                     cSumstats[MAF<0.4&MAF>0.1&is.finite(NEFF),NEFF],
+                     cSumstats[is.finite(NEFF),]$NEFF),
             na.rm=T),
           digits = 0))
           )
         )
     }
-    if(hasNEF & !hasN) cSumstats[,N:=NEF]
+    if(hasNEFF & !hasN) cSumstats[,N:=NEFF]
     cat(".")
     
     ## Check effect value credibility
@@ -1858,12 +1864,13 @@ supermunge <- function(
     if("N" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N")
     if("N_CAS" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CAS")
     if("N_CON" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CON")
-    if("NEF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"NEF")
+    if("NEFF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"NEFF")
     if("DF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"DF")
     if("L2_REF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"L2_REF")
     if("LDIMP.K" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.K")
     if("LDIMP.Q" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.Q")
     if("LDIMP.L2.SUM" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.L2.SUM")
+    if("INFO" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"INFO")
     if("SINFO" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"SINFO")
     
     
