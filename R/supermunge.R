@@ -1054,8 +1054,9 @@ supermunge <- function(
       
       if(!is.null(ref)){
         
+        #TODO - WIP!!
         ##Select dataset specific reference MAF
-        if(ancestrySetting)
+        #if(ancestrySetting)
         
         
         ##Synchronise SNP,CHR,BP,FRQ with reference
