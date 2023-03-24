@@ -3,7 +3,7 @@
 
 
 
-stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
+stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP","A1","A2"), ancestrySetting=NULL, #EUR, #ancestry setting string for the current dataset
                                c.SNP = c("SNP","PREDICTOR","SNPID","MARKERNAME","MARKER_NAME","SNPTESTID","ID_DBSNP49","ID","MARKER","SNP.NAME","SNP ID", "SNP_ID","LOCATIONALID","ASSAY_NAME"),
                                c.RSID = c("RSID","RS_NUMBER","RS","RSNUMBER","RS_NUMBERS","RSID_UKB"),
                                c.A1 = c("A1","ALLELE1","ALLELE_1","A_1","A"),
@@ -27,6 +27,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
                                c.CHR = c("CHR","CH","CHROMOSOME","CHROM","CHR_BUILD38","CHR_BUILD37","CHR_BUILD36","CHR_B38","CHR_B37","CHR_B36","CHR_ID","SCAFFOLD","HG19CHR","CHR.HG19","CHR_HG19","HG18CHR","CHR.HG18","CHR_HG18","CHR_BP_HG19B37","HG19CHRC","#CHROM"),
                                c.BP = c("BP","BP1","ORIGBP","POS","POSITION","LOCATION","PHYSPOS","GENPOS","CHR_POSITION","POS_B38","POS_BUILD38","POS_B37","POS_BUILD37","BP_HG19B37","POS_B36","POS_BUILD36","POS.HG19","POS.HG18","POS_HG19","POS_HG18","BP_HG19","BP_HG18","BP.GRCH38","BP.GRCH37","POSITION(HG19)","POSITION(HG18)","POS(B38)","POS(B37)"),
                                c.BP2 =c("BP2"),
+                               c.L2 =c("L2","LD"),
                                c.DF = c("DF","CHISQ_DF")
 ){
   #test
@@ -64,17 +65,54 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
   columnNames[columnNames.upper %in% c.N_CAS] <- c.N_CAS[1]
   columnNames[columnNames.upper %in% c.N_CON] <- c.N_CON[1]
   columnNames[columnNames.upper %in% c.NEFF] <- c.NEFF[1]
+  
   columnNames[columnNames.upper %in% c.FRQ] <- c.FRQ[1]
+  #ancestry specific FRQ and fallback FRQ
+  if(!is.null(ancestrySetting)){
+      lMatch <- columnNames.upper %in% paste0(c.FRQ,".",toupper(ancestrySetting))
+      if(any(lMatch)){
+        #save the original FRQ as fallback
+        iDup<-grep(pattern = paste0("^",c.FRQ[1],"$"),columnNames)
+        if(length(iDup)>0){
+          columnNames[iDup[1]]<-paste0(c.FRQ[1],"FB")
+          if(length(iDup)>1){
+            iDup<-iDup[2:length(iDup)]
+            columnNames[iDup]<-paste0("X",c.FRQ[1],"FB")
+          }
+        }
+        columnNames[lMatch] <- c.FRQ[1]
+      } else {
+        warning("\nCould not find the ancestry specific 'FRQ' column.\n")
+      }
+  }
+  
   columnNames[columnNames.upper %in% c.CHR] <- c.CHR[1]
   columnNames[columnNames.upper %in% c.BP] <- c.BP[1]
   columnNames[columnNames.upper %in% c.BP2] <- c.BP2[1]
   columnNames[columnNames.upper %in% c.DF] <- c.DF[1]
   
-  if(stopOnMissingEssential){
+  
+  columnNames[columnNames.upper %in% c.L2] <- c.L2[1]
+  if(!is.null(ancestrySetting)){
+    lMatch <- columnNames.upper %in% paste0(c.L2,".",toupper(ancestrySetting))
+    if(any(lMatch)){
+      iDup<-grep(pattern = paste0("^",c.L2[1],"$"),columnNames)
+      if(length(iDup)>0){
+        columnNames[iDup[1]]<-paste0(c.L2[1],"FB")
+        if(length(iDup)>1){
+          iDup<-iDup[2:length(iDup)]
+          columnNames[iDup]<-paste0("X",c.L2[1],"FB")
+        }
+      }
+      columnNames[lMatch] <- c.L2[1]
+    } else {
+      warning("\nCould not find the ancestry specific 'L2' column.\n")
+    }
+  }
+  
+  if(length(stopOnMissingEssentialColumns)>0){
     # Stop if any of these columns are not found
-    if(!any(columnNames=="SNP")) stop("\nCould not find the 'SNP' column.\n")
-    if(!any(columnNames=="A1")) stop("\nCould not find the 'A1' column.\n")
-    if(!any(columnNames=="A2")) stop("\nCould not find the 'A2' column.\n")
+    if(!all(stopOnMissingEssentialColumns %in% columnNames)) stop(paste0("\nNot all essential columns found: ",stopOnMissingEssentialColumns[!stopOnMissingEssentialColumns %in% columnNames],"\n"))
   }
   
   if(!any(columnNames=="P")) warning("\nCould not find the P-value column. Standard is 'P'.\n")
@@ -93,6 +131,72 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssential=T,
   if(sum(columnNames=="OR")>1) warning("\nMultiple 'OR' columns found!\n")
   if(sum(columnNames=="Z")>1) warning("\nMultiple 'Z' columns found!\n")
   if(sum(columnNames=="FRQ")>1) warning("\nMultiple 'FRQ' columns found!\n")
+  
+  
+  #rename duplicte columns
+  if(c.SNP[1] %in% columnNames){
+    iDup<-grep(pattern = "^",c.SNP[1],"$",columnNames)
+    if(length(iDup)>1){
+      iDup<-iDup[2:length(iDup)]
+      columnNames[iDup]<-paste0("X",c.SNP[1])
+    }
+  }
+  
+  if(c.P[1] %in% columnNames){
+    iDup<-grep(pattern = "^",c.P[1],"$",columnNames)
+    if(length(iDup)>1){
+      iDup<-iDup[2:length(iDup)]
+      columnNames[iDup]<-paste0("X",c.P[1])
+    }
+  }
+  
+  if(c.A1[1] %in% columnNames){
+    iDup<-grep(pattern = "^",c.A1[1],"$",columnNames)
+    if(length(iDup)>1){
+      iDup<-iDup[2:length(iDup)]
+      columnNames[iDup]<-paste0("X",c.A1[1])
+    }
+  }
+  
+  if(c.A2[1] %in% columnNames){
+    iDup<-grep(pattern = "^",c.A2[1],"$",columnNames)
+    if(length(iDup)>1){
+      iDup<-iDup[2:length(iDup)]
+      columnNames[iDup]<-paste0("X",c.A2[1])
+    }
+  }
+  
+  if(c.BETA[1] %in% columnNames){
+    iDup<-grep(pattern = "^",c.BETA[1],"$",columnNames)
+    if(length(iDup)>1){
+      iDup<-iDup[2:length(iDup)]
+      columnNames[iDup]<-paste0("X",c.BETA[1])
+    }
+  }
+  
+  if(c.OR[1] %in% columnNames){
+    iDup<-grep(pattern = "^",c.OR[1],"$",columnNames)
+    if(length(iDup)>1){
+      iDup<-iDup[2:length(iDup)]
+      columnNames[iDup]<-paste0("X",c.OR[1])
+    }
+  }
+  
+  if(c.Z[1] %in% columnNames){
+    iDup<-grep(pattern = "^",c.Z[1],"$",columnNames)
+    if(length(iDup)>1){
+      iDup<-iDup[2:length(iDup)]
+      columnNames[iDup]<-paste0("X",c.Z[1])
+    }
+  }
+  
+  if(c.FRQ[1] %in% columnNames){
+    iDup<-grep(pattern = "^",c.FRQ[1],"$",columnNames)
+    if(length(iDup)>1){
+      iDup<-iDup[2:length(iDup)]
+      columnNames[iDup]<-paste0("X",c.FRQ[1])
+    }
+  }
   
   return(data.frame(std=as.character(columnNames),orig=as.character(columnNames.orig)))
   
@@ -156,14 +260,14 @@ readFile <- function(filePath,nThreads=5){
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
 #single test with hard coded values
-# filePaths = p$sumstats.sel["BODY11",]$cleanedpath
+# filePaths = p$sumstats.sel["ANXI03",]$cleanedpath
 # #filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.eur.l2.jz2023.gz" #test with new refpanel
 # rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
-# chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = "BODY11"
-# N = 681275
+# #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
+# traitNames = "ANXI03"
+# N = p$sumstats.sel["ANXI03",]$n_case_total
 # pathDirOutput = p$folderpath.data.sumstats.munged
 
 
@@ -377,7 +481,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.6.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.7.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -484,11 +588,11 @@ supermunge <- function(
       cat("Done!\n")
     }
     
-    #rename reference columns as to distinguish them from the dataset columns
-    colnames(ref)<-paste0(names(ref),"_REF")
-    setkeyv(ref, cols = paste0(ref.keys,"_REF"))
-    #check keys with key(ref)
-    
+    #rename reference columns as to distinguish them from the dataset columns - MOVED UNTIL LATER AFTER ref COLUMN EDITS PER DATASET
+    # colnames(ref)<-paste0(names(ref),"_REF")
+    # setkeyv(ref, cols = paste0(ref.keys,"_REF"))
+    # #check keys with key(ref)
+    setkeyv(ref, cols = ref.keys)
     
   } else {
     warning("\nRunning without reference.\n")
@@ -578,9 +682,9 @@ supermunge <- function(
     cat(".")
     
     
-    #deal with duplicate columns - use the first occurrence or find the occurrence containing rs-numbers for the SNP column
+    #deal with duplicate columns - use the first occurrence or find the occurrence containing rs-numbers for the SNP column. standard column duplicates are handled by the gwas column renamer.
     ##SNP
-    iDup<-grep(pattern = "^SNP$",colnames(cSumstats))
+    iDup<-grep(pattern = "^X*SNP$",colnames(cSumstats))
     cSumstats.n <- nrow(cSumstats)
     if(length(iDup)>1){
       iDupPrefIndex<-iDup[1]
@@ -594,33 +698,7 @@ supermunge <- function(
       }
       iDup<-iDup[iDup != iDupPrefIndex]
       colnames(cSumstats)[iDup]<-"XSNP"
-    }
-    
-    ##BP
-    if('BP' %in% names(cSumstats)){
-      iDup<-grep(pattern = "^BP$",colnames(cSumstats))
-      if(length(iDup)>1){
-        iDup<-iDup[2:length(iDup)]
-        colnames(cSumstats)[iDup]<-"XBP"
-      }
-    }
-    
-    ##FRQ
-    if('FRQ' %in% names(cSumstats)){
-      iDup<-grep(pattern = "^FRQ$",colnames(cSumstats))
-      if(length(iDup)>1){
-        iDup<-iDup[2:length(iDup)]
-        colnames(cSumstats)[iDup]<-"XFRQ"
-      }
-    }
-    
-    ##P
-    if('P' %in% names(cSumstats)){
-      iDup<-grep(pattern = "^P$",colnames(cSumstats))
-      if(length(iDup)>1){
-        iDup<-iDup[2:length(iDup)]
-        colnames(cSumstats)[iDup]<-"XP"
-      }
+      colnames(cSumstats)[iDupPrefIndex]<-"SNP"
     }
     
     
@@ -752,7 +830,7 @@ supermunge <- function(
       #check if the file is the same build as the reference if present
       if(!is.null(ref)){
         cSumstatsBuildCheck<-cSumstats
-        cSumstatsBuildCheck[ref, on=c(CHR='CHR_REF' , BP='BP_REF'), c('buildcheck') :=list(T)]
+        cSumstatsBuildCheck[ref, on=c(CHR='CHR' , BP='BP'), c('buildcheck') :=list(T)]
         if(nrow(cSumstatsBuildCheck[buildcheck==T,])>0.75*nrow(cSumstats)){
           cSumstats.warnings<-c(cSumstats.warnings,paste0("Dataset has more than a 75% overlap in genetic coordinates with the used reference variants (",nrow(cSumstatsBuildCheck[buildcheck==T,])," rows). Liftover may be unnecessary for this dataset."))
         }
@@ -972,15 +1050,20 @@ supermunge <- function(
       cat(".")
       
       
-      # Merge with reference
+      # Join/merge with reference
       if(!is.null(ref)){
         #Aligning and validating with reference file
         cSumstats.n<-nrow(cSumstats)
         
-        
         #Join with reference on SNP rsID, only keeping SNPs with rsIDs part of the reference
         #https://stackoverflow.com/questions/34644707/left-outer-join-with-data-table-with-different-names-for-key-variables/34645997#34645997
-        cSumstats.merged.snp<-ref[cSumstats, on=c(SNP_REF="SNP"), nomatch=0]
+        ref.colnames<-stdGwasColumnNames(colnames(ref),stopOnMissingEssentialColumns = NA_character_,ancestrySetting = ancestrySetting[iFile])
+        cSumstats.merged.snp<-ref
+        colnames(cSumstats.merged.snp)<-ref.colnames$std
+        colnames(cSumstats.merged.snp)<-paste0(colnames(cSumstats.merged.snp),"_REF")
+        setkeyv(cSumstats.merged.snp, cols = paste0(key(ref),"_REF"))
+        
+        cSumstats.merged.snp<-cSumstats.merged.snp[cSumstats, on=c(SNP_REF="SNP"), nomatch=0]
         #replace missing columns
         cSumstats.merged.snp[,SNP:=SNP_REF]
         
@@ -1054,10 +1137,6 @@ supermunge <- function(
       
       if(!is.null(ref)){
         
-        #TODO - WIP!!
-        ##Select dataset specific reference MAF
-        #if(ancestrySetting)
-        
         
         ##Synchronise SNP,CHR,BP,FRQ with reference
         cSumstats[,SNP:=SNP_REF] #probably not needed
@@ -1072,7 +1151,7 @@ supermunge <- function(
           if(any(colnames(cSumstats)=="CHR_REF")){
             cSumstats[,CHR:=as.integer(CHR_REF)]
             cSumstats.keys<-c(cSumstats.keys,'CHR')
-            cSumstats.warnings<-c(cSumstats.warnings,"Inferring CHR from reference!")
+            cSumstats.warnings<-c(cSumstats.warnings,"Inferred all CHR from reference!")
           } else {
             cSumstats[,CHR:=NA_integer_]
           }
@@ -1085,7 +1164,7 @@ supermunge <- function(
           cSumstats.warnings<-c(cSumstats.warnings,"No BP column present!")
           if(any(colnames(cSumstats)=="BP_REF")){
             cSumstats[,BP:=as.integer(BP_REF)]
-            cSumstats.warnings<-c(cSumstats.warnings,"Inferring BP from reference!")
+            cSumstats.warnings<-c(cSumstats.warnings,"Inferred all BP from reference!")
           } else {
             cSumstats[,BP:=NA_integer_]
           }
@@ -1093,18 +1172,27 @@ supermunge <- function(
         }
         
         if(any(colnames(cSumstats)=="FRQ")){
-          cSumstats[is.na(FRQ),FRQ:=as.numeric(MAF_REF)]
+          cSumstats.meta<-rbind(cSumstats.meta,list("FRQ missing, attempting to infer from reference FRQ",as.character(nrow(cSumstats[is.na(FRQ),]))))
+          cSumstats[is.na(FRQ),FRQ:=as.numeric(FRQ_REF)]
         } else {
           sumstats.meta[iFile,c("no_FRQ")]<-T
           cSumstats.warnings<-c(cSumstats.warnings,"No FRQ column present!")
-          if(any(colnames(cSumstats)=="MAF_REF")){
-            cSumstats[,FRQ:=as.numeric(MAF_REF)]
-            cSumstats.warnings<-c(cSumstats.warnings,"Inferring FRQ from reference!")
+          if(any(colnames(cSumstats)=="FRQ_REF")){
+            cSumstats[,FRQ:=as.numeric(FRQ_REF)]
+            cSumstats.warnings<-c(cSumstats.warnings,"Inferred all FRQ from reference!")
           } else {
             cSumstats[,FRQ:=NA_real_]
           }
           
         }
+        
+        #dataset should have a FRQ column now
+        #assign missing FRQ from fallback column (mixed ancestry for example) if still missing
+        if(any(colnames(cSumstats)=="FRQFB_REF")){
+          cSumstats.meta<-rbind(cSumstats.meta,list("FRQ still missing, attempting to infer from reference fallback FRQ",as.character(nrow(cSumstats[is.na(FRQ),]))))
+          cSumstats[is.na(FRQ),FRQ:=as.numeric(FRQFB_REF)]
+        }
+        
       }
       cat(".")
       
@@ -1183,7 +1271,7 @@ supermunge <- function(
         # Fix A1 and A2 to reflect the reference alleles
         cSumstats[,A1:=A1_REF]
         cSumstats[,A2:=A2_REF]
-        if(any(colnames(cSumstats)=="MAF_REF")) cSumstats[,FRQ:=MAF_REF]
+        if(any(colnames(cSumstats)=="FRQ_REF")) cSumstats[,FRQ:=FRQ_REF]
       } else if(any(colnames(cSumstats)=="cond.invertedAlleleOrder")) { ## Invert alleles  -FRQ is dealt with below
         cSumstats[,A1:=ifelse(cond.invertedAlleleOrder, A2_ORIG, A1)]
         cSumstats[,A2:=ifelse(cond.invertedAlleleOrder, A1_ORIG, A2)]
@@ -1221,9 +1309,9 @@ supermunge <- function(
         ### Compute MAF
         cond.invertedMAF<-cSumstats$FRQ > .5
         cSumstats$MAF<-ifelse(cond.invertedMAF,1-cSumstats$FRQ,cSumstats$FRQ)
-      } else if(any(colnames(cSumstats)=="MAF_REF")){
+      } else if(any(colnames(cSumstats)=="FRQ_REF")){
         #no FRQ present - fallback on reference MAF if exists
-        cSumstats[,FRQ:=MAF_REF][,MAF:=FRQ]
+        cSumstats[,FRQ:=FRQ_REF][,MAF:=FRQ]
       }
       cat(".")
       
@@ -1579,17 +1667,17 @@ supermunge <- function(
       cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE','N','FRQ') :=list(i.EFFECT,i.SE,i.N,i.FRQ)]
       
       #filtering and selecting the subset to impute
-      cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.finite(BETA) & MAF_REF>0.001,] #L2_REF>0
+      cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.finite(BETA) & FRQ_REF>0.001,] #L2_REF>0
       
       #prepare known variants to be imputed for validation
       imputeFromLD.validate.m <- imputeFromLD.validate.q * nrow(cSumstats.merged.snp[is.finite(BETA) & is.finite(SE),])
       if(imputeFromLD.validate.m>0){
-        cSumstats.merged.snp.toimpute.known <- head(cSumstats.merged.snp[is.finite(BETA) & is.finite(SE) & FRQ<0.90 & MAF_REF>0.001,][order(-(FRQ*N*((BETA/SE)^2)*L2_REF)),],imputeFromLD.validate.m)
+        cSumstats.merged.snp.toimpute.known <- head(cSumstats.merged.snp[is.finite(BETA) & is.finite(SE) & FRQ<0.90 & FRQ_REF>0.001,][order(-(FRQ*N*((BETA/SE)^2)*L2_REF)),],imputeFromLD.validate.m)
         cSumstats.merged.snp.toimpute <- rbind(cSumstats.merged.snp.toimpute.known,cSumstats.merged.snp.toimpute) #add the known imputations first, in case of testing
       }
       
       #imputation source
-      cSumstats.merged.snp<-cSumstats.merged.snp[is.finite(BETA) & is.finite(SE) & L2_REF>0 & MAF_REF>0.01,]
+      cSumstats.merged.snp<-cSumstats.merged.snp[is.finite(BETA) & is.finite(SE) & L2_REF>0 & FRQ_REF>0.01,]
       
      
       
@@ -1644,7 +1732,7 @@ supermunge <- function(
             setkeyv(cSS, cols = c("SNP","BP")) #chromosome is fixed per chromosome loop
           }
           
-          cI<-cSumstats.merged.snp.toimpute[CHR_REF==eval(cCHR),.(SNP=SNP_REF,BP=BP_REF,A1_REF,A2_REF,MAF_REF,L2=L2_REF,BETA,SE,VAR=SE^2,CM=CM_REF)]
+          cI<-cSumstats.merged.snp.toimpute[CHR_REF==eval(cCHR),.(SNP=SNP_REF,BP=BP_REF,A1_REF,A2_REF,FRQ_REF,L2=L2_REF,BETA,SE,VAR=SE^2,CM=CM_REF)]
           #cI<-cI[1:100,] #FOR TEST ONLY
           
           if(do.ldimp.cm){
@@ -1714,7 +1802,7 @@ supermunge <- function(
             #cSumstats$SINFO<-(ecdf(cSumstats$SINFO)(cSumstats$SINFO)) #old
             
             #add not previously known variants
-            cSumstats<-rbind(cSumstats,cI[is.na(BETA),.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=MAF_REF,MAF=MAF_REF,N,BETA.I,SE.I,L2_REF=L2,LDIMP.K=K,LDIMP.W.SUM=W.SUM,LDIMP.L2.SUM=L2.SUM,LDIMP.Q,SINFO)],fill=T)
+            cSumstats<-rbind(cSumstats,cI[is.na(BETA),.(SNP,BP,CHR,A1=A1_REF,A2=A2_REF,FRQ=FRQ_REF,MAF=FRQ_REF,N,BETA.I,SE.I,L2_REF=L2,LDIMP.K=K,LDIMP.W.SUM=W.SUM,LDIMP.L2.SUM=L2.SUM,LDIMP.Q,SINFO)],fill=T)
             #update known variants
             cSumstats[cI[is.finite(BETA),],on=c("SNP"),c('BETA.I','SE.I','LDIMP.K','LDIMP.W.SUM','LDIMP.L2.SUM','LDIMP.Q','SINFO') :=list(i.BETA.I,i.SE.I,i.K,i.W.SUM,i.L2.SUM,i.LDIMP.Q,i.SINFO)]
             
