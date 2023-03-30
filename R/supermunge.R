@@ -3,33 +3,34 @@
 
 
 
-stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP","A1","A2"), ancestrySetting=NULL, #EUR, #ancestry setting string for the current dataset
-                               c.SNP = c("SNP","PREDICTOR","SNPID","MARKERNAME","MARKER_NAME","SNPTESTID","ID_DBSNP49","ID","MARKER","SNP.NAME","SNP ID", "SNP_ID","LOCATIONALID","ASSAY_NAME"),
-                               c.RSID = c("RSID","RS_NUMBER","RS","RSNUMBER","RS_NUMBERS","RSID_UKB"),
-                               c.A1 = c("A1","ALLELE1","ALLELE_1","A_1","A"),
-                               c.A2 = c("A2","ALLELE2","ALLELE_2","A_2"),
-                               c.A0 = c("A0","ALLELE0","ALLELE_0","A_0"),
-                               c.AEFFECT = c("INC_ALLELE","EA","REF","A1_EFFECT","EFFECT_ALLELE","RISK_ALLELE","EFFECTALLELE","EFFECT_ALL","REFERENCE_ALLELE","REF_ALLELE","REFERENCEALLELE","EA","INC_ALLELE","CODED_ALLELE","TESTED_ALLELE"),
-                               c.ANOEFFECT = c("OTHER_ALLELE","NON_EFFECT_ALLELE","DEC_ALLELE","OA","NEA","ALT","A1_OTHER","A2_OTHER","NONREF_ALLELE","NEFFECT_ALLELE","NEFFECTALLELE","NONEFFECT_ALLELE","OTHER_ALL","OTHERALLELE","NONEFFECTALLELE","ALT_ALLELE","NONCODED_ALLELE"),
-                               c.BETA = c("BETA","B","EFFECT_BETA","EFFECT","EFFECTS","SIGNED_SUMSTAT","EST","GWAS_BETA","EFFECT_A1","EFFECTA1","EFFECT_NW"),
-                               c.OR = c("OR","LOG_ODDS","OR","ODDS-RATIO","ODDS_RATIO","ODDSRATIO","OR(MINALLELE)","OR.LOGISTIC","OR_RAN","OR(A1)"),
-                               c.SE = c("SE","STDER","STDERR","STD","STANDARD_ERROR","OR_SE","STANDARDERROR", "STDERR_NW","META.SE","SE_DGC","SE.2GC"),
-                               c.Z = c("Z","ZSCORE","Z-SCORE","ZSTAT","ZSTATISTIC","GC_ZSCORE","BETAZSCALE"),
-                               c.INFO = c("INFO","IMPINFO","IMPQUALITY", "INFO.PLINK", "INFO_UKBB","INFO_UKB"),
-                               c.SINFO = c("SINFO"),
-                               c.P = c("P","PVALUE","PVAL","P_VALUE","GC_PVALUE","P.2GC","WALD_P","P.VAL","GWAS_P","P-VALUE","P-VAL","FREQUENTIST_ADD_PVALUE","P.VALUE","P_VAL","SCAN-P","P.LMM","META.PVAL","P_RAN","P.ADD","P_BOLT_LMM","PVAL_ESTIMATE"),
-                               c.N = c("N","WEIGHT","NCOMPLETESAMPLES","TOTALSAMPLESIZE","TOTALN","TOTAL_N","N_COMPLETE_SAMPLES","N_TOTAL","N_SAMPLES","N_ANALYZED","NSAMPLES","SAMPLESIZE","SAMPLE_SIZE","TOTAL_SAMPLE_SIZE","TOTALSAMPLESIZE"),
-                               c.N_CAS = c("N_CAS","NCASE","N_CASE","N_CASES","NCAS","NCA","NCASES","CASES","CASES_N","FRQ_A"),
-                               c.N_CON = c("N_CON","NCONTROL","N_CONTROL","N_CONTROLS","NCON","NCO","N_CON","NCONTROLS","CONTROLS","CONTROLS_N","FRQ_U"),
-                               c.NEFF = c("NEFF","NEF","NEFFECTIVE","NE","NEFF_HALF"),
-                               #include FRQ_A?
-                               c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF","FREQ1.HAPMAP","FREQALLELE1HAPMAPCEU","FREQ.HAPMAP.CEU","FREQ.ALLELE1.HAPMAPCEU","EFFECT_ALLELE_FREQ","FREQ.A1","F_A","F_U","FREQ_A","FREQ_U","MA_FREQ","MAF_NW","FREQ_A1","A1FREQ","CODED_ALLELE_FREQUENCY","FREQ_TESTED_ALLELE","FREQ_TESTED_ALLELE_IN_HRS","EAF_HRC","EAF_UKB","EAF_EUR_UKB","FREQ_TESTED_ALLELE"),
-                               c.CHR = c("CHR","CH","CHROMOSOME","CHROM","CHR_BUILD38","CHR_BUILD37","CHR_BUILD36","CHR_B38","CHR_B37","CHR_B36","CHR_ID","SCAFFOLD","HG19CHR","CHR.HG19","CHR_HG19","HG18CHR","CHR.HG18","CHR_HG18","CHR_BP_HG19B37","HG19CHRC","#CHROM"),
-                               c.BP = c("BP","BP1","ORIGBP","POS","POSITION","LOCATION","PHYSPOS","GENPOS","CHR_POSITION","POS_B38","POS_BUILD38","POS_B37","POS_BUILD37","BP_HG19B37","POS_B36","POS_BUILD36","POS.HG19","POS.HG18","POS_HG19","POS_HG18","BP_HG19","BP_HG18","BP.GRCH38","BP.GRCH37","POSITION(HG19)","POSITION(HG18)","POS(B38)","POS(B37)"),
-                               c.BP2 =c("BP2"),
-                               c.L2 =c("L2","LD"),
-                               c.DF = c("DF","CHISQ_DF")
+stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP","A1","A2"), ancestrySetting=NULL #EUR, #ancestry setting string for the current dataset
 ){
+  c.SNP = c("SNP","PREDICTOR","SNPID","MARKERNAME","MARKER_NAME","SNPTESTID","ID_DBSNP49","ID","MARKER","SNP.NAME","SNP ID", "SNP_ID","LOCATIONALID","ASSAY_NAME")
+  c.RSID = c("RSID","RS_NUMBER","RS","RSNUMBER","RS_NUMBERS","RSID_UKB")
+  c.A1 = c("A1","ALLELE1","ALLELE_1","A_1","A")
+  c.A2 = c("A2","ALLELE2","ALLELE_2","A_2")
+  c.A0 = c("A0","ALLELE0","ALLELE_0","A_0")
+  c.AEFFECT = c("INC_ALLELE","EA","REF","A1_EFFECT","EFFECT_ALLELE","RISK_ALLELE","EFFECTALLELE","EFFECT_ALL","REFERENCE_ALLELE","REF_ALLELE","REFERENCEALLELE","EA","INC_ALLELE","CODED_ALLELE","TESTED_ALLELE")
+  c.ANOEFFECT = c("OTHER_ALLELE","NON_EFFECT_ALLELE","DEC_ALLELE","OA","NEA","ALT","A1_OTHER","A2_OTHER","NONREF_ALLELE","NEFFECT_ALLELE","NEFFECTALLELE","NONEFFECT_ALLELE","OTHER_ALL","OTHERALLELE","NONEFFECTALLELE","ALT_ALLELE","NONCODED_ALLELE")
+  c.BETA = c("BETA","B","EFFECT_BETA","EFFECT","EFFECTS","SIGNED_SUMSTAT","EST","GWAS_BETA","EFFECT_A1","EFFECTA1","EFFECT_NW")
+  c.OR = c("OR","LOG_ODDS","OR","ODDS-RATIO","ODDS_RATIO","ODDSRATIO","OR(MINALLELE)","OR.LOGISTIC","OR_RAN","OR(A1)")
+  c.SE = c("SE","STDER","STDERR","STD","STANDARD_ERROR","OR_SE","STANDARDERROR", "STDERR_NW","META.SE","SE_DGC","SE.2GC")
+  c.Z = c("Z","ZSCORE","Z-SCORE","ZSTAT","ZSTATISTIC","GC_ZSCORE","BETAZSCALE")
+  c.INFO = c("INFO","IMPINFO","IMPQUALITY", "INFO.PLINK", "INFO_UKBB","INFO_UKB")
+  c.SINFO = c("SINFO")
+  c.P = c("P","PVALUE","PVAL","P_VALUE","GC_PVALUE","P.2GC","WALD_P","P.VAL","GWAS_P","P-VALUE","P-VAL","FREQUENTIST_ADD_PVALUE","P.VALUE","P_VAL","SCAN-P","P.LMM","META.PVAL","P_RAN","P.ADD","P_BOLT_LMM","PVAL_ESTIMATE")
+  c.N = c("N","WEIGHT","NCOMPLETESAMPLES","TOTALSAMPLESIZE","TOTALN","TOTAL_N","N_COMPLETE_SAMPLES","N_TOTAL","N_SAMPLES","N_ANALYZED","NSAMPLES","SAMPLESIZE","SAMPLE_SIZE","TOTAL_SAMPLE_SIZE","TOTALSAMPLESIZE")
+  c.N_CAS = c("N_CAS","NCASE","N_CASE","N_CASES","NCAS","NCA","NCASES","CASES","CASES_N","FRQ_A")
+  c.N_CON = c("N_CON","NCONTROL","N_CONTROL","N_CONTROLS","NCON","NCO","N_CON","NCONTROLS","CONTROLS","CONTROLS_N","FRQ_U")
+  c.NEFF = c("NEFF","NEF","NEFFECTIVE","NE","NEFF_HALF")
+  #include FRQ_A?
+  c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF","FREQ1.HAPMAP","FREQALLELE1HAPMAPCEU","FREQ.HAPMAP.CEU","FREQ.ALLELE1.HAPMAPCEU","EFFECT_ALLELE_FREQ","FREQ.A1","F_A","F_U","FREQ_A","FREQ_U","MA_FREQ","MAF_NW","FREQ_A1","A1FREQ","CODED_ALLELE_FREQUENCY","FREQ_TESTED_ALLELE","FREQ_TESTED_ALLELE_IN_HRS","EAF_HRC","EAF_UKB","EAF_EUR_UKB","FREQ_TESTED_ALLELE")
+  c.CHR = c("CHR","CH","CHROMOSOME","CHROM","CHR_BUILD38","CHR_BUILD37","CHR_BUILD36","CHR_B38","CHR_B37","CHR_B36","CHR_ID","SCAFFOLD","HG19CHR","CHR.HG19","CHR_HG19","HG18CHR","CHR.HG18","CHR_HG18","CHR_BP_HG19B37","HG19CHRC","#CHROM")
+  c.BP = c("BP","BP1","ORIGBP","POS","POSITION","LOCATION","PHYSPOS","GENPOS","CHR_POSITION","POS_B38","POS_BUILD38","POS_B37","POS_BUILD37","BP_HG19B37","POS_B36","POS_BUILD36","POS.HG19","POS.HG18","POS_HG19","POS_HG18","BP_HG19","BP_HG18","BP.GRCH38","BP.GRCH37","POSITION(HG19)","POSITION(HG18)","POS(B38)","POS(B37)")
+  c.BP2 =c("BP2")
+  c.L2 =c("L2","LD")
+  c.DF = c("DF","CHISQ_DF")
+  
   #test
   #columnNames<-cSumstats.names
   columnNames<-as.character(columnNames)
@@ -67,6 +68,30 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   columnNames[columnNames.upper %in% c.NEFF] <- c.NEFF[1]
   
   columnNames[columnNames.upper %in% c.FRQ] <- c.FRQ[1]
+  #daner FRQ
+  danerNcas<-NA_integer_
+  danerNcon<-NA_integer_
+  if(!any(columnNames=="FRQ") & any(startsWith(columnNames,prefix = "FRQ_A_")) & any(startsWith(columnNames,prefix = "FRQ_U_")))
+  {
+    danerNcasS <- columnNames[
+      startsWith(columnNames,
+                 prefix = "FRQ_A_")
+    ][1]
+    danerNcas <- as.integer(strsplit(danerNcasS,split = "_",fixed = T)[[1]][3])
+    
+    danerNconS <- columnNames[
+      startsWith(columnNames,
+                 prefix = "FRQ_U_")
+    ][1]
+    danerNcon <- as.integer(strsplit(danerNconS,split = "_",fixed = T)[[1]][3])
+    
+    if(is.finite(danerNcas) & is.finite(danerNcon))
+    {
+      columnNames[columnNames.upper %in% danerNcasS] <- "FRQ_CAS"
+      columnNames[columnNames.upper %in% danerNconS] <- "FRQ_CON"
+    }
+  }
+  
   #ancestry specific FRQ and fallback FRQ
   if(!is.null(ancestrySetting)){
       lMatch <- columnNames.upper %in% paste0(c.FRQ,".",toupper(ancestrySetting))
@@ -198,7 +223,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
     }
   }
   
-  return(data.frame(std=as.character(columnNames),orig=as.character(columnNames.orig)))
+  return(list(std=as.character(columnNames),orig=as.character(columnNames.orig),danerNcas=danerNcas,danerNcon=danerNcon))
   
 }
 
@@ -358,7 +383,7 @@ readFile <- function(filePath,nThreads=5){
 # doChrSplit=F
 # doStatistics=F
 # mask=NULL
-# stopOnMissingEssential=F
+# stopOnMissingEssentialColumns=c("SNP","A1","A2")
 # maxSNPDistanceBpPadding=0
 # invertEffectDirectionOn=NULL
 # parse=T
@@ -411,7 +436,7 @@ supermunge <- function(
   doChrSplit=F,
   doStatistics=F,
   mask=NULL,
-  stopOnMissingEssential=F,
+  stopOnMissingEssentialColumns=c("SNP","A1","A2"),
   maxSNPDistanceBpPadding=5,
   invertEffectDirectionOn=NULL,
   parse=T, #run advanced parsing routines (for SNP and CHR columns) - may take a long time and is not 100% foolproof - check the results!
@@ -670,10 +695,10 @@ supermunge <- function(
     cat(".")
     
     # Give sumstats new standardised column names
-    cSumstats.names <- stdGwasColumnNames(columnNames = colnames(cSumstats), stopOnMissingEssential = stopOnMissingEssential)
+    cSumstats.names <- stdGwasColumnNames(columnNames = colnames(cSumstats), stopOnMissingEssentialColumns = stopOnMissingEssentialColumns, ancestrySetting = ancestrySetting[iFile])
     cSumstats.names.string <-""
-    for(iName in 1:nrow(cSumstats.names)){
-      cSumstats.names.string<-paste(paste(cSumstats.names$orig,"\t->",cSumstats.names$std), collapse = '\n')
+    for(iName in 1:length(cSumstats.names$orig)){
+      cSumstats.names.string<-paste(paste(cSumstats.names$orig[iName],"\t->",cSumstats.names$std[iName]), collapse = '\n')
     }
     # print(cSumstats.names)
     # print(typeof(cSumstats.names$std))
@@ -784,6 +809,19 @@ supermunge <- function(
     }
     cat(".")
     
+    
+    #Convert specific FRQ to common FRQ (daner format)
+    if(any(colnames(cSumstats)=="FRQ_CAS") & any(colnames(cSumstats)=="FRQ_CON")){
+      if(!any(colnames(cSumstats)=="N_CAS") & !any(colnames(cSumstats)=="N")) cSumstats$N_CAS<-NA_integer_ #only add if no N to avoid overwriting specific existing N later
+      if(!any(colnames(cSumstats)=="N_CON") & !any(colnames(cSumstats)=="N")) cSumstats$N_CON<-NA_integer_ #only add if no N to avoid overwriting specific existing N later
+      cSumstats[is.na(cSumstats$N_CAS),]$N_CAS <- cSumstats.names$danerNcas
+      cSumstats[is.na(cSumstats$N_CON),]$N_CON <- cSumstats.names$danerNcon
+      
+      # Add total FRQ column
+      if(!any(colnames(cSumstats)=="FRQ")){
+        cSumstats[,FRQ:=((FRQ_CAS * N_CAS) + (FRQ_CON * N_CON))/(N_CAS + N_CON)]
+      }
+    }
     
     #Filter variants MAF<filter.maf
     if(!is.null(filter.maf)){
@@ -1057,7 +1095,7 @@ supermunge <- function(
         
         #Join with reference on SNP rsID, only keeping SNPs with rsIDs part of the reference
         #https://stackoverflow.com/questions/34644707/left-outer-join-with-data-table-with-different-names-for-key-variables/34645997#34645997
-        ref.colnames<-stdGwasColumnNames(colnames(ref),stopOnMissingEssentialColumns = NA_character_,ancestrySetting = ancestrySetting[iFile])
+        ref.colnames<-stdGwasColumnNames(colnames(ref),stopOnMissingEssentialColumns = NULL,ancestrySetting = ancestrySetting[iFile])
         cSumstats.merged.snp<-ref
         colnames(cSumstats.merged.snp)<-ref.colnames$std
         colnames(cSumstats.merged.snp)<-paste0(colnames(cSumstats.merged.snp),"_REF")
