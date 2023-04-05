@@ -1103,6 +1103,7 @@ supermunge <- function(
         
         cSumstats.merged.snp<-cSumstats.merged.snp[cSumstats, on=c(SNP_REF="SNP"), nomatch=0]
         #replace missing columns
+        #TODO this is probably not doing anything - move to coordinate merge?
         cSumstats.merged.snp[,SNP:=SNP_REF]
         
         cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; rsID not in ref",as.character(cSumstats.n-nrow(cSumstats.merged.snp))))
@@ -2117,6 +2118,7 @@ supermunge <- function(
   return(list(
     meta=as.data.frame(sumstats.meta),
     last=as.data.frame(cSumstats),
+    last.names=cSumstats.names,
     composite=as.data.frame(variantTable),
     ref=as.data.frame(ref)
   )
