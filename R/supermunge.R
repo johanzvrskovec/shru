@@ -318,8 +318,8 @@ readFile <- function(filePath,nThreads=5){
 # filter.region.imputation.df=p$highld_b38 #provide the high-ld regions to not use for imputation
 # N = p$munge$NToUse
 # test = T #REMOVE THIS!
-# imputeFromLD.validate.q=1.0 #validate with all of the original dataset
-# pathDirOutput = p$folderpath.data.sumstats.imputed.500
+# #imputeFromLD.validate.q=1.0 #validate with all of the original dataset
+# pathDirOutput = p$folderpath.data.sumstats.imputed
 
 
 # filePaths = p$munge$filesToUse
@@ -697,9 +697,9 @@ supermunge <- function(
     # Give sumstats new standardised column names
     cSumstats.names <- stdGwasColumnNames(columnNames = colnames(cSumstats), stopOnMissingEssentialColumns = stopOnMissingEssentialColumns, ancestrySetting = ancestrySetting[iFile])
     cSumstats.names.string <-""
-    for(iName in 1:length(cSumstats.names$orig)){
-      cSumstats.names.string<-paste(paste(cSumstats.names$orig[iName],"\t->",cSumstats.names$std[iName]), collapse = '\n')
-    }
+    #for(iName in 1:length(cSumstats.names$orig)){
+      cSumstats.names.string<-paste(paste(cSumstats.names$orig,"\t->",cSumstats.names$std), collapse = '\n')
+    #}
     # print(cSumstats.names)
     # print(typeof(cSumstats.names$std))
     
@@ -1682,6 +1682,8 @@ supermunge <- function(
       frameLenHalf<-frameLen/2
       cSumstats.merged.snp<-ref
       setkeyv(cSumstats,cols = cSumstats.keys)
+      colnames(cSumstats.merged.snp)<-ref.colnames$std
+      colnames(cSumstats.merged.snp)<-paste0(colnames(cSumstats.merged.snp),"_REF")
       setkeyv(cSumstats.merged.snp, cols = paste0(ref.keys,"_REF"))
       
       #Select correct LD score if present and among multiple ancestry specific scores
