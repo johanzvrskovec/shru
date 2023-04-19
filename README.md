@@ -13,8 +13,8 @@ You may have to load either tidyverse and/or DiagrammeR for the functionality th
 
 ## Code usage examples
 
-Supermunge with basic options
-
+Supermunge with basic options; perform munge using the provided reference variant list and apply basic QC
+```[r]
 munge$results <- supermunge(
                 filePaths = munge$filesToUse, #list of file paths
                 refFilePath = filepath.SNPReference.1kg, #reference variant list (SNP,CHR,BP, A1, A2, MAF, optional CM and L2)
@@ -22,9 +22,10 @@ munge$results <- supermunge(
                 N = munge$NToUse, #N values per train in filePaths to use in case the sumstats do not contain N
                 pathDirOutput = folderpath.data.sumstats.munged #path to the folder where to put the output files, named by the (trait name).gz
     )
-    
-Supermunge with no munge-step but file interpretation only and specific cleaning filters
+```
 
+Supermunge with no munge-step but file interpretation only and specific cleaning filters
+```[r]
 munge$results <- supermunge(
                 filePaths = munge$filesToUse, #list of file paths
                 traitNames = munge$traitNamesToUse, #names/codes of the traits in the filePaths
@@ -35,10 +36,10 @@ munge$results <- supermunge(
                 filter.info = 0.6,
                 filter.chr = list(23,24,25,26) #remove chromosomes 23, 24, 25 and 26 using PLINK numeric format
     )
+```
 
 Supermunge with LD-IMP GWAS summary statistics imputation and other advanced features activated
-
-
+```[r]
     munge$results <- supermunge(
                 filePaths = munge$filesToUse, #list of file paths
                 rsSynonymsFilePath = filepath.rsSynonyms.dbSNP151, #path to rs-id synonym file (each row has a list of id’s, separated by space, with the first id to be the preferred id)
