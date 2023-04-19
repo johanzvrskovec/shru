@@ -9,7 +9,7 @@ Includes the previous semPlate package utilities for generating path diagrams fr
 - Semplate: Various functions for parsing and visualising SEM data, Genomic SEM in particular.
 
 ## Dependencies
-You may have to load either tidyverse and/or DiagrammeR for the functionality that requires it.
+You may have to additionally load either tidyverse and/or DiagrammeR for the functionality that requires it. These were left out of the package dependencies to increase the compatibility of SHRU with computational HPC environments that may not have the installed software to support some graphical routines.
 
 ## Code usage examples
 
@@ -29,7 +29,6 @@ Supermunge with no munge-step but file interpretation only and specific cleaning
 munge$results <- supermunge(
                 filePaths = munge$filesToUse, #list of file paths
                 traitNames = munge$traitNamesToUse, #names/codes of the traits in the filePaths
-                N = munge$NToUse, #N values per train in filePaths to use in case the sumstats do not contain N
                 pathDirOutput = folderpath.data.sumstats.munged, #path to the folder where to put the output files, named by the (trait name).gz
                 process=F,
                 filter.maf = 0.01,
