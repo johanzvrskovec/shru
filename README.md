@@ -13,7 +13,30 @@ You may have to load either tidyverse and/or DiagrammeR for the functionality th
 
 ## Code usage examples
 
-Supermunge with LD-IMP GWAS summary statistics imputation activated
+Supermunge with basic options
+
+munge$results <- supermunge(
+                filePaths = munge$filesToUse, #list of file paths
+                refFilePath = filepath.SNPReference.1kg, #reference variant list (SNP,CHR,BP, A1, A2, MAF, optional CM and L2)
+                traitNames = munge$traitNamesToUse, #names/codes of the traits in the filePaths
+                N = munge$NToUse, #N values per train in filePaths to use in case the sumstats do not contain N
+                pathDirOutput = folderpath.data.sumstats.munged #path to the folder where to put the output files, named by the (trait name).gz
+    )
+    
+Supermunge with no munge-step but file interpretation only and specific cleaning filters
+
+munge$results <- supermunge(
+                filePaths = munge$filesToUse, #list of file paths
+                traitNames = munge$traitNamesToUse, #names/codes of the traits in the filePaths
+                N = munge$NToUse, #N values per train in filePaths to use in case the sumstats do not contain N
+                pathDirOutput = folderpath.data.sumstats.munged, #path to the folder where to put the output files, named by the (trait name).gz
+                process=F,
+                filter.maf = 0.01,
+                filter.info = 0.6,
+                filter.chr = list(23,24,25,26) #remove chromosomes 23, 24, 25 and 26 using PLINK numeric format
+    )
+
+Supermunge with LD-IMP GWAS summary statistics imputation and other advanced features activated
 
 
     munge$results <- supermunge(
