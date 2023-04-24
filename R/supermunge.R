@@ -3,7 +3,7 @@
 
 
 
-stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP","A1","A2"), ancestrySetting=NULL #EUR, #ancestry setting string for the current dataset
+stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP","A1","A2"), ancestrySetting=NA #EUR, #ancestry setting string for the current dataset
 ){
   c.SNP = c("SNP","PREDICTOR","SNPID","MARKERNAME","MARKER_NAME","SNPTESTID","ID_DBSNP49","ID","MARKER","SNP.NAME","SNP ID", "SNP_ID","LOCATIONALID","ASSAY_NAME")
   c.RSID = c("RSID","RS_NUMBER","RS","RSNUMBER","RS_NUMBERS","RSID_UKB")
@@ -30,6 +30,10 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   c.BP2 =c("BP2")
   c.L2 =c("L2","LD")
   c.DF = c("DF","CHISQ_DF")
+  
+  
+  #force NA for ancestrySetting="ANY"
+  if(toupper(ancestrySetting)=="ANY") ancestrySetting<-NA_character_
   
   #test
   #columnNames<-cSumstats.names
@@ -92,10 +96,14 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
     }
   }
   
-  #ancestry specific FRQ and fallback FRQ
-  if(!is.null(ancestrySetting)){
-      lMatch <- columnNames.upper %in% paste0(c.FRQ,".",toupper(ancestrySetting))
-      if(any(lMatch)){
+  #ancestry specific FRQ
+  if(!is.na(ancestrySetting)){
+      iMatch <- unlist(lapply(
+        X = c.FRQ,
+        FUN = function(x){grep(pattern = paste0("^",x,"[\\._]",toupper(ancestrySetting)),columnNames)}
+      ))
+      
+      if(length(iMatch)>0){
         #save the original FRQ as fallback
         iDup<-grep(pattern = paste0("^",c.FRQ[1],"$"),columnNames)
         if(length(iDup)>0){
@@ -105,10 +113,17 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
             columnNames[iDup]<-paste0("X",c.FRQ[1],"FB")
           }
         }
-        columnNames[lMatch] <- c.FRQ[1]
+        columnNames[iMatch] <- c.FRQ[1]
       } else {
         warning("\nCould not find the ancestry specific 'FRQ' column.\n")
       }
+  } else if(!any(columnNames == c.FRQ[1])) {
+    #fallback
+    iDup<- unlist(lapply(
+      X = c.FRQ,
+      FUN = function(x){grep(pattern = paste0("^",x,"\\..+"),columnNames)}
+                  ))
+    if(length(iDup)>0) columnNames[iDup[1]] <- c.FRQ[1]
   }
   
   columnNames[columnNames.upper %in% c.CHR] <- c.CHR[1]
@@ -118,9 +133,13 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   
   
   columnNames[columnNames.upper %in% c.L2] <- c.L2[1]
-  if(!is.null(ancestrySetting)){
-    lMatch <- columnNames.upper %in% paste0(c.L2,".",toupper(ancestrySetting))
-    if(any(lMatch)){
+  #ancestry specific L2
+  if(!is.na(ancestrySetting)){
+    iMatch <- unlist(lapply(
+      X = c.L2,
+      FUN = function(x){grep(pattern = paste0("^",x,"[\\._]",toupper(ancestrySetting)),columnNames)}
+    ))
+    if(length(iMatch)>0){
       iDup<-grep(pattern = paste0("^",c.L2[1],"$"),columnNames)
       if(length(iDup)>0){
         columnNames[iDup[1]]<-paste0(c.L2[1],"FB")
@@ -129,10 +148,17 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
           columnNames[iDup]<-paste0("X",c.L2[1],"FB")
         }
       }
-      columnNames[lMatch] <- c.L2[1]
+      columnNames[iMatch] <- c.L2[1]
     } else {
       warning("\nCould not find the ancestry specific 'L2' column.\n")
     }
+  } else if(!any(columnNames == c.L2[1])) {
+    #fallback
+    iDup<- unlist(lapply(
+      X = c.L2,
+      FUN = function(x){grep(pattern = paste0("^",x,"\\..+"),columnNames)}
+    ))
+    if(length(iDup)>0) columnNames[iDup[1]] <- c.L2[1]
   }
   
   if(length(stopOnMissingEssentialColumns)>0){
@@ -160,7 +186,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   
   #rename duplicte columns
   if(c.SNP[1] %in% columnNames){
-    iDup<-grep(pattern = "^",c.SNP[1],"$",columnNames)
+    iDup<-grep(pattern = paste0("^",c.SNP[1],"$"),columnNames)
     if(length(iDup)>1){
       iDup<-iDup[2:length(iDup)]
       columnNames[iDup]<-paste0("X",c.SNP[1])
@@ -168,7 +194,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   }
   
   if(c.P[1] %in% columnNames){
-    iDup<-grep(pattern = "^",c.P[1],"$",columnNames)
+    iDup<-grep(pattern = paste0("^",c.P[1],"$"),columnNames)
     if(length(iDup)>1){
       iDup<-iDup[2:length(iDup)]
       columnNames[iDup]<-paste0("X",c.P[1])
@@ -176,7 +202,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   }
   
   if(c.A1[1] %in% columnNames){
-    iDup<-grep(pattern = "^",c.A1[1],"$",columnNames)
+    iDup<-grep(pattern = paste0("^",c.A1[1],"$"),columnNames)
     if(length(iDup)>1){
       iDup<-iDup[2:length(iDup)]
       columnNames[iDup]<-paste0("X",c.A1[1])
@@ -184,7 +210,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   }
   
   if(c.A2[1] %in% columnNames){
-    iDup<-grep(pattern = "^",c.A2[1],"$",columnNames)
+    iDup<-grep(pattern = paste0("^",c.A2[1],"$"),columnNames)
     if(length(iDup)>1){
       iDup<-iDup[2:length(iDup)]
       columnNames[iDup]<-paste0("X",c.A2[1])
@@ -192,7 +218,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   }
   
   if(c.BETA[1] %in% columnNames){
-    iDup<-grep(pattern = "^",c.BETA[1],"$",columnNames)
+    iDup<-grep(pattern = paste0("^",c.BETA[1],"$"),columnNames)
     if(length(iDup)>1){
       iDup<-iDup[2:length(iDup)]
       columnNames[iDup]<-paste0("X",c.BETA[1])
@@ -200,7 +226,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   }
   
   if(c.OR[1] %in% columnNames){
-    iDup<-grep(pattern = "^",c.OR[1],"$",columnNames)
+    iDup<-grep(pattern = paste0("^",c.OR[1],"$"),columnNames)
     if(length(iDup)>1){
       iDup<-iDup[2:length(iDup)]
       columnNames[iDup]<-paste0("X",c.OR[1])
@@ -208,7 +234,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   }
   
   if(c.Z[1] %in% columnNames){
-    iDup<-grep(pattern = "^",c.Z[1],"$",columnNames)
+    iDup<-grep(pattern = paste0("^",c.Z[1],"$"),columnNames)
     if(length(iDup)>1){
       iDup<-iDup[2:length(iDup)]
       columnNames[iDup]<-paste0("X",c.Z[1])
@@ -216,7 +242,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   }
   
   if(c.FRQ[1] %in% columnNames){
-    iDup<-grep(pattern = "^",c.FRQ[1],"$",columnNames)
+    iDup<-grep(pattern = paste0("^",c.FRQ[1],"$"),columnNames)
     if(length(iDup)>1){
       iDup<-iDup[2:length(iDup)]
       columnNames[iDup]<-paste0("X",c.FRQ[1])
@@ -294,6 +320,7 @@ readFile <- function(filePath,nThreads=5){
 # traitNames = "ANXI03"
 # N = p$sumstats.sel["ANXI03",]$n_case_total
 # pathDirOutput = p$folderpath.data.sumstats.munged
+# test = T
 
 
 # 
@@ -1097,14 +1124,12 @@ supermunge <- function(
         #https://stackoverflow.com/questions/34644707/left-outer-join-with-data-table-with-different-names-for-key-variables/34645997#34645997
         ref.colnames<-stdGwasColumnNames(colnames(ref),stopOnMissingEssentialColumns = NULL,ancestrySetting = ancestrySetting[iFile])
         cSumstats.merged.snp<-ref
-        colnames(cSumstats.merged.snp)<-ref.colnames$std
-        colnames(cSumstats.merged.snp)<-paste0(colnames(cSumstats.merged.snp),"_REF")
+        colnames(cSumstats.merged.snp)<-paste0(ref.colnames$std,"_REF")
         setkeyv(cSumstats.merged.snp, cols = paste0(key(ref),"_REF"))
         
         cSumstats.merged.snp<-cSumstats.merged.snp[cSumstats, on=c(SNP_REF="SNP"), nomatch=0]
         #replace missing columns
-        #TODO this is probably not doing anything - move to coordinate merge?
-        cSumstats.merged.snp[,SNP:=SNP_REF]
+        cSumstats.merged.snp[,SNP:=SNP_REF][,SNP_REF:=NULL]
         
         cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; rsID not in ref",as.character(cSumstats.n-nrow(cSumstats.merged.snp))))
         cat(".")
@@ -1178,7 +1203,6 @@ supermunge <- function(
         
         
         ##Synchronise SNP,CHR,BP,FRQ with reference
-        cSumstats[,SNP:=SNP_REF] #probably not needed
         if(harmoniseBPToReference) cSumstats[,BP:=BP_REF]
         
         ## Add in chr and bp from ref if not present in datasets
@@ -1708,7 +1732,7 @@ supermunge <- function(
       cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE','N','FRQ') :=list(i.EFFECT,i.SE,i.N,i.FRQ)]
       
       #filtering and selecting the subset to impute
-      cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.finite(BETA) & FRQ_REF>0.001,] #L2_REF>0
+      cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.finite(BETA) & is.finite(BP_REF) & is.finite(CHR_REF) & FRQ_REF>0.001,] #L2_REF>0
       
       #prepare known variants to be imputed for validation
       imputeFromLD.validate.m <- imputeFromLD.validate.q * nrow(cSumstats.merged.snp[is.finite(BETA) & is.finite(SE),])
@@ -1718,7 +1742,7 @@ supermunge <- function(
       }
       
       #imputation source
-      cSumstats.merged.snp<-cSumstats.merged.snp[is.finite(BETA) & is.finite(SE) & L2_REF>0 & FRQ_REF>0.01,]
+      cSumstats.merged.snp<-cSumstats.merged.snp[is.finite(BETA) & is.finite(SE) & is.finite(BP_REF) & is.finite(CHR_REF) & L2_REF>0 & FRQ>0.01,]
       
      
       
@@ -1737,7 +1761,7 @@ supermunge <- function(
       
       #truncate the imputation job when testing
       if(test){
-        cSumstats.merged.snp.toimpute<-cSumstats.merged.snp.toimpute[1:100000,]
+        cSumstats.merged.snp.toimpute<-cSumstats.merged.snp.toimpute[1:10000,]
       }
       
       #cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.na(BETA),] #for validation
@@ -1858,6 +1882,28 @@ supermunge <- function(
         }
       }
       
+      ## Remove failed imputations
+      cSumstats<-cSumstats[is.finite(EFFECT) | (is.finite(BETA.I) & is.finite(SE.I)),]
+      
+      ## Save statistics
+      sumstats.meta[iFile,c("m_ldimp")] <- nrow(cSumstats[is.na(EFFECT) & is.finite(BETA.I),])
+      
+      ## Transfer imputed values to standard columns
+      cSumstats[!is.finite(EFFECT) & is.finite(BETA.I),c('EFFECT','SE') :=list(BETA.I,SE.I)]
+      
+      ## Set more informative FRQ from fallback FRQ if ancestry specific FRQ is 0
+      if(any(colnames(cSumstats)=="FRQFB_REF")){
+        sumstats.meta[iFile,c("m_fallback_frq_ldimp")]<-nrow(cSumstats[FRQ==0,])
+        cSumstats[FRQ==0,FRQ:=FRQFB_REF]
+      }
+      
+      ## Compute Z,P,VSNP again after imputation
+      cSumstats[,Z:=EFFECT/SE]
+      cSumstats$P <- 2*pnorm(q = abs(cSumstats$Z),mean = 0, sd = 1, lower.tail = F)
+      setkeyv(cSumstats,cols = cSumstats.keys)
+      cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
+      cat(".")
+      
       
       ## Compute validation statistics
       if(imputeFromLD.validate.m>0){
@@ -1884,21 +1930,6 @@ supermunge <- function(
         cat("S")
       }
       
-      ## Remove failed imputations
-      cSumstats<-cSumstats[is.finite(EFFECT) | (is.finite(BETA.I) & is.finite(SE.I)),]
-      
-      ## Save statistics
-      sumstats.meta[iFile,c("m_ldimp")] <- nrow(cSumstats[is.na(EFFECT) & is.finite(BETA.I),])
-      
-      ## Transfer imputed values to standard columns
-      cSumstats[!is.finite(EFFECT) & is.finite(BETA.I),c('EFFECT','SE') :=list(BETA.I,SE.I)]
-      
-      ## Compute Z,P,VSNP again after imputation
-      cSumstats[,Z:=EFFECT/SE]
-      cSumstats$P <- 2*pnorm(q = abs(cSumstats$Z),mean = 0, sd = 1, lower.tail = F)
-      setkeyv(cSumstats,cols = cSumstats.keys)
-      cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
-      cat(".")
       
     }
     
