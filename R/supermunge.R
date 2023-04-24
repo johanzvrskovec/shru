@@ -311,14 +311,14 @@ readFile <- function(filePath,nThreads=5){
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
 #single test with hard coded values
-# filePaths = p$sumstats.sel["ANXI03",]$cleanedpath
+# filePaths = p$sumstats.sel["DEPR5B",]$cleanedpath
 # #filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.eur.l2.jz2023.gz" #test with new refpanel
-# rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
+# #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = "ANXI03"
-# N = p$sumstats.sel["ANXI03",]$n_case_total
+# traitNames = "DEPR5B"
+# N = p$sumstats.sel["DEPR5B",]$n_case_total
 # pathDirOutput = p$folderpath.data.sumstats.munged
 # test = T
 
@@ -839,10 +839,11 @@ supermunge <- function(
     
     #Convert specific FRQ to common FRQ (daner format)
     if(any(colnames(cSumstats)=="FRQ_CAS") & any(colnames(cSumstats)=="FRQ_CON")){
-      if(!any(colnames(cSumstats)=="N_CAS") & !any(colnames(cSumstats)=="N")) cSumstats$N_CAS<-NA_integer_ #only add if no N to avoid overwriting specific existing N later
-      if(!any(colnames(cSumstats)=="N_CON") & !any(colnames(cSumstats)=="N")) cSumstats$N_CON<-NA_integer_ #only add if no N to avoid overwriting specific existing N later
-      cSumstats[is.na(cSumstats$N_CAS),]$N_CAS <- cSumstats.names$danerNcas
-      cSumstats[is.na(cSumstats$N_CON),]$N_CON <- cSumstats.names$danerNcon
+      if(!any(colnames(cSumstats)=="N_CAS")) cSumstats$N_CAS<-NA_integer_ 
+      if(!any(colnames(cSumstats)=="N_CON")) cSumstats$N_CON<-NA_integer_
+      
+      if(is.finite(cSumstats.names$danerNcas)) cSumstats[is.na(N_CAS),N_CAS:=eval(cSumstats.names$danerNcas)]
+      if(is.finite(cSumstats.names$danerNcon)) cSumstats[is.na(N_CON),N_CON:=eval(cSumstats.names$danerNcon)]
       
       # Add total FRQ column
       if(!any(colnames(cSumstats)=="FRQ")){
@@ -1275,9 +1276,10 @@ supermunge <- function(
       
       ## N
       if(any(colnames(cSumstats)=="N_CAS") && any(colnames(cSumstats)=="N_CON")) {
-        ### Calculate total N from number of cases and number of controls if they are present. Overwrite any specific total N.
+        ### Calculate total N from number of cases and number of controls if they are present, only for missing N.
         cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("N_CAS + N_CON")))
-        cSumstats[,N:=N_CAS + N_CON]
+        if(!any(colnames(cSumstats)=="N")) cSumstats$N <- NA_integer_
+        cSumstats[!is.finite(N) & is.finite(N_CAS) & is.finite(N_CON),N:=N_CAS + N_CON]
       }
       cat(".")
       
