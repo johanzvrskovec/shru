@@ -102,10 +102,12 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
         X = c.FRQ,
         FUN = function(x){grep(pattern = paste0("^",x,"[\\._]",toupper(ancestrySetting)),columnNames)}
       ))
-      
       if(length(iMatch)>0){
-        #save the original FRQ as fallback
-        iDup<-grep(pattern = paste0("^",c.FRQ[1],"$"),columnNames)
+        columnNames[iMatch] <- c.FRQ[1]
+        iDup<-unlist(lapply(
+          X = c.FRQ,
+          FUN = function(x){grep(pattern = paste0("^",x,"[\\._].+"),columnNames)}
+        ))
         if(length(iDup)>0){
           columnNames[iDup[1]]<-paste0(c.FRQ[1],"FB")
           if(length(iDup)>1){
@@ -113,7 +115,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
             columnNames[iDup]<-paste0("X",c.FRQ[1],"FB")
           }
         }
-        columnNames[iMatch] <- c.FRQ[1]
+        
       } else {
         warning("\nCould not find the ancestry specific 'FRQ' column.\n")
       }
@@ -140,7 +142,11 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
       FUN = function(x){grep(pattern = paste0("^",x,"[\\._]",toupper(ancestrySetting)),columnNames)}
     ))
     if(length(iMatch)>0){
-      iDup<-grep(pattern = paste0("^",c.L2[1],"$"),columnNames)
+      columnNames[iMatch] <- c.L2[1]
+      iDup<-unlist(lapply(
+        X = c.L2,
+        FUN = function(x){grep(pattern = paste0("^",x,"[\\._].+"),columnNames)}
+      ))
       if(length(iDup)>0){
         columnNames[iDup[1]]<-paste0(c.L2[1],"FB")
         if(length(iDup)>1){
@@ -148,7 +154,6 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
           columnNames[iDup]<-paste0("X",c.L2[1],"FB")
         }
       }
-      columnNames[iMatch] <- c.L2[1]
     } else {
       warning("\nCould not find the ancestry specific 'L2' column.\n")
     }
@@ -310,17 +315,17 @@ readFile <- function(filePath,nThreads=5){
 # list_df=list(highld=p$highld_b37)
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
-#single test with hard coded values
-# filePaths = p$sumstats.sel["DEPR05",]$cleanedpath
+# #single test with hard coded values
+# filePaths = p$sumstats.sel["BIPO02",]$cleanedpath
 # #filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
-# refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.eur.l2.jz2023.gz" #test with new refpanel
+# refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.mix.l2.jz2023.gz" #test with new refpanel
 # #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = "DEPR05"
-# N = p$sumstats.sel["DEPR05",]$n_case_total
+# traitNames = "BIPO02"
+# N = p$sumstats.sel["BIPO02",]$n_case_total
 # pathDirOutput = p$folderpath.data.sumstats.munged
-#test = T
+# #test = T
 
 
 # 
@@ -1234,8 +1239,10 @@ supermunge <- function(
         }
         
         if(any(colnames(cSumstats)=="FRQ")){
-          cSumstats.meta<-rbind(cSumstats.meta,list("FRQ missing, attempting to infer from reference FRQ",as.character(nrow(cSumstats[is.na(FRQ),]))))
-          cSumstats[is.na(FRQ),FRQ:=as.numeric(FRQ_REF)]
+          if(nrow(cSumstats[is.na(FRQ),])>0){
+            cSumstats.meta<-rbind(cSumstats.meta,list("FRQ missing, attempting to infer from reference FRQ",as.character(nrow(cSumstats[is.na(FRQ),]))))
+            cSumstats[is.na(FRQ),FRQ:=as.numeric(FRQ_REF)]
+          }
         } else {
           sumstats.meta[iFile,c("no_FRQ")]<-T
           cSumstats.warnings<-c(cSumstats.warnings,"No FRQ column present!")
@@ -1251,8 +1258,10 @@ supermunge <- function(
         #dataset should have a FRQ column now
         #assign missing FRQ from fallback column (mixed ancestry for example) if still missing
         if(any(colnames(cSumstats)=="FRQFB_REF")){
-          cSumstats.meta<-rbind(cSumstats.meta,list("FRQ still missing, attempting to infer from reference fallback FRQ",as.character(nrow(cSumstats[is.na(FRQ),]))))
-          cSumstats[is.na(FRQ),FRQ:=as.numeric(FRQFB_REF)]
+          if(nrow(cSumstats[is.na(FRQ),])>0){
+            cSumstats.meta<-rbind(cSumstats.meta,list("FRQ still missing, attempting to infer from reference fallback FRQ",as.character(nrow(cSumstats[is.na(FRQ),]))))
+            cSumstats[is.na(FRQ),FRQ:=as.numeric(FRQFB_REF)]
+          }
         }
         
       }
@@ -1726,6 +1735,12 @@ supermunge <- function(
         cSumstats.merged.snp$L2_REF<-cSumstats.merged.snp[,..sAncestryL2]
         cSumstats$L2_REF<-cSumstats[,..sAncestryL2] #set LD column for original sumstats also
         cSumstats.meta <- rbind(cSumstats.meta,list("LD-score variable",sAncestryL2))
+      }
+      
+      
+      #use fallback values if fallback L2 present
+      if(any(colnames(cSumstats.merged.snp)=="L2FB_REF")){
+        cSumstats.merged.snp[is.na(L2_REF),L2_REF:=L2FB_REF/2] #times the ratio of the original sample = 1/2
       }
       
       #update from cSumstats
