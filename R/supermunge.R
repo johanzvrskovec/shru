@@ -311,16 +311,16 @@ readFile <- function(filePath,nThreads=5){
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
 #single test with hard coded values
-# filePaths = p$sumstats.sel["DEPR5B",]$cleanedpath
+# filePaths = p$sumstats.sel["DEPR05",]$cleanedpath
 # #filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.eur.l2.jz2023.gz" #test with new refpanel
 # #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = "DEPR5B"
-# N = p$sumstats.sel["DEPR5B",]$n_case_total
+# traitNames = "DEPR05"
+# N = p$sumstats.sel["DEPR05",]$n_case_total
 # pathDirOutput = p$folderpath.data.sumstats.munged
-# test = T
+#test = T
 
 
 # 
@@ -392,7 +392,6 @@ readFile <- function(filePath,nThreads=5){
 # produceCompositeTable=F
 # unite=F
 # imputeFromLD=F
-# imputeAdjustN=T
 # imputeFrameLenBp=500000 #500000 for comparison with SSIMP and ImpG
 # imputeFrameLenCM=0.5 #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
 # imputeFromLD.validate.q=0.05
@@ -445,7 +444,6 @@ supermunge <- function(
   unite=F, #bind rows of datasets into one dataset
   diff=F, #compare the resulting first dataset with the rest of the datasets pairwise and detect differences, write these to separate files - NOT IMPLEMENTED YET!
   imputeFromLD=F, #apply LDimp or not
-  imputeAdjustN=F,
   imputeFrameLenBp=500000, #500000 for comparison with SSIMP and ImpG
   imputeFrameLenCM=0.5, #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
   imputeFromLD.validate.q=0, #Fraction of variants of the input variants with known effects that will be used for estimating RMSD values. Setting a non-zero fraction here will lead to previously genotyped variants also receiving imputed effect sizes, standard errors and imputation quality assessments. Whatever program reading the output needs to take this into account if you want tp distinguish between originally genotyped effects and imputed effects. For example, you can test if the imputed effect and standard errors are different from what is displayed in the standard effect and standard error columns, which would indicate that the variant was previously genotyped and has received new values based on GWAS sumstat LDimp imputation.
@@ -533,7 +531,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.7.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.7.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1778,15 +1776,18 @@ supermunge <- function(
         cSumstats<-intermediateResults$cSumstats
         previousCHR<-intermediateResults$cCHR
         nChrIndex<-match(x = previousCHR, table = chrsToImpute)[1]+1
+        rm(intermediateResults)
         if(nChrIndex<=length(chrsToImpute)) {
           chrsToImpute<-chrsToImpute[nChrIndex:length(chrsToImpute)]
         } else {
           chrsToImpute<-c()
         }
+      } else {
+        #prepare new columns for their datatypes to be set correctly
+        cSumstats[,c('BETA.I','SE.I','LDIMP.K','LDIMP.W.SUM','LDIMP.L2.SUM','LDIMP.Q','SINFO'):=list(NA_real_,NA_real_,NA_integer_,NA_real_,NA_real_,NA_real_,NA_real_)]
       }
       
-      #prepare new columns for their datatypes to be set correctly
-      cSumstats[,c('BETA.I','SE.I','LDIMP.K','LDIMP.W.SUM','LDIMP.L2.SUM','LDIMP.Q','SINFO'):=list(NA_real_,NA_real_,NA_integer_,NA_real_,NA_real_,NA_real_,NA_real_)]
+      
       
       if(length(chrsToImpute)>0){
         for(cCHR in chrsToImpute){
@@ -1893,10 +1894,10 @@ supermunge <- function(
       ## Transfer imputed values to standard columns
       cSumstats[!is.finite(EFFECT) & is.finite(BETA.I),c('EFFECT','SE') :=list(BETA.I,SE.I)]
       
-      ## Set more informative FRQ from fallback FRQ if ancestry specific FRQ is 0
+      ## Set more informative FRQ from fallback FRQ if ancestry specific FRQ is 0 or NA
       if(any(colnames(cSumstats)=="FRQFB_REF")){
-        sumstats.meta[iFile,c("m_fallback_frq_ldimp")]<-nrow(cSumstats[FRQ==0,])
-        cSumstats[FRQ==0,FRQ:=FRQFB_REF]
+        sumstats.meta[iFile,c("m_fallback_frq_ldimp")]<-nrow(cSumstats[FRQ==0 | is.na(FRQ),])
+        cSumstats[FRQ==0 | is.na(FRQ),FRQ:=FRQFB_REF]
       }
       
       ## Compute Z,P,VSNP again after imputation
