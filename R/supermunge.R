@@ -22,7 +22,8 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   c.N = c("N","WEIGHT","NCOMPLETESAMPLES","TOTALSAMPLESIZE","TOTALN","TOTAL_N","N_COMPLETE_SAMPLES","N_TOTAL","N_SAMPLES","N_ANALYZED","NSAMPLES","SAMPLESIZE","SAMPLE_SIZE","TOTAL_SAMPLE_SIZE","TOTALSAMPLESIZE")
   c.N_CAS = c("N_CAS","NCASE","N_CASE","N_CASES","NCAS","NCA","NCASES","CASES","CASES_N","FRQ_A")
   c.N_CON = c("N_CON","NCONTROL","N_CONTROL","N_CONTROLS","NCON","NCO","N_CON","NCONTROLS","CONTROLS","CONTROLS_N","FRQ_U")
-  c.NEFF = c("NEFF","NEF","NEFFECTIVE","NE","NEFF_HALF")
+  c.NEFF = c("NEFF","NEF","NEFFECTIVE","NE")
+  c.NEFF_HALF = c("NEFF_HALF")
   #include FRQ_A?
   c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF","FREQ1.HAPMAP","FREQALLELE1HAPMAPCEU","FREQ.HAPMAP.CEU","FREQ.ALLELE1.HAPMAPCEU","EFFECT_ALLELE_FREQ","FREQ.A1","F_A","F_U","FREQ_A","FREQ_U","MA_FREQ","MAF_NW","FREQ_A1","A1FREQ","CODED_ALLELE_FREQUENCY","FREQ_TESTED_ALLELE","FREQ_TESTED_ALLELE_IN_HRS","EAF_HRC","EAF_UKB","EAF_EUR_UKB","FREQ_TESTED_ALLELE")
   c.CHR = c("CHR","CH","CHROMOSOME","CHROM","CHR_BUILD38","CHR_BUILD37","CHR_BUILD36","CHR_B38","CHR_B37","CHR_B36","CHR_ID","SCAFFOLD","HG19CHR","CHR.HG19","CHR_HG19","HG18CHR","CHR.HG18","CHR_HG18","CHR_BP_HG19B37","HG19CHRC","#CHROM")
@@ -70,6 +71,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   columnNames[columnNames.upper %in% c.N_CAS] <- c.N_CAS[1]
   columnNames[columnNames.upper %in% c.N_CON] <- c.N_CON[1]
   columnNames[columnNames.upper %in% c.NEFF] <- c.NEFF[1]
+  columnNames[columnNames.upper %in% c.NEFF_HALF] <- c.NEFF_HALF[1]
   
   columnNames[columnNames.upper %in% c.FRQ] <- c.FRQ[1]
   #daner FRQ
@@ -793,7 +795,11 @@ supermunge <- function(
     if(any(colnames(cSumstats)=="NEFF")) {
       cSumstats[,NEFF:=as.numeric(NEFF)]
       hasNEFF<-T
-      }
+    }
+    if(any(colnames(cSumstats)=="NEFF_HALF")) {
+      cSumstats[,NEFF_HALF:=as.numeric(NEFF_HALF)]
+      hasNEFF<-T
+    }
     cat(".")
     
     #parse SNP if needed
@@ -852,6 +858,12 @@ supermunge <- function(
       if(!any(colnames(cSumstats)=="FRQ")){
         cSumstats[,FRQ:=((FRQ_CAS * N_CAS) + (FRQ_CON * N_CON))/(N_CAS + N_CON)]
       }
+    }
+    
+    #convert NEFF_HALF to NEFF
+    if(any(colnames(cSumstats)=="NEFF_HALF")){
+      cSumstats[,NEFF:=(NEFF_HALF*2)][,NEFF_HALF:=NULL]
+      cSumstats.meta<-rbind(cSumstats.meta,list("NEFF","NEFF_HALF * 2"))
     }
     
     #Filter variants MAF<filter.maf
@@ -1741,6 +1753,7 @@ supermunge <- function(
       #use fallback values if fallback L2 present
       if(any(colnames(cSumstats.merged.snp)=="L2FB_REF")){
         cSumstats.merged.snp[is.na(L2_REF),L2_REF:=L2FB_REF/2] #times the ratio of the original sample = 1/2
+        cSumstats[is.na(L2_REF),L2_REF:=L2FB_REF/2] #set LD column for original sumstats also
       }
       
       #update from cSumstats
@@ -2045,7 +2058,7 @@ supermunge <- function(
     if("N_CON" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CON")
     if("NEFF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"NEFF")
     if("DF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"DF")
-    if("L2_REF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"L2_REF")
+    #if("L2_REF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"L2_REF")
     if("LDIMP.K" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.K")
     if("LDIMP.Q" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.Q")
     if("LDIMP.L2.SUM" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.L2.SUM")
