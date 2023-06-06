@@ -554,7 +554,7 @@ supermunge <- function(
   if(imputeFromLD & imputeFromLD.validate.q>0) cat("\nimputeFromLD.validate.q=",imputeFromLD.validate.q)
   cat("\nproduceCompositeTable=",produceCompositeTable)
   cat("\nstandardiseEffectsToExposure=",standardiseEffectsToExposure)
-  cat("\nFilters: MAF>",filter.maf,"\tINFO>",filter.info,"\tMAC>",filter.mac)
+  cat("\nFilters: MAF>",filter.maf,"\tINFO>",filter.info,"\tMAC>",filter.mac,"\tOR>",filter.or)
   if(!is.null(filter.chr)) cat("\nExclude chromosomes: ",filter.chr)
   if(length(invertEffectDirectionOn)>0) cat("\ninvertEffectDirectionOn=", paste(invertEffectDirectionOn,sep = ","))
   cat("\npathDirOutput=",pathDirOutput)
@@ -908,9 +908,9 @@ supermunge <- function(
     #Filter variants OR<filter.or
     if(!is.null(filter.or)){
       if("OR" %in% names(cSumstats)){
-        rm <- (!is.na(cSumstats$OR) & cSumstats$OR<filter.or)
+        rm <- (!is.na(cSumstats$OR) & cSumstats$OR>filter.or)
         cSumstats <- cSumstats[!rm, ]
-        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; OR <",filter.or),as.character(sum(rm))))
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; OR >",filter.or),as.character(sum(rm))))
       } else {
         cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain an OR column to apply the specified filter on.")
       }
