@@ -424,6 +424,7 @@ readFile <- function(filePath,nThreads=5){
 # standardiseEffectsToExposure=F
 # writeOutput=T
 # filter.info=NULL
+# filter.or=NULL
 # filter.maf=NULL
 # filter.mac=NULL
 # filter.mhc=NULL #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
@@ -476,6 +477,7 @@ supermunge <- function(
   standardiseEffectsToExposure=F,
   writeOutput=T,
   filter.info=NULL,
+  filter.or=NULL,
   filter.maf=NULL,
   filter.mac=NULL, #filter on minor allele count
   filter.mhc=NULL, #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
@@ -903,6 +905,17 @@ supermunge <- function(
     }
     cat(".")
     
+    #Filter variants OR<filter.or
+    if(!is.null(filter.or)){
+      if("OR" %in% names(cSumstats)){
+        rm <- (!is.na(cSumstats$OR) & cSumstats$OR<filter.or)
+        cSumstats <- cSumstats[!rm, ]
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; OR <",filter.or),as.character(sum(rm))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain an OR column to apply the specified filter on.")
+      }
+    }
+    cat(".")
     
     #lift-over to new coordinates before using coordinates
     if(!is.null(chainFilePath) & liftover[iFile] & any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
