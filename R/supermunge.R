@@ -897,8 +897,8 @@ supermunge <- function(
     }
     cat(".")
     
-    #Filter variants FRQ<filter.frq.upper
-    if(!is.null(filter.frq.lower)){
+    #Filter variants FRQ>filter.frq.upper
+    if(!is.null(filter.frq.upper)){
       if("FRQ" %in% names(cSumstats)){
         rm <- (!is.na(cSumstats$FRQ) & cSumstats$FRQ>filter.frq.upper)
         cSumstats <- cSumstats[!rm, ]
