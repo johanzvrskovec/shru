@@ -426,6 +426,8 @@ readFile <- function(filePath,nThreads=5){
 # filter.info=NULL
 # filter.or=NULL
 # filter.maf=NULL
+# filter.frq.lower=NULL
+# filter.frq.upper=NULL
 # filter.mac=NULL
 # filter.mhc=NULL #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
 # filter.region.df=NULL #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
@@ -479,6 +481,8 @@ supermunge <- function(
   filter.info=NULL,
   filter.or=NULL,
   filter.maf=NULL,
+  filter.frq.lower=NULL,
+  filter.frq.upper=NULL,
   filter.mac=NULL, #filter on minor allele count
   filter.mhc=NULL, #can be either 37 or 38 for filtering the MHC region according to either grch37 or grch38
   filter.region.df=NULL, #dataframe with columns CHR,BP1,BP2 specifying regions to be removed, due to high LD for example.
@@ -540,7 +544,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.7.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.8.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -555,6 +559,7 @@ supermunge <- function(
   cat("\nproduceCompositeTable=",produceCompositeTable)
   cat("\nstandardiseEffectsToExposure=",standardiseEffectsToExposure)
   cat("\nFilters: MAF>",filter.maf,"\tINFO>",filter.info,"\tMAC>",filter.mac,"\tOR>",filter.or)
+  cat("\nFilters: FRQ.low<",filter.frq.lower,"\tFRQ.high>",filter.frq.upper)
   if(!is.null(filter.chr)) cat("\nExclude chromosomes: ",filter.chr)
   if(length(invertEffectDirectionOn)>0) cat("\ninvertEffectDirectionOn=", paste(invertEffectDirectionOn,sep = ","))
   cat("\npathDirOutput=",pathDirOutput)
@@ -874,6 +879,30 @@ supermunge <- function(
         rm <- (!is.na(cSumstats$FRQ) & ((cSumstats$FRQ<filter.maf & cSumstats$FRQ<0.5) | (1-cSumstats$FRQ)<filter.maf))
         cSumstats <- cSumstats[!rm, ]
         cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; MAF <",filter.maf),as.character(sum(rm))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
+      }
+    }
+    cat(".")
+    
+    #Filter variants FRQ<filter.frq.lower
+    if(!is.null(filter.frq.lower)){
+      if("FRQ" %in% names(cSumstats)){
+        rm <- (!is.na(cSumstats$FRQ) & cSumstats$FRQ<filter.frq.lower)
+        cSumstats <- cSumstats[!rm, ]
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; FRQ <",filter.frq.lower),as.character(sum(rm))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
+      }
+    }
+    cat(".")
+    
+    #Filter variants FRQ<filter.frq.upper
+    if(!is.null(filter.frq.lower)){
+      if("FRQ" %in% names(cSumstats)){
+        rm <- (!is.na(cSumstats$FRQ) & cSumstats$FRQ>filter.frq.upper)
+        cSumstats <- cSumstats[!rm, ]
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; FRQ >",filter.frq.upper),as.character(sum(rm))))
       } else {
         cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
       }
