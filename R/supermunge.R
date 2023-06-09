@@ -544,7 +544,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.8.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.8.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -698,11 +698,11 @@ supermunge <- function(
       if(!is.null(list_df)){
         cSumstats <- rbindlist(list_df,use.names = T,fill = T)
       } else {
-        ldscores<-c()
+        list_df<-c()
         for(iDf in 1:length(filePaths)){
           cFilePath<-filePaths[iDf]
           cat(paste("\nFile:", cFilePath,"\n"))
-          ldscores[[iDf]] <- fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
+          list_df[[iDf]] <- fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
         }
         cSumstats <- rbindlist(list_df,use.names = T,fill = T)
       }
@@ -1349,26 +1349,28 @@ supermunge <- function(
       # }
       
       if(!is.null(N) & length(N)>=iFile) {
-        hasN<-T
-        if(forceN && any(colnames(cSumstats)=="N")) {
-          if(
-            abs((median(cSumstats[is.finite(N),]$N, na.rm = T)-N[iFile])/median(cSumstats[is.finite(N),]$N, na.rm = T))>0.05
-            |
-            (N[iFile]-min(cSumstats[is.finite(N),]$N, na.rm = T))/N[iFile]>0.05
-            |
-            (N[iFile]-max(cSumstats[is.finite(N),]$N, na.rm = T))/N[iFile]>0.05
-          ) cSumstats.warnings<-c(cSumstats.warnings,"Large (>5%) N discrepancies found between provided and existing N!")
-          cSumstats$N<-N[iFile]
-          cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile])))
-        } else if(any(colnames(cSumstats)=="N")){
-          cond<-is.na(cSumstats$N) | N[iFile] < cSumstats$N
-          if(sum(cond)>0) {
-            cSumstats$N<-ifelse(cond,N[iFile],cSumstats$N)
-            cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile],"for",sum(cond)," NA or > specified.")))
-          }
-        } else cSumstats[,N:=eval(N)]
-        
-        cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats[is.finite(N),]$N, na.rm = T),", ",min(cSumstats[is.finite(N),]$N, na.rm = T),", ", max(cSumstats[is.finite(N),]$N, na.rm = T))))
+        if(!is.na(N[iFile])){
+          hasN<-T
+          if(forceN && any(colnames(cSumstats)=="N")) {
+            if(
+              abs((median(cSumstats[is.finite(N),]$N, na.rm = T)-N[iFile])/median(cSumstats[is.finite(N),]$N, na.rm = T))>0.05
+              |
+              (N[iFile]-min(cSumstats[is.finite(N),]$N, na.rm = T))/N[iFile]>0.05
+              |
+              (N[iFile]-max(cSumstats[is.finite(N),]$N, na.rm = T))/N[iFile]>0.05
+            ) cSumstats.warnings<-c(cSumstats.warnings,"Large (>5%) N discrepancies found between provided and existing N!")
+            cSumstats$N<-N[iFile]
+            cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile])))
+          } else if(any(colnames(cSumstats)=="N")){
+            cond<-is.na(cSumstats$N) | N[iFile] < cSumstats$N
+            if(sum(cond)>0) {
+              cSumstats$N<-ifelse(cond,N[iFile],cSumstats$N)
+              cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile],"for",sum(cond)," NA or > specified.")))
+            }
+          } else cSumstats[,N:=eval(N)]
+          
+          cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats[is.finite(N),]$N, na.rm = T),", ",min(cSumstats[is.finite(N),]$N, na.rm = T),", ", max(cSumstats[is.finite(N),]$N, na.rm = T))))
+        }
       } else if(!(any(colnames(cSumstats)=="N"))) {
         hasN<-F
         if(any(colnames(cSumstats)=="NEFF")){
