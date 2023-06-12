@@ -318,16 +318,18 @@ readFile <- function(filePath,nThreads=5){
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
 # #single test with hard coded values
-# filePaths = p$sumstats.sel["BIPO02",]$cleanedpath
+# filePaths = filePaths = c(file.path(p$folderpath.data,"gwas_sumstats","raw","Retro_prospective_meta_childhoodmaltreatment.txt.gz"))
 # #filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.mix.l2.jz2023.gz" #test with new refpanel
 # #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = "BIPO02"
+# traitNames = "CHMT"
 # N = p$sumstats.sel["BIPO02",]$n_case_total
 # pathDirOutput = p$folderpath.data.sumstats.munged
 # #test = T
+# filter.maf = 0.001
+# filter.info = 0.6
 
 
 # 
@@ -544,7 +546,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.8.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.9.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -872,79 +874,6 @@ supermunge <- function(
       cSumstats[,NEFF:=(NEFF_HALF*2)][,NEFF_HALF:=NULL]
       cSumstats.meta<-rbind(cSumstats.meta,list("NEFF","NEFF_HALF * 2"))
     }
-    
-    #Filter variants MAF<filter.maf
-    if(!is.null(filter.maf)){
-      if("FRQ" %in% names(cSumstats)){
-        rm <- (!is.na(cSumstats$FRQ) & ((cSumstats$FRQ<filter.maf & cSumstats$FRQ<0.5) | (1-cSumstats$FRQ)<filter.maf))
-        cSumstats <- cSumstats[!rm, ]
-        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; MAF <",filter.maf),as.character(sum(rm))))
-      } else {
-        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
-      }
-    }
-    cat(".")
-    
-    #Filter variants FRQ<filter.frq.lower
-    if(!is.null(filter.frq.lower)){
-      if("FRQ" %in% names(cSumstats)){
-        rm <- (!is.na(cSumstats$FRQ) & cSumstats$FRQ<filter.frq.lower)
-        cSumstats <- cSumstats[!rm, ]
-        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; FRQ <",filter.frq.lower),as.character(sum(rm))))
-      } else {
-        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
-      }
-    }
-    cat(".")
-    
-    #Filter variants FRQ>filter.frq.upper
-    if(!is.null(filter.frq.upper)){
-      if("FRQ" %in% names(cSumstats)){
-        rm <- (!is.na(cSumstats$FRQ) & cSumstats$FRQ>filter.frq.upper)
-        cSumstats <- cSumstats[!rm, ]
-        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; FRQ >",filter.frq.upper),as.character(sum(rm))))
-      } else {
-        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
-      }
-    }
-    cat(".")
-    
-    #Filter variants MAC<filter.mac
-    if(!is.null(filter.mac)){
-      if("FRQ" %in% names(cSumstats) & "N" %in% names(cSumstats)){
-        tempMAC<-ifelse(cSumstats$FRQ<0.5,cSumstats$FRQ*cSumstats$N,(1-cSumstats$FRQ)*cSumstats$N)
-        rm <- (!is.na(cSumstats$FRQ) & !is.na(cSumstats$N) & tempMAC<filter.mac)
-        cSumstats <- cSumstats[!rm, ]
-        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; MAC <",filter.maf),as.character(sum(rm))))
-      } else {
-        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column (together with an N column) to apply the specified filter on.")
-      }
-    }
-    cat(".")
-    
-    #Filter variants INFO<filter.info
-    if(!is.null(filter.info)){
-      if("INFO" %in% names(cSumstats)){
-        rm <- (!is.na(cSumstats$INFO) & cSumstats$INFO<filter.info)
-        cSumstats <- cSumstats[!rm, ]
-        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; INFO <",filter.info),as.character(sum(rm))))
-      } else {
-        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain an INFO column to apply the specified filter on.")
-      }
-    }
-    cat(".")
-    
-    #Filter variants OR<filter.or
-    if(!is.null(filter.or)){
-      if("OR" %in% names(cSumstats)){
-        rm <- (!is.na(cSumstats$OR) & cSumstats$OR>filter.or)
-        cSumstats <- cSumstats[!rm, ]
-        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; OR >",filter.or),as.character(sum(rm))))
-      } else {
-        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain an OR column to apply the specified filter on.")
-      }
-    }
-    cat(".")
     
     #lift-over to new coordinates before using coordinates
     if(!is.null(chainFilePath) & liftover[iFile] & any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
@@ -1444,7 +1373,7 @@ supermunge <- function(
       cat(".")
       
       ## Compute variance of individual variant effects according to 2pq
-      cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
+      if(any(colnames(cSumstats)=="FRQ")) cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
       cat(".")
       
       
@@ -1477,7 +1406,7 @@ supermunge <- function(
       ## adapted from the GenomicSEM sumstats-function
       
       #produce the unstandardised regression beta from Z if no EFFECT present
-      if(any(colnames(cSumstats)=="Z") && !any(colnames(cSumstats)=="EFFECT")) {
+      if(any(colnames(cSumstats)=="Z") && any(colnames(cSumstats)=="VSNP") && any(colnames(cSumstats)=="N") && !any(colnames(cSumstats)=="EFFECT")) {
         ## Compute BETA/EFFECT from Z if present
         cSumstats[,EFFECT:= Z/sqrt(N*VSNP)][,SE:=EFFECT/Z]
         cSumstats[is.na(SE),SE:=1] #explicitly set NA SE to 1
@@ -2016,27 +1945,106 @@ supermunge <- function(
     #   cSumstats.meta<-rbind(cSumstats.meta,list("N","Adjusted N to reflect uncertainty of imputed variants (LD-IMP)"))
     # }
     
-    #calculate genomic inflation factor
-    medianChisq<-median(cSumstats[is.finite(Z),]$Z^2, na.rm = T)
-    genomicInflationFactor<-medianChisq/qchisq(0.5,1)
-    sumstats.meta[iFile,c("genomicInflationFactor")]<-genomicInflationFactor
-    cSumstats.meta<-rbind(cSumstats.meta,list("Genomic inflation factor",as.character(round(genomicInflationFactor,digits = 4))))
     
-    #basic re-inflation of deflated factor GWAS (typical for latent factor GWAS), using careful interpretation of the inflation (sqrt)
-    if(GC=="reinflate" & genomicInflationFactor<0.9){
-      meanChisq<-mean(cSumstats$Z^2) #using mean instead of median because it seems to be more stable than the median of deflated associations
-      genomicInflationFactor<-meanChisq/qchisq(0.5,1)
-      if(genomicInflationFactor<1){
-        cSumstats[,Z:=Z/sqrt(genomicInflationFactor)]
-        cSumstats[,EFFECT:=SE*Z] #attribute all of the re-inflation to the EFFECT
-        #cSumstats[,SE:=EFFECT/Z] #attribute all of the re-inflation to the SE
-        cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
-        sumstats.meta[iFile,c("GC_reinflate")]<-T
-        cSumstats.meta<-rbind(cSumstats.meta,list("GC","re-inflated"))
-        medianChisq<-median(cSumstats$Z^2)
-        genomicInflationFactor<-medianChisq/qchisq(0.5,1)
-        cSumstats.meta<-rbind(cSumstats.meta,list("Genomic inflation factor 2",as.character(round(genomicInflationFactor,digits = 4))))
+    #Filter variants MAF<filter.maf
+    if(!is.null(filter.maf)){
+      if("FRQ" %in% names(cSumstats)){
+        rm <- (!is.na(cSumstats$FRQ) & ((cSumstats$FRQ<filter.maf & cSumstats$FRQ<0.5) | (1-cSumstats$FRQ)<filter.maf))
+        cSumstats <- cSumstats[!rm, ]
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; MAF <",filter.maf),as.character(sum(rm))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
       }
+    }
+    cat(".")
+    
+    #Filter variants FRQ<filter.frq.lower
+    if(!is.null(filter.frq.lower)){
+      if("FRQ" %in% names(cSumstats)){
+        rm <- (!is.na(cSumstats$FRQ) & cSumstats$FRQ<filter.frq.lower)
+        cSumstats <- cSumstats[!rm, ]
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; FRQ <",filter.frq.lower),as.character(sum(rm))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
+      }
+    }
+    cat(".")
+    
+    #Filter variants FRQ>filter.frq.upper
+    if(!is.null(filter.frq.upper)){
+      if("FRQ" %in% names(cSumstats)){
+        rm <- (!is.na(cSumstats$FRQ) & cSumstats$FRQ>filter.frq.upper)
+        cSumstats <- cSumstats[!rm, ]
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; FRQ >",filter.frq.upper),as.character(sum(rm))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
+      }
+    }
+    cat(".")
+    
+    #Filter variants MAC<filter.mac
+    if(!is.null(filter.mac)){
+      if("FRQ" %in% names(cSumstats) & "N" %in% names(cSumstats)){
+        tempMAC<-ifelse(cSumstats$FRQ<0.5,cSumstats$FRQ*cSumstats$N,(1-cSumstats$FRQ)*cSumstats$N)
+        rm <- (!is.na(cSumstats$FRQ) & !is.na(cSumstats$N) & tempMAC<filter.mac)
+        cSumstats <- cSumstats[!rm, ]
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; MAC <",filter.maf),as.character(sum(rm))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain a FRQ or MAF column (together with an N column) to apply the specified filter on.")
+      }
+    }
+    cat(".")
+    
+    #Filter variants INFO<filter.info
+    if(!is.null(filter.info)){
+      if("INFO" %in% names(cSumstats)){
+        rm <- (!is.na(cSumstats$INFO) & cSumstats$INFO<filter.info)
+        cSumstats <- cSumstats[!rm, ]
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; INFO <",filter.info),as.character(sum(rm))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain an INFO column to apply the specified filter on.")
+      }
+    }
+    cat(".")
+    
+    #Filter variants OR<filter.or
+    if(!is.null(filter.or)){
+      if("OR" %in% names(cSumstats)){
+        rm <- (!is.na(cSumstats$OR) & cSumstats$OR>filter.or)
+        cSumstats <- cSumstats[!rm, ]
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Removed variants; OR >",filter.or),as.character(sum(rm))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"The dataset does not contain an OR column to apply the specified filter on.")
+      }
+    }
+    cat(".")
+    
+    
+    if(any(colnames(cSumstats)=="Z")){
+      #calculate genomic inflation factor
+      medianChisq<-median(cSumstats[is.finite(Z),]$Z^2, na.rm = T)
+      genomicInflationFactor<-medianChisq/qchisq(0.5,1)
+      sumstats.meta[iFile,c("genomicInflationFactor")]<-genomicInflationFactor
+      cSumstats.meta<-rbind(cSumstats.meta,list("Genomic inflation factor",as.character(round(genomicInflationFactor,digits = 4))))
+      
+      #basic re-inflation of deflated factor GWAS (typical for latent factor GWAS), using careful interpretation of the inflation (sqrt)
+      if(GC=="reinflate" & genomicInflationFactor<0.9){
+        meanChisq<-mean(cSumstats$Z^2) #using mean instead of median because it seems to be more stable than the median of deflated associations
+        genomicInflationFactor<-meanChisq/qchisq(0.5,1)
+        if(genomicInflationFactor<1){
+          cSumstats[,Z:=Z/sqrt(genomicInflationFactor)]
+          cSumstats[,EFFECT:=SE*Z] #attribute all of the re-inflation to the EFFECT
+          #cSumstats[,SE:=EFFECT/Z] #attribute all of the re-inflation to the SE
+          cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
+          sumstats.meta[iFile,c("GC_reinflate")]<-T
+          cSumstats.meta<-rbind(cSumstats.meta,list("GC","re-inflated"))
+          medianChisq<-median(cSumstats$Z^2)
+          genomicInflationFactor<-medianChisq/qchisq(0.5,1)
+          cSumstats.meta<-rbind(cSumstats.meta,list("Genomic inflation factor 2",as.character(round(genomicInflationFactor,digits = 4))))
+        }
+      }
+    } else {
+      cSumstats.warnings<-c(cSumstats.warnings,"The dataset does still not contain a Z column after any processing done. Genomic inflation and re-inflation tasks were not done.")
     }
     
     #Calculate Effective Sample Size as advised from from the Genomic SEM Wiki
@@ -2080,7 +2088,7 @@ supermunge <- function(
     }
     
     #NA values check
-    if(any(is.na(cSumstats))) cSumstats.warnings<-c(cSumstats.warnings,"\nNA values detected among results!\n")
+    if(any(is.na(cSumstats))) cSumstats.warnings<-c(cSumstats.warnings,"\nNA values detected among results.\n")
     
     # output columns
     output.colnames<- c("SNP")
