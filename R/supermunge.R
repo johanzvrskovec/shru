@@ -331,6 +331,21 @@ readFile <- function(filePath,nThreads=5){
 # filter.maf = 0.001
 # filter.info = 0.6
 
+# #single test with hard coded values - lists
+# filePaths = list(
+#   chmt=file.path(p$folderpath.data,"gwas_sumstats","raw","Retro_prospective_meta_childhoodmaltreatment.txt.gz"),apd=file.path(p$folderpath.data,"gwas_sumstats","raw","All_PsychiatricDisorders_MetaAnalysis2.txt"))
+# #filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
+# ##refFilePath = p$filepath.SNPReference.1kg
+# refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/combined.hm3_1kg.snplist.vanilla.jz2020.gz"
+# #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
+# #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
+# traitNames = c("CHMT","APD")
+# #N = p$sumstats.sel["BIPO02",]$n_case_total
+# pathDirOutput = p$folderpath.data.sumstats.munged
+# #test = T
+# filter.maf = 0.001
+# filter.info = 0.6
+
 
 # 
 #test with settings from analysis script
@@ -546,7 +561,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.9.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.9.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -702,7 +717,7 @@ supermunge <- function(
       } else {
         list_df<-c()
         for(iDf in 1:length(filePaths)){
-          cFilePath<-filePaths[iDf]
+          cFilePath<-filePaths[[iDf]]
           cat(paste("\nFile:", cFilePath,"\n"))
           list_df[[iDf]] <- fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
         }
@@ -713,7 +728,7 @@ supermunge <- function(
         cSumstats <- list_df[[iFile]]
         setDT(as.data.frame(cSumstats)) #in case the provided data is not in DT format
       } else {
-        cFilePath<-filePaths[iFile]
+        cFilePath<-filePaths[[iFile]]
         cat(paste("\nFile:", cFilePath,"\n"))
         cSumstats<-fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
         #cSumstats <- read.table(cFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
@@ -1449,6 +1464,7 @@ supermunge <- function(
         cat(".")
         
         ## Determine effect SE type, and standardise to log scale SE if necessary
+        sumstats.meta[iFile,c("se_type")]<-"unknown" #fallback
         if(any(colnames(cSumstats)=="SE") && any(colnames(cSumstats)=="P")){
           cSumstats[,P.SEtest:=pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4] #Effect is now in log-scale
           if(sum(cSumstats$P.SEtest.is.same.scale,na.rm = T)<0.75*nrow(cSumstats)){
