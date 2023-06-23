@@ -318,13 +318,13 @@ readFile <- function(filePath,nThreads=5){
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
 # #single test with hard coded values
-# filePaths = filePaths = c(file.path(p$folderpath.data,"gwas_sumstats","raw","OUD_stringent.EUR.MVP.DrugAlcDep2021.txt"))
+# filePaths = filePaths = c(file.path(p$folderpath.data,"gwas_sumstats","raw","CUD_EUR_full_public_11.14.2020"))
 # #filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.mix.l2.jz2023.gz" #test with new refpanel
 # #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = "OUD"
+# traitNames = "CUD"
 # #N = p$sumstats.sel["BIPO02",]$n_case_total
 # pathDirOutput = p$folderpath.data.sumstats.munged
 # #test = T
@@ -1311,7 +1311,7 @@ supermunge <- function(
               cSumstats$N<-ifelse(cond,N[iFile],cSumstats$N)
               cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile],"for",sum(cond)," NA or > specified.")))
             }
-          } else cSumstats[,N:=eval(N)]
+          } else cSumstats[,N:=eval(N[iFile])]
           
           cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats[is.finite(N),]$N, na.rm = T),", ",min(cSumstats[is.finite(N),]$N, na.rm = T),", ", max(cSumstats[is.finite(N),]$N, na.rm = T))))
         }
