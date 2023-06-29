@@ -318,17 +318,18 @@ readFile <- function(filePath,nThreads=5){
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
 # #single test with hard coded values
-# filePaths = filePaths = c(file.path(p$folderpath.data,"gwas_sumstats","raw","CUD_EUR_full_public_11.14.2020"))
+# filePaths = filePaths = c(file.path(p$folderpath.data,"gwas_sumstats","raw","ADGC_IGAP_AAO_allchr_assoc_meta_p-value_only.txt"))
 # #filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
+# refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/combined.hm3_1kg.snplist.vanilla.jz2020.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.mix.l2.jz2023.gz" #test with new refpanel
 # #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = "CUD"
+# traitNames = "ALZHTEST"
 # #N = p$sumstats.sel["BIPO02",]$n_case_total
 # pathDirOutput = p$folderpath.data.sumstats.munged
 # #test = T
-# filter.maf = 0.001
+# filter.maf = 0.01
 # filter.info = 0.6
 
 # #single test with hard coded values - lists
@@ -561,7 +562,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.9.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.9.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1146,9 +1147,12 @@ supermunge <- function(
         
         #Join with reference on genetic coordinates
         cSumstats.merged.pos<-NULL
-        if(any(colnames(cSumstats)=="CHR") && any(colnames(cSumstats)=="BP") && any(colnames(ref)=="CHR_REF") && any(colnames(ref)=="BP_REF") && any(colnames(cSumstats)=="A1") && any(colnames(ref)=="A1_REF") && any(colnames(cSumstats)=="A2") && any(colnames(ref)=="A2_REF")) {
+        if(any(colnames(cSumstats)=="CHR") && any(colnames(cSumstats)=="BP") && any(colnames(ref)=="CHR") && any(colnames(ref)=="BP") && any(colnames(cSumstats)=="A1") && any(colnames(ref)=="A1") && any(colnames(cSumstats)=="A2") && any(colnames(ref)=="A2")) {
           #Join with reference on position rather than rsID
-          cSumstats.merged.pos<-ref[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP'), nomatch=0]
+          cSumstats.merged.pos<-ref
+          colnames(cSumstats.merged.pos)<-paste0(ref.colnames$std,"_REF")
+          setkeyv(cSumstats.merged.pos, cols = paste0(key(ref),"_REF"))
+          cSumstats.merged.pos<-cSumstats.merged.pos[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP'), nomatch=0]
           
           #replace missing columns
           cSumstats.merged.pos[,CHR:=CHR_REF]
