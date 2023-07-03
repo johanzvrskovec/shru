@@ -562,7 +562,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.9.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.9.3\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1209,7 +1209,7 @@ supermunge <- function(
         
         
         ##Synchronise SNP,CHR,BP,FRQ with reference
-        if(harmoniseBPToReference) cSumstats[,BP:=BP_REF]
+        if(harmoniseBPToReference & any(colnames(cSumstats)=="BP_REF")) cSumstats[,BP:=BP_REF]
         
         ## Add in chr and bp from ref if not present in datasets
         if(any(colnames(cSumstats)=="CHR")){
