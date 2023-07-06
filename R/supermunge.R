@@ -562,7 +562,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.9.3\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.10.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1105,15 +1105,11 @@ supermunge <- function(
       cat(".")
       
       ##Alleles, deal with indels
-      if(keepIndel == T){
-        #we already formatted these earlier
-        # cSumstats$A1 <- as.character(toupper(cSumstats$A1))
-        # cSumstats$A2 <- as.character(toupper(cSumstats$A2))
-      } else if(keepIndel == F){
-        cSumstats$A1 <- as.character(cSumstats$A1, c("A", "C", "G", "T"))
-        cSumstats$A2 <- as.character(cSumstats$A2, c("A", "C", "G", "T"))
-        cSumstats.meta<-rbind(cSumstats.meta,list("Discarded indels (A1)",as.character(count(is.na(cSumstats$A1)))))
-        cSumstats.meta<-rbind(cSumstats.meta,list("Discarded indels (A2)",as.character(count(is.na(cSumstats$A2)))))
+      if(keepIndel == F){
+        cSumstats.n<-nrow(cSumstats)
+        cSumstats<-cSumstats[!is.na(A1) & (A1=="A" | A1=="T" | A1=="G" | A1=="C"),]
+        cSumstats<-cSumstats[!is.na(A2) & (A2=="A" | A2=="T" | A2=="G" | A2=="C"),]
+        cSumstats.meta<-rbind(cSumstats.meta,list("Discarded indels",as.character(cSumstats.n-nrow(cSumstats))))
       }
       cat(".")
       
@@ -1133,6 +1129,25 @@ supermunge <- function(
         cSumstats.merged.snp<-cSumstats.merged.snp[cSumstats, on=c(SNP_REF="SNP"), nomatch=0]
         #replace missing columns
         cSumstats.merged.snp[,SNP:=SNP_REF][,SNP_REF:=NULL]
+        
+        #Join with reference on reverse SNP (SNPR)
+        cSumstats.merged.snpr<-NULL
+        if(any(colnames(cSumstats)=="SNP") && any(colnames(ref)=="SNPR")) {
+          cSumstats.merged.snpr<-ref
+          colnames(cSumstats.merged.snpr)<-paste0(ref.colnames$std,"_REF")
+          setkeyv(cSumstats.merged.snpr, cols = paste0(key(ref),"_REF"))
+          cSumstats.merged.snpr<-cSumstats.merged.snpr[cSumstats, on=c(SNPR_REF='SNP'), nomatch=0]
+          
+          #replace missing columns
+          cSumstats.merged.snpr[,SNP:=SNP_REF][,SNP_REF:=NULL]
+          
+          #merge merged datasets
+          cSumstats.merged.snpr<-cSumstats.merged.snpr[!(cSumstats.merged.snpr$SNP_REF %in% cSumstats.merged.snp$SNP_REF),]
+          cSumstats.merged.snp<-rbindlist(list(cSumstats.merged.snp,cSumstats.merged.snpr), use.names=T, fill = T)
+          cSumstats.meta<-rbind(cSumstats.meta,list("Salvaged SNPs by reverse SNP",as.character(nrow(cSumstats.merged.snpr))))
+          cSumstats.merged.snpr<-NULL
+        }
+        cat(".")
         
         cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; rsID not in ref",as.character(cSumstats.n-nrow(cSumstats.merged.snp))))
         cat(".")

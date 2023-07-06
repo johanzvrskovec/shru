@@ -37,7 +37,8 @@ plot.manhattan.custom<-function(
     maxNLogP=24,
     pointColorValuesVector = rep(c("grey","#66CCCC"),23),
     y_limits=NULL,
-    var="P" #or "BETA" or "SE"
+    var="P", #or "BETA" or "SE"
+    theme.color=list(contrastLight1="#66CCCC",contrastLight2="#FFCC66",contrastDark1="#2D2D2D",contrastDark2="#CC99CC")
     ){
   #df<-cSumstats
   
