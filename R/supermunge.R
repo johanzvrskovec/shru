@@ -2121,8 +2121,7 @@ supermunge <- function(
       ##https://doi.org/10.1016/j.biopsych.2022.05.029
       if(!hasNEFF) cSumstats[,NEFF:=4/(VSNP*(SE^2))] #==(Z/EFFECT)^2)/VSNP
       
-      maxN<-N[iFile]
-      if(is.null(maxN)) maxN<-max(cSumstats[is.finite(N),]$N,na.rm = T)
+      maxN<-max(cSumstats[is.finite(N),]$N,na.rm = T)
       
       cSumstats[,NEFF_CAPPED:=shru::clipValues(NEFF,max = 1.1*eval(maxN), min = 0.5*eval(maxN))]
       cSumstats.meta <- rbind(
