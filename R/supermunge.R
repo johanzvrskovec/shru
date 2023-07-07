@@ -2115,7 +2115,10 @@ supermunge <- function(
             digits = 0))
         )
       )
-      if(!hasN) cSumstats[,N:=NEXP]
+      if(!hasN) {
+          cSumstats[,N:=NEXP]
+          cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEXP"))
+        }
       
       
       ##https://doi.org/10.1016/j.biopsych.2022.05.029
