@@ -313,21 +313,26 @@ readFile <- function(filePath,nThreads=5){
   return(data.table::fread(file = filePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F))
 }
 
+#for tests
+# library(R.utils)
+# library(data.table)
+# library(readr)
+
+
 #test
 # list_df=list(highld=p$highld_b37)
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
-# #single test with hard coded values
-# filePaths = filePaths = c(file.path(p$folderpath.data,"gwas_sumstats","raw","ADGC_IGAP_AAO_allchr_assoc_meta_p-value_only.txt"))
-# #filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
-# refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/combined.hm3_1kg.snplist.vanilla.jz2020.gz"
+#single test with hard coded values
+# filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
+# #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/combined.hm3_1kg.snplist.vanilla.jz2020.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
-# #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.mix.l2.jz2023.gz" #test with new refpanel
+# refFilePath = "../data/variant_lists/hc1kgp3.b38.mix.l2.jz2023.gz" #test with new refpanel
 # #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = "ALZHTEST"
+# traitNames = "BMI"
 # #N = p$sumstats.sel["BIPO02",]$n_case_total
-# pathDirOutput = p$folderpath.data.sumstats.munged
+# pathDirOutput = "../data/gwas_sumstats/munged_1kg_eur_supermunge"
 # #test = T
 # filter.maf = 0.01
 # filter.info = 0.6
@@ -752,7 +757,7 @@ supermunge <- function(
     cat(".")
     
     # Give sumstats new standardised column names
-    cSumstats.names <- stdGwasColumnNames(columnNames = colnames(cSumstats), stopOnMissingEssentialColumns = stopOnMissingEssentialColumns, ancestrySetting = ancestrySetting[iFile])
+    cSumstats.names <- shru::stdGwasColumnNames(columnNames = colnames(cSumstats), stopOnMissingEssentialColumns = stopOnMissingEssentialColumns, ancestrySetting = ancestrySetting[iFile])
     cSumstats.names.string <-""
     #for(iName in 1:length(cSumstats.names$orig)){
       cSumstats.names.string<-paste(paste(cSumstats.names$orig,"\t->",cSumstats.names$std), collapse = '\n')
@@ -829,7 +834,7 @@ supermunge <- function(
     
     #parse SNP if needed
     if(parse){
-      cSumstats$SNP<-parseSNPColumnAsRSNumber(cSumstats$SNP) #this has to be run on the whole vector of SNP's as it contains tests for parsing in certain ways!
+      cSumstats$SNP<-shru::parseSNPColumnAsRSNumber(cSumstats$SNP) #this has to be run on the whole vector of SNP's as it contains tests for parsing in certain ways!
       cat(".")
     }
     
@@ -838,7 +843,7 @@ supermunge <- function(
     
     if(any(colnames(cSumstats)=="CHR")) {
       if(parse) { 
-        cSumstats$CHR<-parseCHRColumn(cSumstats$CHR)
+        cSumstats$CHR<-shru::parseCHRColumn(cSumstats$CHR)
         } else {
         cSumstats[,CHR:=as.integer(CHR)]
         }
@@ -891,20 +896,25 @@ supermunge <- function(
       cSumstats.meta<-rbind(cSumstats.meta,list("NEFF","NEFF_HALF * 2"))
     }
     
+    
+    #check if the file is the same build as the reference if present
+    if(!is.null(ref) & any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
+      cSumstatsBuildCheck<-cSumstats
+      cSumstatsBuildCheck[ref, on=c(CHR='CHR' , BP='BP'), c('buildcheck') :=list(T)] #SNP is not included here as matches on coordinate is generally capturing the same SNPs, and we do not have to consider the reverse SNP
+      cSumstatsBuildCheck.n <- nrow(cSumstatsBuildCheck[buildcheck==T,])
+      cSumstats.n <- nrow(cSumstats)
+      cSumstats.meta <- rbind(cSumstats.meta,list("Reference overlap",as.character(round(cSumstatsBuildCheck.n/cSumstats.n,2))))
+      rm(cSumstatsBuildCheck)
+    }
+    cat(".")
+    
     #lift-over to new coordinates before using coordinates
     if(!is.null(chainFilePath) & liftover[iFile] & any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
       #chain file format reference: http://genome.ucsc.edu/goldenPath/help/chain.html
       
-      #check if the file is the same build as the reference if present
       if(!is.null(ref)){
-        cSumstatsBuildCheck<-cSumstats
-        cSumstatsBuildCheck[ref, on=c(CHR='CHR' , BP='BP'), c('buildcheck') :=list(T)]
-        if(nrow(cSumstatsBuildCheck[buildcheck==T,])>0.75*nrow(cSumstats)){
-          cSumstats.warnings<-c(cSumstats.warnings,paste0("Dataset has more than a 75% overlap in genetic coordinates with the used reference variants (",nrow(cSumstatsBuildCheck[buildcheck==T,])," rows). Liftover may be unnecessary for this dataset."))
-        }
-        rm(cSumstatsBuildCheck)
+        if(cSumstatsBuildCheck.n/cSumstats.n>0.75) cSumstats.warnings<-c(cSumstats.warnings,paste0("Dataset an overlap of more than 75% in genetic coordinates with the used reference variants. Liftover may be unnecessary for this dataset."))
       }
-      cat(".")
       
       chain <- fread(file = chainFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8", header = F, check.names = T, fill = T, blank.lines.skip = T, data.table = T,showProgress = F, nThread=nThreads)
       
@@ -1121,11 +1131,12 @@ supermunge <- function(
         
         #Join with reference on SNP rsID, only keeping SNPs with rsIDs part of the reference
         #https://stackoverflow.com/questions/34644707/left-outer-join-with-data-table-with-different-names-for-key-variables/34645997#34645997
-        ref.colnames<-stdGwasColumnNames(colnames(ref),stopOnMissingEssentialColumns = NULL,ancestrySetting = ancestrySetting[iFile])
+        ref.colnames<-shru::stdGwasColumnNames(colnames(ref),stopOnMissingEssentialColumns = NULL,ancestrySetting = ancestrySetting[iFile])
         cSumstats.merged.snp<-ref
         colnames(cSumstats.merged.snp)<-paste0(ref.colnames$std,"_REF")
         setkeyv(cSumstats.merged.snp, cols = paste0(key(ref),"_REF"))
         
+        cSumstats.merged.snp<-cSumstats.merged.snp[!is.na(SNP_REF),]
         cSumstats.merged.snp<-cSumstats.merged.snp[cSumstats, on=c(SNP_REF="SNP"), nomatch=0]
         #replace missing columns
         cSumstats.merged.snp[,SNP:=SNP_REF][,SNP_REF:=NULL]
@@ -1135,7 +1146,8 @@ supermunge <- function(
         if(any(colnames(cSumstats)=="SNP") && any(colnames(ref)=="SNPR")) {
           cSumstats.merged.snpr<-ref
           colnames(cSumstats.merged.snpr)<-paste0(ref.colnames$std,"_REF")
-          setkeyv(cSumstats.merged.snpr, cols = paste0(key(ref),"_REF"))
+          setkeyv(cSumstats.merged.snpr, cols = paste0("SNPR_REF"))
+          cSumstats.merged.snpr<-cSumstats.merged.snpr[!is.na(SNPR_REF),]
           cSumstats.merged.snpr<-cSumstats.merged.snpr[cSumstats, on=c(SNPR_REF='SNP'), nomatch=0]
           
           #replace missing columns
@@ -2083,27 +2095,49 @@ supermunge <- function(
     }
     
     #Calculate Effective Sample Size as advised from from the Genomic SEM Wiki
-    ##citations
-    ## https://doi.org/10.1016/j.biopsych.2022.05.029
-    ## https://doi.org/10.1016/j.xgen.2022.100140
+    
     hasNEFF <- any(colnames(cSumstats)=="NEFF")
-    if(!hasNEFF & any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="FRQ")){
+    if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="FRQ")){
       
-      cSumstats[,NEFF:=round(1/(VSNP*(SE^2)),digits = 0)] #==(Z/EFFECT)^2)/VSNP
+      
+      ## https://doi.org/10.1016/j.biopsych.2022.05.029
+      ## https://doi.org/10.1016/j.xgen.2022.100140
+      cSumstats[,NEXP:=round(1/(VSNP*(SE^2)),digits = 0)] #==(Z/EFFECT)^2)/VSNP
       cSumstats.meta <- rbind(
         cSumstats.meta,
-        list("NEFF (mean total, for MAF<.4, >.1 if available)",paste0(
+        list("NEXP (mean total, for MAF<.4, >.1 if available)",paste0(
           round(
             mean(
               ifelse(any(colnames(cSumstats)=="MAF"),
-                     cSumstats[MAF<0.4&MAF>0.1&is.finite(NEFF),NEFF],
-                     cSumstats[is.finite(NEFF),]$NEFF),
-            na.rm=T),
-          digits = 0))
-          )
+                     cSumstats[MAF<0.4&MAF>0.1&is.finite(NEXP),NEXP],
+                     cSumstats[is.finite(NEXP),]$NEXP),
+              na.rm=T),
+            digits = 0))
         )
+      )
+      if(!hasN) cSumstats[,N:=NEXP]
+      
+      
+      ##https://doi.org/10.1016/j.biopsych.2022.05.029
+      if(!hasNEFF) cSumstats[,NEFF:=4/(VSNP*(SE^2))] #==(Z/EFFECT)^2)/VSNP
+      
+      maxN<-N[iFile]
+      if(is.null(maxN)) maxN<-max(cSumstats[is.finite(N),]$N,na.rm = T)
+      
+      cSumstats[,NEFF_CAPPED:=shru::clipValues(NEFF,max = 1.1*eval(maxN), min = 0.5*eval(maxN))]
+      cSumstats.meta <- rbind(
+        cSumstats.meta,
+        list("NEFF (mean total, capped at 1.1 and 0.5 N)",paste0(
+          round(
+            mean(
+              cSumstats[is.finite(NEFF_CAPPED),]$NEFF_CAPPED,
+              na.rm=T),
+            digits = 0))
+        )
+      )
+      cSumstats[,NEFF_CAPPED:=NULL]
+      
     }
-    if(hasNEFF & !hasN) cSumstats[,N:=NEFF]
     cat(".")
     
     ## Check effect value credibility
