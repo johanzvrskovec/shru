@@ -324,10 +324,11 @@ readFile <- function(filePath,nThreads=5){
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
 #single test with hard coded values
-# filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
+# filePaths = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/gwas_sumstats/raw/230608_pgced3_meta_to_share/daner_AN.meta.gz"
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/combined.hm3_1kg.snplist.vanilla.jz2020.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
-# refFilePath = "../data/variant_lists/hc1kgp3.b38.mix.l2.jz2023.gz" #test with new refpanel
+# refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/w_hm3.snplist.flaskapp2018"
+# #refFilePath = "../data/variant_lists/hc1kgp3.b38.mix.l2.jz2023.gz" #test with new refpanel
 # #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
 # traitNames = "BMI"
@@ -567,7 +568,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.10.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.10.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -898,7 +899,7 @@ supermunge <- function(
     
     
     #check if the file is the same build as the reference if present
-    if(!is.null(ref) & any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
+    if(!is.null(ref) & any(colnames(ref)=="CHR") & any(colnames(ref)=="BP") & any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
       cSumstatsBuildCheck<-cSumstats
       cSumstatsBuildCheck[ref, on=c(CHR='CHR' , BP='BP'), c('buildcheck') :=list(T)] #SNP is not included here as matches on coordinate is generally capturing the same SNPs, and we do not have to consider the reverse SNP
       cSumstatsBuildCheck.n <- nrow(cSumstatsBuildCheck[buildcheck==T,])
