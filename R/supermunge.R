@@ -51,8 +51,8 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   }
   
   if(any(columnNames.upper %in% c.A0)){
-    columnNames[columnNames.upper %in% c.A1] <- c.A2[1]
-    columnNames[columnNames.upper %in% c.A2] <- c.A0[1]
+    columnNames[columnNames.upper %in% c.A0] <- c.A2[1]
+    columnNames[columnNames.upper %in% c.A1] <- c.A1[1]
   } else {
     columnNames[columnNames.upper %in% c.A1] <- c.A1[1]
     columnNames[columnNames.upper %in% c.A2] <- c.A2[1]
@@ -568,7 +568,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.10.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.10.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
