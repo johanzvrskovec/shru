@@ -572,7 +572,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.10.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.11.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -2201,6 +2201,8 @@ supermunge <- function(
     if("BP" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"BP")
     if("BP2" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"BP2")
     if("FRQ" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"FRQ")
+    if("FRQ_CAS" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"FRQ_CAS")
+    if("FRQ_CON" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"FRQ_CON")
     #if("MAF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"MAF")
     if("BETA" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"BETA")
     if("SE" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"SE")
