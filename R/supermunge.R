@@ -26,7 +26,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   c.NEFF_HALF = c("NEFF_HALF")
   #include FRQ_A?
   c.FRQ = c("FRQ","MAF","AF","CEUAF","FREQ","FREQ1","EAF","FREQ1.HAPMAP","FREQALLELE1HAPMAPCEU","FREQ.HAPMAP.CEU","FREQ.ALLELE1.HAPMAPCEU","EFFECT_ALLELE_FREQ","FREQ.A1","F_A","F_U","FREQ_A","FREQ_U","MA_FREQ","MAF_NW","FREQ_A1","A1FREQ","CODED_ALLELE_FREQUENCY","FREQ_TESTED_ALLELE","FREQ_TESTED_ALLELE_IN_HRS","EAF_HRC","EAF_UKB","EAF_EUR_UKB","FREQ_TESTED_ALLELE","EFFECT_ALLELE_FREQUENCY","EFFECT.ALLELE.FREQUENCY..EAF.")
-  c.CHR = c("CHR","CH","CHROMOSOME","CHROM","CHR_BUILD38","CHR_BUILD37","CHR_BUILD36","CHR_B38","CHR_B37","CHR_B36","CHR_ID","SCAFFOLD","HG19CHR","CHR.HG19","CHR_HG19","HG18CHR","CHR.HG18","CHR_HG18","CHR_BP_HG19B37","HG19CHRC","#CHROM")
+  c.CHR = c("CHR","CH","CHROMOSOME","CHROM","CHR_BUILD38","CHR_BUILD37","CHR_BUILD36","CHR_B38","CHR_B37","CHR_B36","CHR_ID","SCAFFOLD","HG19CHR","CHR.HG19","CHR_HG19","HG18CHR","CHR.HG18","CHR_HG18","CHR_BP_HG19B37","HG19CHRC","#CHROM","X.CHROM")
   c.BP = c("BP","BP1","ORIGBP","POS","POSITION","LOCATION","PHYSPOS","GENPOS","CHR_POSITION","POS_B38","POS_BUILD38","POS_B37","POS_BUILD37","BP_HG19B37","POS_B36","POS_BUILD36","POS.HG19","POS.HG18","POS_HG19","POS_HG18","BP_HG19","BP_HG18","BP.GRCH38","BP.GRCH37","POSITION(HG19)","POSITION(HG18)","POS(B38)","POS(B37)","BASE_PAIR_LOCATION")
   c.BP2 =c("BP2")
   c.L2 =c("L2","LD")
@@ -323,15 +323,15 @@ readFile <- function(filePath,nThreads=5){
 # list_df=list(highld=p$highld_b37)
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
-#single test with hard coded values
-# filePaths = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/gwas_sumstats/raw/230608_pgced3_meta_to_share/daner_AN.meta.gz"
+# single test with hard coded values
+# filePaths = "/Users/jakz/Downloads/pgc-panic2019.vcf.tsv.gz"
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/combined.hm3_1kg.snplist.vanilla.jz2020.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/w_hm3.snplist.flaskapp2018"
 # #refFilePath = "../data/variant_lists/hc1kgp3.b38.mix.l2.jz2023.gz" #test with new refpanel
 # #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = "BMI"
+# traitNames = "ANXITEST"
 # #N = p$sumstats.sel["BIPO02",]$n_case_total
 # pathDirOutput = "../data/gwas_sumstats/munged_1kg_eur_supermunge"
 # #test = T
@@ -715,7 +715,7 @@ supermunge <- function(
     cat("\nse.logit=",se.logit[iFile])
     cat("\nprop=",prop[iFile])
     
-    cat("\nReading.")
+    
     
     #unite is untested
     if(unite){
@@ -737,10 +737,37 @@ supermunge <- function(
       } else {
         cFilePath<-filePaths[[iFile]]
         cat(paste("\nFile:", cFilePath,"\n"))
+        
         cSumstats<-fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
         #cSumstats <- read.table(cFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
+        
+        #fallback
+        if(ncol(cSumstats)<5) {
+          cat("\nFalling back on alternate file reading routine...(i.e. assuming vcf format)")
+          if(nrow(cSumstats)>1000){
+            cSumstats <- NULL
+            #cSumstats <- read.table(cFilePath,header=F, quote="\"",fill=T,na.string=c(".",NA,"NA",""),nrows = 1000, comment.char = '')
+            cSumstats <- fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F, nrows = 1000)
+            
+            commentStrings <- list("#CHROM")
+            for(iLine in 1:1000){
+              #iLine<-1
+              
+              if(substr(as.character(cSumstats[iLine,1]), start = 1, stop = nchar(commentStrings[1]))==commentStrings[1]) break
+            }
+            
+            cSumstats <- NULL
+            cSumstats <- fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F, skip = iLine)
+              
+            } else {
+              cat("\nDoes not have a fallback option that suits this file. Sorry!")
+            }
+          }
+        
       }
     }
+    
+    cat("\nReading.")
     
     
     if(test){
