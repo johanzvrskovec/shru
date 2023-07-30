@@ -328,14 +328,14 @@ readFile <- function(filePath,nThreads=5){
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
 # single test with hard coded values
-# filePaths = "/Users/jakz/Downloads/pgc-panic2019.vcf.tsv.gz"
+# filePaths = "/Users/jakz/Downloads/Cannabis_ICC_UKB_rs"
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/combined.hm3_1kg.snplist.vanilla.jz2020.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/w_hm3.snplist.flaskapp2018"
 # #refFilePath = "../data/variant_lists/hc1kgp3.b38.mix.l2.jz2023.gz" #test with new refpanel
 # #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = "ANXITEST"
+# traitNames = "CUDTEST"
 # #N = p$sumstats.sel["BIPO02",]$n_case_total
 # pathDirOutput = "../data/gwas_sumstats/munged_1kg_eur_supermunge"
 # #test = T
@@ -1272,7 +1272,7 @@ supermunge <- function(
         
         ## Add in chr and bp from ref if not present in datasets
         if(any(colnames(cSumstats)=="CHR")){
-          cSumstats[is.na(CHR),CHR:=as.integer(CHR_REF)]
+          if(any(colnames(cSumstats)=="CHR_REF")) cSumstats[is.na(CHR),CHR:=as.integer(CHR_REF)]
         } else {
           sumstats.meta[iFile,c("no_CHR")]<-T
           cSumstats.warnings<-c(cSumstats.warnings,"No CHR column present!")
