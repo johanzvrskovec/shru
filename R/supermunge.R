@@ -1611,7 +1611,7 @@ supermunge <- function(
       if(is.null(changeEffectDirectionOnAlleleFlip)) changeEffectDirectionOnAlleleFlip<-T
       
       if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="cond.invertedAlleleOrder")){
-        if(any(cSumstats$cond.invertedAlleleOrder)){
+        if(any(cSumstats$cond.invertedAlleleOrder) & any(is.finite(cSumstats$EFFECT)) & any(is.finite(cSumstats$SE))){
           sumstats.meta[iFile,c("Inverted allele order variants")]<-sum(cSumstats$cond.invertedAlleleOrder)
           
           cSumstats[,WEFFECT:=EFFECT/(SE^2)]
