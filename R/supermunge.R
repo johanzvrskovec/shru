@@ -2181,14 +2181,25 @@ supermunge <- function(
     
     ## Check effect value credibility
     if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE")) {
-      if(any(colnames(cSumstats)=="MAF")) {
-        # only for common + uncommon (non-rare) SNPs if MAF available
-        if(mean(abs(cSumstats[MAF>0.001 & is.finite(EFFECT) & is.finite(SE),EFFECT/SE]), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nNon-rare variant EFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
-      } else {
-        if(mean(abs(cSumstats[is.finite(EFFECT) & is.finite(SE),EFFECT/SE]), na.rm = T) > 10) cSumstats.warnings<-c(cSumstats.warnings,"\nOverall EFFECT/SE ratio >10 which could be a cause of misspecified/misinterpreted arguments!\n")
+      if(any(is.finite(cSumstats$EFFECT)) & any(is.finite(cSumstats$SE))){
+        if(any(colnames(cSumstats)=="MAF")) {
+          # only for common + uncommon (non-rare) SNPs if MAF available
+          if(mean(abs(cSumstats[MAF>0.001 & is.finite(EFFECT) & is.finite(SE),EFFECT/SE]), na.rm = T) > 5) cSumstats.warnings<-c(cSumstats.warnings,"\nNon-rare variant EFFECT/SE ratio >5 which could be a cause of misspecified/misinterpreted arguments!\n")
+        } else {
+          if(mean(abs(cSumstats[is.finite(EFFECT) & is.finite(SE),EFFECT/SE]), na.rm = T) > 10) cSumstats.warnings<-c(cSumstats.warnings,"\nOverall EFFECT/SE ratio >10 which could be a cause of misspecified/misinterpreted arguments!\n")
+        }
       }
     }
     cat(".")
+    
+    
+    #remove columns if they are all NA
+    if(any(colnames(cSumstats)=="EFFECT")){
+      if(!any(is.finite(cSumstats$EFFECT))) cSumstats$EFFECT<-NULL
+    }
+    if(any(colnames(cSumstats)=="SE")){
+      if(!any(is.finite(cSumstats$SE))) cSumstats$SE<-NULL
+    }
     
     #rename the ambiguous EFFECT column to BETA, as it should be a regression beta at this point
     if(any(colnames(cSumstats)=="EFFECT")){
