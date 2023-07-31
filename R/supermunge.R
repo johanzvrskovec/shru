@@ -1493,102 +1493,106 @@ supermunge <- function(
       cat(".")
       
       if(any(colnames(cSumstats)=="EFFECT")) {
-        
-        ##invert overall effect if specified
-        if(!is.null(invertEffectDirectionOn)){
-          if(any(invertEffectDirectionOn==traitNames[iFile])){
-            cSumstats[,EFFECT:=EFFECT*-1]
-            cSumstats.meta<-rbind(cSumstats.meta,list("Inverted overall effect",as.character(length(cSumstats$EFFECT))))
-          }
-          cat(".")
-        }
-        
-        ## Determine effect type, and set effect to log(EFFECT) if odds ratio
-        if(round(median(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm=T),digits = 1) == 1) {
-          ###is odds ratio
-          cSumstats[,EFFECT:=log(EFFECT)]
-          sumstats.meta[iFile,c("effect_type")]<-"OR"
-          cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","OR  =>ln(OR)"))
-          
-          if(any(colnames(cSumstats)=="BETA")) {
-            cSumstats.warnings<-c(cSumstats.warnings,"The effect format being an ODDS RATIO may not be compatible with the original variable naming scheme!")
-            sumstats.meta[iFile,c("effect_type_warning")]<-T
-          }
-          
-        } else {
-          ###is NOT odds ratio
-          sumstats.meta[iFile,c("effect_type")]<-"non_OR"
-          cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","NON OR"))
-          if(any(colnames(cSumstats)=="OR")) {
-            cSumstats.warnings<-c(cSumstats.warnings,"The effect format NOT being an ODDS RATIO may not compatible with the original variable naming scheme!")
-            sumstats.meta[iFile,c("effect_type_warning")]<-T
-          }
-        }
-        cat(".")
-        
-        ## Determine effect SE type, and standardise to log scale SE if necessary
-        sumstats.meta[iFile,c("se_type")]<-"unknown" #fallback
-        if(any(colnames(cSumstats)=="SE") && any(colnames(cSumstats)=="P")){
-          cSumstats[,P.SEtest:=pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4] #Effect is now in log-scale
-          if(sum(cSumstats$P.SEtest.is.same.scale,na.rm = T)<0.75*nrow(cSumstats)){
-            #transform to logit SE - from the Genomic SEM conversions
-            cSumstats[,SE:=(SE/exp(EFFECT))]
-            cSumstats.meta <- rbind(cSumstats.meta,list("SE","SE(OR) => SE(ln(OR))"))
-            sumstats.meta[iFile,c("se_type")]<-"OR"
-            if(sumstats.meta[iFile,c("effect_type")]!="OR"){
-              cSumstats.warnings<-c(cSumstats.warnings,"The SE was converted into the SE of a ln(OR), while the effect was not confirmed to be an OR. The effect may be a ln(OR) however, which is fine.")
-              sumstats.meta[iFile,c("se_type_warning")]<-T
+        if(any(is.finite(cSumstats$EFFECT))) {
+          ##invert overall effect if specified
+          if(!is.null(invertEffectDirectionOn)){
+            if(any(invertEffectDirectionOn==traitNames[iFile])){
+              cSumstats[,EFFECT:=EFFECT*-1]
+              cSumstats.meta<-rbind(cSumstats.meta,list("Inverted overall effect",as.character(length(cSumstats$EFFECT))))
             }
-            #cleanup
-            cSumstats[,P.SEtest:=NULL][,P.SEtest.is.same.scale:=NULL]
+            cat(".")
+          }
+          
+          ## Determine effect type, and set effect to log(EFFECT) if odds ratio
+          if(round(median(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm=T),digits = 1) == 1) {
+            ###is odds ratio
+            cSumstats[,EFFECT:=log(EFFECT)]
+            sumstats.meta[iFile,c("effect_type")]<-"OR"
+            cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","OR  =>ln(OR)"))
+            
+            if(any(colnames(cSumstats)=="BETA")) {
+              cSumstats.warnings<-c(cSumstats.warnings,"The effect format being an ODDS RATIO may not be compatible with the original variable naming scheme!")
+              sumstats.meta[iFile,c("effect_type_warning")]<-T
+            }
+            
           } else {
-            cSumstats.meta <- rbind(cSumstats.meta,list("SE","scale as effect (OLS/ln(OR)/other)"))
-            sumstats.meta[iFile,c("se_type")]<-"non_OR"
+            ###is NOT odds ratio
+            sumstats.meta[iFile,c("effect_type")]<-"non_OR"
+            cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","NON OR"))
+            if(any(colnames(cSumstats)=="OR")) {
+              cSumstats.warnings<-c(cSumstats.warnings,"The effect format NOT being an ODDS RATIO may not compatible with the original variable naming scheme!")
+              sumstats.meta[iFile,c("effect_type_warning")]<-T
+            }
           }
           cat(".")
-        }
-        
-        ## Compute Z score (standardised beta) - used for effect corrections further and is later corrected accordingly - assumes correct effects and SE
-        ## Also 
-        if(any(colnames(cSumstats)=="Z")) cSumstats[,Z_ORIG:=Z] #save original Z-score
-        if(any(colnames(cSumstats)=="P")) {
-          cSumstats[,Z:=sign(EFFECT) * sqrt(qchisq(P,1,lower=F))]
-          cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from P and sign(EFFECT)"))
-        } else if(any(colnames(cSumstats)=="SE")){
-          cSumstats[,Z:=EFFECT/SE] #is this less reliable as we cannot know the scale of SE? Should be more reliable now.
-          cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from EFFECT and SE"))
-        } else {
-          cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT calculated since no P or SE"))
-        }
-        cat(".")
-        
-        ## Inspect new and old Z-values
-        if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="Z_ORIG")){
-          if(abs(mean(cSumstats[is.finite(Z),]$Z)-mean(cSumstats[is.finite(Z_ORIG),]$Z_ORIG,na.rm=T))>1) cSumstats.warnings<-c(cSumstats.warnings,"New Z differ from old by more than 1sd!")
+          
+          ## Determine effect SE type, and standardise to log scale SE if necessary
+          sumstats.meta[iFile,c("se_type")]<-"unknown" #fallback
+          if(any(colnames(cSumstats)=="SE") && any(colnames(cSumstats)=="P")){
+            cSumstats[,P.SEtest:=pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4] #Effect is now in log-scale
+            if(sum(cSumstats$P.SEtest.is.same.scale,na.rm = T)<0.75*nrow(cSumstats)){
+              #transform to logit SE - from the Genomic SEM conversions
+              cSumstats[,SE:=(SE/exp(EFFECT))]
+              cSumstats.meta <- rbind(cSumstats.meta,list("SE","SE(OR) => SE(ln(OR))"))
+              sumstats.meta[iFile,c("se_type")]<-"OR"
+              if(sumstats.meta[iFile,c("effect_type")]!="OR"){
+                cSumstats.warnings<-c(cSumstats.warnings,"The SE was converted into the SE of a ln(OR), while the effect was not confirmed to be an OR. The effect may be a ln(OR) however, which is fine.")
+                sumstats.meta[iFile,c("se_type_warning")]<-T
+              }
+              #cleanup
+              cSumstats[,P.SEtest:=NULL][,P.SEtest.is.same.scale:=NULL]
+            } else {
+              cSumstats.meta <- rbind(cSumstats.meta,list("SE","scale as effect (OLS/ln(OR)/other)"))
+              sumstats.meta[iFile,c("se_type")]<-"non_OR"
+            }
+            cat(".")
+          }
+          
+          ## Compute Z score (standardised beta) - used for effect corrections further and is later corrected accordingly - assumes correct effects and SE
+          ## Also 
+          if(any(colnames(cSumstats)=="Z")) cSumstats[,Z_ORIG:=Z] #save original Z-score
+          if(any(colnames(cSumstats)=="P")) {
+            cSumstats[,Z:=sign(EFFECT) * sqrt(qchisq(P,1,lower=F))]
+            cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from P and sign(EFFECT)"))
+          } else if(any(colnames(cSumstats)=="SE")){
+            cSumstats[,Z:=EFFECT/SE] #is this less reliable as we cannot know the scale of SE? Should be more reliable now.
+            cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from EFFECT and SE"))
+          } else {
+            cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT calculated since no P or SE"))
+          }
           cat(".")
-        }
-        
-        #Re-compute SE!!! new
-        if(any(colnames(cSumstats)=="Z")){
-          cSumstats[,SE:=EFFECT/Z]
-          cSumstats.meta<-rbind(cSumstats.meta,list("SE","(Re-)calculated from new EFFECT and Z"))
-          cat(".")
-        }
-        
-        #Recommend parameter settings for Genomic SEM sumstats function
-        if(sumstats.meta[iFile,c("effect_type")]=="OR" | sumstats.meta[iFile,c("se_type")]=="OR"){
-          cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Probably F"))
+          
+          ## Inspect new and old Z-values
+          if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="Z_ORIG")){
+            if(abs(mean(cSumstats[is.finite(Z),]$Z)-mean(cSumstats[is.finite(Z_ORIG),]$Z_ORIG,na.rm=T))>1) cSumstats.warnings<-c(cSumstats.warnings,"New Z differ from old by more than 1sd!")
+            cat(".")
+          }
+          
+          #Re-compute SE!!! new
+          if(any(colnames(cSumstats)=="Z")){
+            cSumstats[,SE:=EFFECT/Z]
+            cSumstats.meta<-rbind(cSumstats.meta,list("SE","(Re-)calculated from new EFFECT and Z"))
+            cat(".")
+          }
+          
+          #Recommend parameter settings for Genomic SEM sumstats function
+          if(sumstats.meta[iFile,c("effect_type")]=="OR" | sumstats.meta[iFile,c("se_type")]=="OR"){
+            cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Probably F"))
+          } else {
+            cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Maybe T"))
+          }
+          
+          if(sumstats.meta[iFile,c("effect_type")]=="OR" & sumstats.meta[iFile,c("se_type")]=="OR"){
+            cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Probably F"))
+          } else {
+            cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Maybe T"))
+          }
+          
         } else {
-          cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Maybe T"))
+          #no finite EFFECT
+          cSumstats.warnings<-c(cSumstats.warnings,"No finite EFFECT value found.")
+          sumstats.meta[iFile,c("no_EFFECT")]<-T
         }
-        
-        if(sumstats.meta[iFile,c("effect_type")]=="OR" & sumstats.meta[iFile,c("se_type")]=="OR"){
-          cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Probably F"))
-        } else {
-          cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Maybe T"))
-        }
-        
-        
       } else {
         ## Does not have EFFECT
         ### Note that EFFECT is not present
@@ -1669,7 +1673,8 @@ supermunge <- function(
       if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="cond.invertedAlleleOrder") & changeEffectDirectionOnAlleleFlip) {
         if(any(cSumstats$cond.invertedAlleleOrder)) cSumstats[,EFFECT:=ifelse(cond.invertedAlleleOrder,(EFFECT*-1),EFFECT)]
         
-        meffects.new<-mean(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm = T)
+        meffects.new <- NA_real_
+        if(any(is.finite(cSumstats$EFFECT))) meffects.new<-mean(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm = T)
         
         cSumstats.meta<-rbind(cSumstats.meta,list("New effect mean",as.character(round(meffects.new,digits = 5))))
       }
