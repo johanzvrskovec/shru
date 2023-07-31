@@ -1414,39 +1414,39 @@ supermunge <- function(
       cat(".")
       
       # FRQ
+      # Dataset should have a FRQ columnn by now if reference also has FRQ
       #cond.invertedFRQ<-NULL
       if(any(colnames(cSumstats)=="FRQ")) {
-        ### Has FRQ
-        
-        #cSumstats.meta<-rbind(cSumstats.meta,list("FRQ (median, min(abs), max(abs))",paste(median(cSumstats$FRQ, na.rm = T),", ",min(abs(cSumstats$FRQ), na.rm = T),", ", max(abs(cSumstats$FRQ), na.rm = T))))
-        #### Check if value is within limits [0,1]
-        if(any(cSumstats$FRQ>1) || any(cSumstats$FRQ<0)) {
-          stop(paste0('\nThere are FRQ values larger than 1 (',sum(cSumstats[is.finite(FRQ),]$FRQ>1),') or less than 0 (',sum(cSumstats[is.finite(FRQ),]$FRQ<0),') which is outside of the possible FRQ range.'))
-        }
-        
-        ### Invert FRQ based on the previous reference matching
-        if(any(colnames(cSumstats)=="cond.invertedAlleleOrder") & !harmoniseAllelesToReference) {
-          #alleleFRQ <- ifelse(cSumstats$cond.invertedAlleleOrder, (1-cSumstats$FRQ), cSumstats$FRQ) #old
-          cSumstats[,TFRQ:=FRQ]
-          cSumstats[cond.invertedAlleleOrder==T,TFRQ:=1-FRQ]
-          if(mean(cSumstats[is.finite(TFRQ),TFRQ][1]) < mean(cSumstats[is.finite(FRQ),FRQ][1]) * 1.1){
-            cSumstats[cond.invertedAlleleOrder==T,FRQ:=1-FRQ][,TFRQ:=NULL]
-            #cSumstats$FRQ<-alleleFRQ
-            cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Fitted (flipped) according to reference allele order"))
-            sumstats.meta[iFile,c("FRQ.flipped")]<-T
-          } else {
-            cond.invertedMAF<-cSumstats$FRQ > .5
-            cSumstats$FRQ<-ifelse(cond.invertedMAF,1-cSumstats$FRQ,cSumstats$FRQ)
-            cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Set to MAF"))
-            sumstats.meta[iFile,c("FRQ.flipped")]<-F
+        if(any(is.finite(cSumstats$FRQ))) {
+          ### Has FRQ
+          
+          #cSumstats.meta<-rbind(cSumstats.meta,list("FRQ (median, min(abs), max(abs))",paste(median(cSumstats$FRQ, na.rm = T),", ",min(abs(cSumstats$FRQ), na.rm = T),", ", max(abs(cSumstats$FRQ), na.rm = T))))
+          #### Check if value is within limits [0,1]
+          if(any(cSumstats$FRQ>1) || any(cSumstats$FRQ<0)) {
+            stop(paste0('\nThere are FRQ values larger than 1 (',sum(cSumstats[is.finite(FRQ),]$FRQ>1),') or less than 0 (',sum(cSumstats[is.finite(FRQ),]$FRQ<0),') which is outside of the possible FRQ range.'))
           }
+          
+          ### Invert FRQ based on the previous reference matching
+          if(any(colnames(cSumstats)=="cond.invertedAlleleOrder") & !harmoniseAllelesToReference) {
+            #alleleFRQ <- ifelse(cSumstats$cond.invertedAlleleOrder, (1-cSumstats$FRQ), cSumstats$FRQ) #old
+            cSumstats[,TFRQ:=FRQ]
+            cSumstats[cond.invertedAlleleOrder==T,TFRQ:=1-FRQ]
+            if(mean(cSumstats[is.finite(TFRQ),TFRQ][1]) < mean(cSumstats[is.finite(FRQ),FRQ][1]) * 1.1){
+              cSumstats[cond.invertedAlleleOrder==T,FRQ:=1-FRQ][,TFRQ:=NULL]
+              #cSumstats$FRQ<-alleleFRQ
+              cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Fitted (flipped) according to reference allele order"))
+              sumstats.meta[iFile,c("FRQ.flipped")]<-T
+            } else {
+              cond.invertedMAF<-cSumstats$FRQ > .5
+              cSumstats$FRQ<-ifelse(cond.invertedMAF,1-cSumstats$FRQ,cSumstats$FRQ)
+              cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Set to MAF"))
+              sumstats.meta[iFile,c("FRQ.flipped")]<-F
+            }
+          }
+          ### Compute MAF
+          cond.invertedMAF<-cSumstats$FRQ > .5
+          cSumstats$MAF<-ifelse(cond.invertedMAF,1-cSumstats$FRQ,cSumstats$FRQ)
         }
-        ### Compute MAF
-        cond.invertedMAF<-cSumstats$FRQ > .5
-        cSumstats$MAF<-ifelse(cond.invertedMAF,1-cSumstats$FRQ,cSumstats$FRQ)
-      } else if(any(colnames(cSumstats)=="FRQ_REF")){
-        #no FRQ present - fallback on reference MAF if exists
-        cSumstats[,FRQ:=FRQ_REF][,MAF:=FRQ]
       }
       cat(".")
       
