@@ -285,6 +285,15 @@ parseSNPColumnAsRSNumber <- function(text){
     return(unlist(lapply(X = matches, FUN = function(x) ifelse(is.na(x[2]),x[1],x[2]))))
   }
   
+  #CHR:BP:A1:A2_rsXXXX;rsYYYY - format
+  if(sum(grepl(pattern = "^\\w+:\\d+:\\w+:\\w+_rs", x= head(x = text, n=100000)))>90000){
+    indexesLengths<-regexec(pattern = "^\\w+:\\d+:\\w+:\\w+_(.+)", text=text)
+    matches<-regmatches(text,indexesLengths)
+    prs <- unlist(lapply(X = matches, FUN = function(x) ifelse(is.na(x[2]),x[1],x[2])))
+    prsSplit <- strsplit(prs, split = ";", fixed = T)
+    return(unlist(lapply(X = prsSplit, FUN = function(x) x[1])))
+  }
+  
   text<-sub(pattern = "^chr",replacement = "",x = text, ignore.case = T)
   text<-sub(pattern = "^XY:",replacement = "25:",x = text, ignore.case = T)
   text<-sub(pattern = "^X:",replacement = "23:",x = text, ignore.case = T)
@@ -328,7 +337,7 @@ readFile <- function(filePath,nThreads=5){
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
 # single test with hard coded values
-# filePaths = "/Users/jakz/Downloads/Cannabis_ICC_UKB_rs"
+# filePaths = "/Users/jakz/Downloads/ASD_SPARK_EUR_iPSYCH_PGC.tsv.gz"
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/combined.hm3_1kg.snplist.vanilla.jz2020.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/w_hm3.snplist.flaskapp2018"
@@ -572,7 +581,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.11.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.12.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
