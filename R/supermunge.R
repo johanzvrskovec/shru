@@ -769,6 +769,16 @@ supermunge <- function(
               if(substr(as.character(cSumstats[iLine,1]), start = 1, stop = nchar(commentStrings[1]))==commentStrings[1]) break
             }
             
+            #check if #CHROM was not found - use CHROM instead
+            if(iLine==1000){
+              commentStrings <- list("CHROM")
+              for(iLine in 1:1000){
+                #iLine<-1
+                
+                if(substr(as.character(cSumstats[iLine,1]), start = 1, stop = nchar(commentStrings[1]))==commentStrings[1]) break
+              }
+            }
+            
             cSumstats <- NULL
             cSumstats <- fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F, skip = iLine)
               
