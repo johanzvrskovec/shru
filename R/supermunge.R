@@ -489,7 +489,7 @@ supermunge <- function(
   ancestrySetting=c("ANY"), #EUR, #ancestry setting list, one entry per dataset - change this if you want to select MAF and L2 values from a specific ancestry
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F, #create a dataframe with all effects and standard errors across datasets, as for Genomic SEM latent factor GWAS.
-  setNtoNEFF=F, #set N to NEFF before writing output, remove NEFF (as Genomic SEM munge)
+  setNtoNEFF=F, #list, set N to NEFF before writing output (per dataset if you want), remove NEFF (as Genomic SEM munge)
   unite=F, #bind rows of datasets into one dataset
   diff=F, #compare the resulting first dataset with the rest of the datasets pairwise and detect differences, write these to separate files - NOT IMPLEMENTED YET!
   imputeFromLD=F, #apply LDimp or not
@@ -2230,7 +2230,7 @@ supermunge <- function(
     }
     
     #set N to NEFF if specified
-    if(setNtoNEFF){
+    if(setNtoNEFF[iFile]){
       cSumstats[,N:=NEFF][,NEFF:=NULL][,N_CAS:=NULL][,N_CON:=NULL]
       cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF"))
     }
