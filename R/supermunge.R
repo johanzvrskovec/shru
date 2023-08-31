@@ -1379,7 +1379,6 @@ supermunge <- function(
       
       if(!is.null(N) & length(N)>=iFile) {
         if(!is.na(N[iFile])){
-          hasN<-T
           if(forceN && any(colnames(cSumstats)=="N")) {
             if(
               abs((median(cSumstats[is.finite(N),]$N, na.rm = T)-N[iFile])/median(cSumstats[is.finite(N),]$N, na.rm = T))>0.05
@@ -1401,7 +1400,6 @@ supermunge <- function(
           cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats[is.finite(N),]$N, na.rm = T),", ",min(cSumstats[is.finite(N),]$N, na.rm = T),", ", max(cSumstats[is.finite(N),]$N, na.rm = T))))
         }
       } else if(!(any(colnames(cSumstats)=="N"))) {
-        hasN<-F
         if(any(colnames(cSumstats)=="NEFF")){
           cSumstats$N<-cSumstats$NEFF
           cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF"))
@@ -2174,14 +2172,17 @@ supermunge <- function(
             digits = 0))
         )
       )
-      if(!hasN) {
+      
+      if(!any(colnames(cSumstats)=="N")) {
           cSumstats[,N:=NEXP]
           cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEXP"))
         }
       
-      
       ##https://doi.org/10.1016/j.biopsych.2022.05.029
-      if(!hasNEFF) cSumstats[,NEFF:=4/(VSNP*(SE^2))] #==(Z/EFFECT)^2)/VSNP
+      if(!any(colnames(cSumstats)=="NEFF")) {
+        cSumstats[,NEFF:=4/(VSNP*(SE^2))] #==(Z/EFFECT)^2)/VSNP
+        cSumstats.meta<-rbind(cSumstats.meta,list("NEFF","<= VSNP & SE"))
+      }
       
       maxN<-max(cSumstats[is.finite(N),]$N,na.rm = T)
       
