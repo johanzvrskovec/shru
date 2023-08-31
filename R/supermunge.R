@@ -434,6 +434,7 @@ readFile <- function(filePath,nThreads=5){
 # ancestrySetting=c("ANY")
 # setChangeEffectDirectionOnAlleleFlip=T #set to TRUE to emulate genomic sem munge
 # produceCompositeTable=F
+# setNtoNEFF=F, #set N to NEFF before writing output, remove NEFF (as Genomic SEM munge)
 # unite=F
 # imputeFromLD=F
 # imputeFrameLenBp=500000 #500000 for comparison with SSIMP and ImpG
@@ -488,6 +489,7 @@ supermunge <- function(
   ancestrySetting=c("ANY"), #EUR, #ancestry setting list, one entry per dataset - change this if you want to select MAF and L2 values from a specific ancestry
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F, #create a dataframe with all effects and standard errors across datasets, as for Genomic SEM latent factor GWAS.
+  setNtoNEFF=F, #set N to NEFF before writing output, remove NEFF (as Genomic SEM munge)
   unite=F, #bind rows of datasets into one dataset
   diff=F, #compare the resulting first dataset with the rest of the datasets pairwise and detect differences, write these to separate files - NOT IMPLEMENTED YET!
   imputeFromLD=F, #apply LDimp or not
@@ -581,7 +583,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.12.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.13.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -2223,6 +2225,11 @@ supermunge <- function(
     #rename the ambiguous EFFECT column to BETA, as it should be a regression beta at this point
     if(any(colnames(cSumstats)=="EFFECT")){
       cSumstats[,BETA:=EFFECT][,EFFECT:=NULL]
+    }
+    
+    #set N to NEFF if specified
+    if(setNtoNEFF){
+      cSumstats[,N:=NEFF][,NEFF:=NULL][,N_CAS:=NULL][,N_CON:=NULL]
     }
     
     #NA values check
