@@ -595,7 +595,6 @@ supermunge <- function(
   if(imputeFromLD & is.null(imputeFrameLenCM)) cat("\nimputeFrameLenBp=",imputeFrameLenBp)
   if(imputeFromLD & !is.null(imputeFrameLenCM)) cat("\nimputeFrameLenCM=",imputeFrameLenCM)
   if(imputeFromLD & imputeFromLD.validate.q>0) cat("\nimputeFromLD.validate.q=",imputeFromLD.validate.q)
-  cat("\nsetNtoNEFF=",setNtoNEFF)
   cat("\nproduceCompositeTable=",produceCompositeTable)
   cat("\nstandardiseEffectsToExposure=",standardiseEffectsToExposure)
   cat("\nFilters: MAF>",filter.maf,"\tINFO>",filter.info,"\tMAC>",filter.mac,"\tOR>",filter.or)
@@ -725,6 +724,7 @@ supermunge <- function(
     #print per-dataset info and setting
     cat(paste("\n\nSupermunging\t",traitNames[iFile],"\n @ dataset", iFile,"\n"))
     cat("\nancestrySetting=",ancestrySetting[iFile])
+    cat("\nsetNtoNEFF=",setNtoNEFF[iFile])
     cat("\nN=",N[iFile])
     cat("\nOLS=",OLS[iFile])
     cat("\nlinprob=",linprob[iFile])
