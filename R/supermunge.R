@@ -583,7 +583,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.13.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.13.3\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -2179,10 +2179,9 @@ supermunge <- function(
         }
       
       ##https://doi.org/10.1016/j.biopsych.2022.05.029
-      if(!any(colnames(cSumstats)=="NEFF")) {
-        cSumstats[,NEFF:=4/(VSNP*(SE^2))] #==(Z/EFFECT)^2)/VSNP
-        cSumstats.meta<-rbind(cSumstats.meta,list("NEFF","<= VSNP & SE"))
-      }
+      cSumstats.nNANEFF<-nrow(cSumstats[is.na(NEFF),])
+      cSumstats[is.na(NEFF),NEFF:=4/(VSNP*(SE^2))] #==(Z/EFFECT)^2)/VSNP
+      if(cSumstats.nNANEFF>0) cSumstats.meta<-rbind(cSumstats.meta,list("NEFF <= VSNP & SE",cSumstats.nNANEFF))
       
       maxN<-max(cSumstats[is.finite(N),]$N,na.rm = T)
       
