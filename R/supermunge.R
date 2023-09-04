@@ -2196,7 +2196,7 @@ supermunge <- function(
             digits = 0))
         )
       )
-      cSumstats[,NEFF_CAPPED:=NULL]
+      #cSumstats[,NEFF_CAPPED:=NULL]
       
     }
     cat(".")
@@ -2230,8 +2230,8 @@ supermunge <- function(
     
     #set N to NEFF if specified
     if(setNtoNEFF[iFile]){
-      cSumstats[,N:=NEFF][,NEFF:=NULL][,N_CAS:=NULL][,N_CON:=NULL]
-      cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF"))
+      cSumstats[,N:=NEFF_CAPPED][,NEFF:=NULL][,NEFF_CAPPED:=NULL][,N_CAS:=NULL][,N_CON:=NULL]
+      cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF (capped)"))
     }
     
     #NA values check
