@@ -337,19 +337,19 @@ readFile <- function(filePath,nThreads=5){
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
 # single test with hard coded values
-# filePaths = "/Users/jakz/Downloads/ASD_SPARK_EUR_iPSYCH_PGC.tsv.gz"
+# filePaths = "/Users/jakz/Downloads/28067908-GCST004132-EFO_0000384.h.tsv.gz"
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/combined.hm3_1kg.snplist.vanilla.jz2020.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
-# refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/w_hm3.snplist.flaskapp2018"
-# #refFilePath = "../data/variant_lists/hc1kgp3.b38.mix.l2.jz2023.gz" #test with new refpanel
+# #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/w_hm3.snplist.flaskapp2018"
+# refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.eur.l2.jz2023.gz" #test with new refpanel
 # #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = "CUDTEST"
-# #N = p$sumstats.sel["BIPO02",]$n_case_total
-# pathDirOutput = "../data/gwas_sumstats/munged_1kg_eur_supermunge"
-# #test = T
-# filter.maf = 0.01
-# filter.info = 0.6
+# traitNames = "CHRONSTEST"
+# N = 18000
+# pathDirOutput = "/Users/jakz/Downloads"
+# test = T
+# # filter.maf = 0.01
+# # filter.info = 0.6
 
 # #single test with hard coded values - lists
 # filePaths = list(
@@ -434,7 +434,7 @@ readFile <- function(filePath,nThreads=5){
 # ancestrySetting=c("ANY")
 # setChangeEffectDirectionOnAlleleFlip=T #set to TRUE to emulate genomic sem munge
 # produceCompositeTable=F
-# setNtoNEFF=F, #set N to NEFF before writing output, remove NEFF (as Genomic SEM munge)
+# setNtoNEFF=F #set N to NEFF before writing output, remove NEFF (as Genomic SEM munge)
 # unite=F
 # imputeFromLD=F
 # imputeFrameLenBp=500000 #500000 for comparison with SSIMP and ImpG
@@ -583,7 +583,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.13.3\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.13.4\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1442,7 +1442,7 @@ supermunge <- function(
           
           #cSumstats.meta<-rbind(cSumstats.meta,list("FRQ (median, min(abs), max(abs))",paste(median(cSumstats$FRQ, na.rm = T),", ",min(abs(cSumstats$FRQ), na.rm = T),", ", max(abs(cSumstats$FRQ), na.rm = T))))
           #### Check if value is within limits [0,1]
-          if(any(cSumstats$FRQ>1) || any(cSumstats$FRQ<0)) {
+          if(any(cSumstats$FRQ>1,na.rm = T) || any(cSumstats$FRQ<0,na.rm = T)) {
             stop(paste0('\nThere are FRQ values larger than 1 (',sum(cSumstats[is.finite(FRQ),]$FRQ>1),') or less than 0 (',sum(cSumstats[is.finite(FRQ),]$FRQ<0),') which is outside of the possible FRQ range.'))
           }
           
@@ -2179,8 +2179,15 @@ supermunge <- function(
         }
       
       ##https://doi.org/10.1016/j.biopsych.2022.05.029
-      cSumstats.nNANEFF<-nrow(cSumstats[is.na(NEFF),])
-      cSumstats[is.na(NEFF),NEFF:=4/(VSNP*(SE^2))] #==(Z/EFFECT)^2)/VSNP
+      
+      if(any(colnames(cSumstats)=="NEFF")) { 
+        cSumstats.nNANEFF <- nrow(cSumstats[is.na(NEFF),])
+        cSumstats[is.na(NEFF),NEFF:=4/(VSNP*(SE^2))] #==(Z/EFFECT)^2)/VSNP
+      } else {
+        cSumstats.nNANEFF <- nrow(cSumstats)
+        cSumstats[,NEFF:=4/(VSNP*(SE^2))] #==(Z/EFFECT)^2)/VSNP
+      }
+      
       if(cSumstats.nNANEFF>0) cSumstats.meta<-rbind(cSumstats.meta,list("NEFF <= VSNP & SE",cSumstats.nNANEFF))
       
       maxN<-max(cSumstats[is.finite(N),]$N,na.rm = T)
