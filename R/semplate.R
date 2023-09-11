@@ -76,7 +76,30 @@ semplate$generateIndicatorLoadingPatterns<-function(searchBitValues=c(0), indica
 }
 
 
-semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, fix_loading.table.indicator_factor=NULL,fix_correlation.table.factor_factor=NULL, fixResidualVariance_v=NULL,orthogonal=FALSE, indicatorArgs=NULL, universalResidualLimitMin=0.001, universalCorrelationLimitMax=NA ){
+#defaults
+# fix_loading.table.indicator_factor=NULL
+# fix_correlation.table.factor_factor=NULL
+# fixResidualVariance_v=NULL
+# orthogonal=FALSE
+# indicatorArgs=NULL
+# universalResidualLimitMin=0.001
+# universalCorrelationLimitMax=NA
+
+#test
+# allow_loading.table.indicator_factor = cIndicatorLoadings
+# orthogonal = (cCorrelation=="ORT")
+# universalCorrelationLimitMax = ifelse((cCorrelation=="OBL"),0.3,NA)
+
+semplate$generateLavaanCFAModel<-function(
+    allow_loading.table.indicator_factor,
+    fix_loading.table.indicator_factor=NULL,
+    fix_correlation.table.factor_factor=NULL, 
+    fixResidualVariance_v=NULL,
+    orthogonal=FALSE,
+    indicatorArgs=NULL,
+    universalResidualLimitMin=0.001,
+    universalCorrelationLimitMax=NA
+    ){
   #allow_loading.table.indicator_factor<-cIndicatorLoadings
   
   
@@ -160,9 +183,10 @@ semplate$generateLavaanCFAModel<-function(allow_loading.table.indicator_factor, 
     }
   }
   
+  #cross join to get all factor combinations
   indexFactor<-data.frame(index=c(1:nFactors))
   indexFactor<-indexFactor %>%
-    inner_join(indexFactor, by = character())
+    dplyr::inner_join(indexFactor, by = character())
   
   
   lds.factorOther=""
