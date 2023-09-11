@@ -337,19 +337,31 @@ readFile <- function(filePath,nThreads=5){
 # chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
 
 # single test with hard coded values
-# filePaths = "/Users/jakz/Downloads/28067908-GCST004132-EFO_0000384.h.tsv.gz"
+# filePaths = "/Users/jakz/Downloads/FG_combined_1000G_density_formatted_21-03-29.txt"
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/combined.hm3_1kg.snplist.vanilla.jz2020.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/w_hm3.snplist.flaskapp2018"
-# refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.eur.l2.jz2023.gz" #test with new refpanel
+# #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.eur.l2.jz2023.gz" #test with new refpanel
 # #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = "CHRONSTEST"
-# N = 18000
+# traitNames = "FGTEST"
+# #N = 18000
 # pathDirOutput = "/Users/jakz/Downloads"
-# test = T
+# #test = T
 # # filter.maf = 0.01
 # # filter.info = 0.6
+
+smres <- shru::supermunge(
+  filePaths = "/Users/jakz/Downloads/FG_combined_1000G_density_formatted_21-03-29.txt",
+  traitNames = "TEST",
+  #test = T, #REMOVE THIS!
+  pathDirOutput = "/Users/jakz/Downloads",
+  filter.info = 0.6,
+  filter.or = 10000,
+  filter.maf = 0.001
+)
+
+# raw <- shru::readFile(filePath = "/Users/jakz/Downloads/FG_male_1000G_density_formatted_21-03-29.txt")
 
 # #single test with hard coded values - lists
 # filePaths = list(
@@ -434,7 +446,7 @@ readFile <- function(filePath,nThreads=5){
 # ancestrySetting=c("ANY")
 # setChangeEffectDirectionOnAlleleFlip=T #set to TRUE to emulate genomic sem munge
 # produceCompositeTable=F
-# setNtoNEFF=F #set N to NEFF before writing output, remove NEFF (as Genomic SEM munge)
+# setNtoNEFF=NULL #set N to NEFF before writing output
 # unite=F
 # imputeFromLD=F
 # imputeFrameLenBp=500000 #500000 for comparison with SSIMP and ImpG
@@ -489,7 +501,7 @@ supermunge <- function(
   ancestrySetting=c("ANY"), #EUR, #ancestry setting list, one entry per dataset - change this if you want to select MAF and L2 values from a specific ancestry
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F, #create a dataframe with all effects and standard errors across datasets, as for Genomic SEM latent factor GWAS.
-  setNtoNEFF=F, #list, set N to NEFF before writing output (per dataset if you want), remove NEFF (as Genomic SEM munge)
+  setNtoNEFF=NULL, #list, set N to NEFF before writing output (per dataset), remove NEFF (as Genomic SEM munge)
   unite=F, #bind rows of datasets into one dataset
   diff=F, #compare the resulting first dataset with the rest of the datasets pairwise and detect differences, write these to separate files - NOT IMPLEMENTED YET!
   imputeFromLD=F, #apply LDimp or not
@@ -560,10 +572,14 @@ supermunge <- function(
     nDatasets <- length(filePaths)
   }
   
+  #add ancestry for missing datasets
   if(length(ancestrySetting)<nDatasets){
-    ancestrySetting<-unlist(rep(ancestrySetting,nDatasets))
+    ancestrySetting<-unlist(shru::padList(ancestrySetting,"ANY",nDatasets))
   }
   
+  if(is.null(setNtoNEFF)){
+    setNtoNEFF<-rep(F,nDatasets)
+  }
   
   #settings similar to GenomicSEM sumstats function
   ## Considers everything as OLS datasets if nothing specified however
@@ -583,7 +599,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.13.4\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.13.5\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
