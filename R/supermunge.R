@@ -5,7 +5,7 @@
 
 stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP","A1","A2"), ancestrySetting=NA #EUR, #ancestry setting string for the current dataset
 ){
-  c.SNP = c("SNP","PREDICTOR","SNPID","MARKERNAME","MARKER_NAME","SNPTESTID","ID_DBSNP49","ID","MARKER","SNP.NAME","SNP ID", "SNP_ID","LOCATIONALID","ASSAY_NAME","VARIANT_ID")
+  c.SNP = c("SNP","PREDICTOR","SNPID","MARKERNAME","MARKER_NAME","SNPTESTID","ID_DBSNP49","ID","MARKER","SNP.NAME","SNP ID", "SNP_ID","LOCATIONALID","ASSAY_NAME","VARIANT_ID","VARIANT")
   c.RSID = c("RSID","RS_NUMBER","RS","RSNUMBER","RS_NUMBERS","RSID_UKB")
   c.A1 = c("A1","ALLELE1","ALLELE_1","A_1","A","ALLELE.1")
   c.A2 = c("A2","ALLELE2","ALLELE_2","A_2","ALLELE.2")
