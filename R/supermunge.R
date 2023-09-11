@@ -351,15 +351,15 @@ readFile <- function(filePath,nThreads=5){
 # # filter.maf = 0.01
 # # filter.info = 0.6
 
-smres <- shru::supermunge(
-  filePaths = "/Users/jakz/Downloads/FG_combined_1000G_density_formatted_21-03-29.txt",
-  traitNames = "TEST",
-  #test = T, #REMOVE THIS!
-  pathDirOutput = "/Users/jakz/Downloads",
-  filter.info = 0.6,
-  filter.or = 10000,
-  filter.maf = 0.001
-)
+# smres <- shru::supermunge(
+#   filePaths = "/Users/jakz/Downloads/FG_combined_1000G_density_formatted_21-03-29.txt",
+#   traitNames = "TEST",
+#   #test = T, #REMOVE THIS!
+#   pathDirOutput = "/Users/jakz/Downloads",
+#   filter.info = 0.6,
+#   filter.or = 10000,
+#   filter.maf = 0.001
+# )
 
 # raw <- shru::readFile(filePath = "/Users/jakz/Downloads/FG_male_1000G_density_formatted_21-03-29.txt")
 
