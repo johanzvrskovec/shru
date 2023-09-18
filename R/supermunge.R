@@ -326,6 +326,10 @@ readFile <- function(filePath,nThreads=5){
   return(data.table::fread(file = filePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F))
 }
 
+writeFile <- function(d,filePath,nThreads=5){
+return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads))
+}
+
 #for tests
 # library(R.utils)
 # library(data.table)

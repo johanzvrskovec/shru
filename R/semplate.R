@@ -251,7 +251,7 @@ semplate$generateLavaanCFAModel<-function(
 #Most of the code here was probably stolen from this example here: https://rpubs.com/tjmahr/sem_diagrammer
 semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
   paths <- resultDf %>%
-    select(lhs, op, rhs, Unstand_Est, Unstand_SE, STD_Genotype, STD_Genotype_SE, p_value)
+    dplyr::select(lhs, op, rhs, Unstand_Est, Unstand_SE, STD_Genotype, STD_Genotype_SE, p_value)
   
   #fix variable types
   paths$Unstand_SE<-as.numeric(paths$Unstand_SE)
@@ -260,72 +260,72 @@ semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
   
   # Latent variables: left-hand side of "=~" paths
   var.latent <- paths %>%
-    filter(op == "=~") %>%
-    select(nodes = lhs) %>%
-    distinct %>%
-    mutate(type="latent")
+    dplyr::filter(op == "=~") %>%
+    dplyr::select(nodes = lhs) %>%
+    dplyr::distinct() %>%
+    dplyr::mutate(type="latent")
   
   # Manifest variables: not latent variables
   `%not_in%` <- Negate(`%in%`)
   var.manifest <- paths %>%
-    filter(op != "~1", lhs %not_in% var.latent$nodes) %>%
-    select(nodes = lhs) %>%
-    distinct %>%
-    mutate(type="manifest")
+    dplyr::filter(op != "~1", lhs %not_in% var.latent$nodes) %>%
+    dplyr::select(nodes = lhs) %>%
+    dplyr::distinct() %>%
+    dplyr::mutate(type="manifest")
   
   # Residuals: "~~" paths with 
   var.residual <- paths %>%
-    filter(op == "~~", lhs==rhs, lhs %in% var.manifest$nodes) %>%
-    select(nodes = lhs) %>%
-    distinct %>%
-    mutate(type="residual")
+    dplyr::filter(op == "~~", lhs==rhs, lhs %in% var.manifest$nodes) %>%
+    dplyr::select(nodes = lhs) %>%
+    dplyr::distinct() %>%
+    dplyr::mutate(type="residual")
   
   #all_nodes <- DiagrammeR::combine_edfs(var.latent, var.manifest, var.residual)
   variable <- rbind(var.latent, var.manifest, var.residual) %>%
-    mutate(id=row_number())
+    dplyr::mutate(id=dplyr::row_number())
   
   # Edges, labeled by the factor loading estimates
   edges <- paths %>%
-    filter(op != "~1") %>%
-    left_join(variable[,c("nodes","id")],by = c("lhs" = "nodes")) %>%
-    mutate(from=id) %>%
-    select(-id) %>%
-    left_join(variable[,c("nodes","id")],by = c("rhs" = "nodes")) %>%
-    mutate(to=id) %>%
-    select(-id) %>%
-    filter(from %not_in% variable$id[which(variable$type=="residual")]) %>%
-    filter(to %not_in% variable$id[which(variable$type=="residual")]) %>%
-    left_join(variable[which(variable$type=="residual"),c("nodes","id")],by = c("lhs" = "nodes")) %>%
-    mutate(tofrom.residual=id) %>%
-    select(-id) #%>%
+    dplyr::filter(op != "~1") %>%
+    dplyr::left_join(variable[,c("nodes","id")],by = c("lhs" = "nodes")) %>%
+    dplyr::mutate(from=id) %>%
+    dplyr::select(-id) %>%
+    dplyr::left_join(variable[,c("nodes","id")],by = c("rhs" = "nodes")) %>%
+    dplyr::mutate(to=id) %>%
+    dplyr::select(-id) %>%
+    dplyr::filter(from %not_in% variable$id[which(variable$type=="residual")]) %>%
+    dplyr::filter(to %not_in% variable$id[which(variable$type=="residual")]) %>%
+    dplyr::left_join(variable[which(variable$type=="residual"),c("nodes","id")],by = c("lhs" = "nodes")) %>%
+    dplyr::mutate(tofrom.residual=id) %>%
+    dplyr::select(-id) #%>%
     #select(-Unstand_Est)
   
   #may need more filters here
   # factor loadings
   pattern <- edges %>%
-    filter(op == "=~") %>%
-    distinct %>%
-    mutate(type="pattern")
+    dplyr::filter(op == "=~") %>%
+    dplyr::distinct() %>%
+    dplyr::mutate(type="pattern")
   
   # Regressions: "~" lines
   regression <- edges %>%
-    filter(op == "~") %>%
-    distinct %>%
-    mutate(type="regression")
+    dplyr::filter(op == "~") %>%
+    dplyr::distinct() %>%
+    dplyr::mutate(type="regression")
   
   # Covariances: ~~ for non manifest variable residuals
   covariance <- edges %>%
-    filter(op == "~~") %>%
-    filter(is.na(tofrom.residual)) %>%
-    distinct %>%
-    mutate(type="covariance")
+    dplyr::filter(op == "~~") %>%
+    dplyr::filter(is.na(tofrom.residual)) %>%
+    dplyr::distinct() %>%
+    dplyr::mutate(type="covariance")
   
   # Residual loadings: ~~ for non manifest variable residuals
   residual <- edges %>%
-    filter(op == "~~") %>%
-    filter(!is.na(tofrom.residual)) %>%
-    distinct %>%
-    mutate(type="residual")
+    dplyr::filter(op == "~~") %>%
+    dplyr::filter(!is.na(tofrom.residual)) %>%
+    dplyr::distinct() %>%
+    dplyr::mutate(type="residual")
   
   # Residual self loadings: ~~ for non manifest variable residuals
   # residual_self_loading <- edges %>%
@@ -333,7 +333,7 @@ semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
   #   filter(!is.na(tofrom.residual))
   
   loading<-rbind(pattern, regression, covariance, residual) %>%
-    mutate(id=row_number())
+    dplyr::mutate(id=dplyr::row_number())
   
   toReturn<-list(variable=variable, loading=loading)
   return(toReturn)
@@ -436,7 +436,7 @@ semplate$parseGenomicSEMResultAsMatrices <- function(resultDf){
   rownames(patternCoefficients.p.matrix)<-manifestVariables$nodes
   colnames(patternCoefficients.p.matrix)<-factors$nodes
   
-  manifestOrder<-row_number(manifestVariables$id[which(manifestVariables$id==residualVariances$from)])
+  manifestOrder<-dplyr::row_number(manifestVariables$id[which(manifestVariables$id==residualVariances$from)])
   residualVariances<-residualVariances[manifestOrder,]
   residualVariances[,c("residualVariable")]<-residualVariables$nodes[which(residualVariables$id==residualVariances$tofrom.residual)]
   residualVariances.matrix<-as.matrix(residualVariances[,c("Unstand_Est")])
