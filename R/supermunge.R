@@ -1,9 +1,11 @@
 #Johan Zvrskovec, 2021 
 #Based on the fantastic work by Grotzinger, A. D. et al. Nat. Hum. Behav. 3, 513–525 (2019) and Bulik-Sullivan, B. K. et al. Nat. Genet. 47, 291–295 (2015).
 
-
-
-stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP","A1","A2"), ancestrySetting=NA #EUR, #ancestry setting string for the current dataset
+stdGwasColumnNames <- function(
+    columnNames,
+    missingEssentialColumnsStop=c("SNP","A1","A2"),
+    ancestrySetting=NA, #EUR, #ancestry setting string for the current dataset
+    warnings=T
 ){
   c.SNP = c("SNP","PREDICTOR","SNPID","MARKERNAME","MARKER_NAME","SNPTESTID","ID_DBSNP49","ID","MARKER","SNP.NAME","SNP ID", "SNP_ID","LOCATIONALID","ASSAY_NAME","VARIANT_ID","VARIANT")
   c.RSID = c("RSID","RS_NUMBER","RS","RSNUMBER","RS_NUMBERS","RSID_UKB")
@@ -15,7 +17,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
   c.BETA = c("BETA","B","EFFECT_BETA","EFFECT","EFFECTS","SIGNED_SUMSTAT","EST","GWAS_BETA","EFFECT_A1","EFFECTA1","EFFECT_NW","STDBETA")
   c.OR = c("OR","LOG_ODDS","OR","ODDS-RATIO","ODDS_RATIO","ODDSRATIO","OR(MINALLELE)","OR.LOGISTIC","OR_RAN","OR(A1)")
   c.SE = c("SE","STDER","STDERR","STD","STANDARD_ERROR","OR_SE","STANDARDERROR", "STDERR_NW","META.SE","SE_DGC","SE.2GC")
-  c.Z = c("Z","ZSCORE","Z-SCORE","ZSTAT","ZSTATISTIC","GC_ZSCORE","BETAZSCALE","TEST.STATISTIC")
+  c.Z = c("Z","ZSCORE","Z-SCORE","ZSTAT","ZSTATISTIC","GC_ZSCORE","BETAZSCALE","TEST.STATISTIC","Z_ESTIMATE")
   c.INFO = c("INFO","IMPINFO","IMPQUALITY", "INFO.PLINK", "INFO_UKBB","INFO_UKB","MININFO")
   c.SINFO = c("SINFO")
   c.P = c("P","PVALUE","PVAL","P_VALUE","GC_PVALUE","P.2GC","WALD_P","P.VAL","GWAS_P","P-VALUE","P-VAL","FREQUENTIST_ADD_PVALUE","P.VALUE","P_VAL","SCAN-P","P.LMM","META.PVAL","P_RAN","P.ADD","P_BOLT_LMM","PVAL_ESTIMATE")
@@ -123,7 +125,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
         }
         
       } else {
-        warning("\nCould not find the ancestry specific 'FRQ' column.\n")
+       if(warnings) warning("\nCould not find the ancestry specific 'FRQ' column.\n")
       }
   } else if(!any(columnNames == c.FRQ[1])) {
     #fallback
@@ -161,7 +163,7 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
         }
       }
     } else {
-      warning("\nCould not find the ancestry specific 'L2' column.\n")
+      if(warnings) warning("\nCould not find the ancestry specific 'L2' column.\n")
     }
   } else if(!any(columnNames == c.L2[1])) {
     #fallback
@@ -172,27 +174,27 @@ stdGwasColumnNames <- function(columnNames, stopOnMissingEssentialColumns=c("SNP
     if(length(iDup)>0) columnNames[iDup[1]] <- c.L2[1]
   }
   
-  if(length(stopOnMissingEssentialColumns)>0){
+  if(length(missingEssentialColumnsStop)>0){
     # Stop if any of these columns are not found
-    if(!all(stopOnMissingEssentialColumns %in% columnNames)) stop(paste0("\nNot all essential columns found: ",stopOnMissingEssentialColumns[!stopOnMissingEssentialColumns %in% columnNames],"\n"))
+    if(!all(missingEssentialColumnsStop %in% columnNames)) stop(paste0("\nNot all essential columns found: ",missingEssentialColumnsStop[!missingEssentialColumnsStop %in% columnNames],"\n"))
   }
   
-  if(!any(columnNames=="P")) warning("\nCould not find the P-value column. Standard is 'P'.\n")
-  if(!any(columnNames=="BETA") & !any(columnNames=="OR" & !any(columnNames=="Z"))) warning("Could not find any effect column.\n")
-  if(!any(columnNames=="SNP")) warning("\nCould not find the 'SNP' column.\n")
-  if(!any(columnNames=="A1")) warning("\nCould not find the 'A1' column.\n")
-  if(!any(columnNames=="A2")) warning("\nCould not find the 'A2' column.\n")
-  if(!any(columnNames=="FRQ")) warning("\nCould not find the 'FRQ' column.\n")
+  if(!any(columnNames=="P") & warnings) warning("\nCould not find the P-value column. Standard is 'P'.\n")
+  if(!any(columnNames=="BETA") & !any(columnNames=="OR" & !any(columnNames=="Z")) & warnings) warning("Could not find any effect column.\n")
+  if(!any(columnNames=="SNP") & warnings) warning("\nCould not find the 'SNP' column.\n")
+  if(!any(columnNames=="A1") & warnings) warning("\nCould not find the 'A1' column.\n")
+  if(!any(columnNames=="A2") & warnings) warning("\nCould not find the 'A2' column.\n")
+  if(!any(columnNames=="FRQ") & warnings) warning("\nCould not find the 'FRQ' column.\n")
   
   # Warn if multiple of these columns are found
-  if(sum(columnNames=="SNP")>1) warning("\nMultiple 'SNP' columns found!\n")
-  if(sum(columnNames=="P")>1) warning("\nMultiple 'P' columns found!\n")
-  if(sum(columnNames=="A1")>1) warning("\nMultiple 'A1' columns found!\n")
-  if(sum(columnNames=="A2")>1) warning("\nMultiple 'A2' columns found!\n")
-  if(sum(columnNames=="BETA")>1) warning("\nMultiple 'BETA' columns found!\n")
-  if(sum(columnNames=="OR")>1) warning("\nMultiple 'OR' columns found!\n")
-  if(sum(columnNames=="Z")>1) warning("\nMultiple 'Z' columns found!\n")
-  if(sum(columnNames=="FRQ")>1) warning("\nMultiple 'FRQ' columns found!\n")
+  if(sum(columnNames=="SNP")>1 & warnings) warning("\nMultiple 'SNP' columns found!\n")
+  if(sum(columnNames=="P")>1 & warnings) warning("\nMultiple 'P' columns found!\n")
+  if(sum(columnNames=="A1")>1 & warnings) warning("\nMultiple 'A1' columns found!\n")
+  if(sum(columnNames=="A2")>1 & warnings) warning("\nMultiple 'A2' columns found!\n")
+  if(sum(columnNames=="BETA")>1 & warnings) warning("\nMultiple 'BETA' columns found!\n")
+  if(sum(columnNames=="OR")>1 & warnings) warning("\nMultiple 'OR' columns found!\n")
+  if(sum(columnNames=="Z")>1 & warnings) warning("\nMultiple 'Z' columns found!\n")
+  if(sum(columnNames=="FRQ")>1 & warnings) warning("\nMultiple 'FRQ' columns found!\n")
   
   
   #rename duplicte columns
@@ -336,9 +338,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # library(readr)
 
 
-#test
-# list_df=list(highld=p$highld_b37)
-# chainFilePath = "../data/alignment_chains/hg19ToHg38.over.chain.gz"
+#tests
 
 # single test with hard coded values
 # filePaths = "/Users/jakz/Downloads/FG_combined_1000G_density_formatted_21-03-29.txt"
@@ -470,7 +470,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # doChrSplit=F
 # doStatistics=F
 # mask=NULL
-# stopOnMissingEssentialColumns=c("SNP","A1","A2")
+# missingEssentialColumnsStop=c("SNP","A1","A2")
 # maxSNPDistanceBpPadding=0
 # invertEffectDirectionOn=NULL
 # parse=T
@@ -526,7 +526,7 @@ supermunge <- function(
   doChrSplit=F,
   doStatistics=F,
   mask=NULL,
-  stopOnMissingEssentialColumns=c("SNP","A1","A2"),
+  missingEssentialColumnsStop=c("SNP","A1","A2"),
   maxSNPDistanceBpPadding=5,
   invertEffectDirectionOn=NULL,
   parse=T, #run advanced parsing routines (for SNP and CHR columns) - may take a long time and is not 100% foolproof - check the results!
@@ -603,7 +603,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.13.5\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.14.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -831,7 +831,7 @@ supermunge <- function(
     cat(".")
     
     # Give sumstats new standardised column names
-    cSumstats.names <- shru::stdGwasColumnNames(columnNames = colnames(cSumstats), stopOnMissingEssentialColumns = stopOnMissingEssentialColumns, ancestrySetting = ancestrySetting[iFile])
+    cSumstats.names <- shru::stdGwasColumnNames(columnNames = colnames(cSumstats), missingEssentialColumnsStop = missingEssentialColumnsStop, ancestrySetting = ancestrySetting[iFile])
     cSumstats.names.string <-""
     #for(iName in 1:length(cSumstats.names$orig)){
       cSumstats.names.string<-paste(paste(cSumstats.names$orig,"\t->",cSumstats.names$std), collapse = '\n')
@@ -1205,7 +1205,7 @@ supermunge <- function(
         
         #Join with reference on SNP rsID, only keeping SNPs with rsIDs part of the reference
         #https://stackoverflow.com/questions/34644707/left-outer-join-with-data-table-with-different-names-for-key-variables/34645997#34645997
-        ref.colnames<-shru::stdGwasColumnNames(colnames(ref),stopOnMissingEssentialColumns = NULL,ancestrySetting = ancestrySetting[iFile])
+        ref.colnames<-shru::stdGwasColumnNames(colnames(ref),missingEssentialColumnsStop = NULL,ancestrySetting = ancestrySetting[iFile], warnings = F)
         cSumstats.merged.snp<-ref
         colnames(cSumstats.merged.snp)<-paste0(ref.colnames$std,"_REF")
         setkeyv(cSumstats.merged.snp, cols = paste0(key(ref),"_REF"))
@@ -1301,13 +1301,11 @@ supermunge <- function(
       # More QC and data management, after merge with reference
       
       #store original allele order and frequency info
-      cSumstats[,A1_ORIG:=A1]
-      cSumstats[,A2_ORIG:=A2]
+      if(any(colnames(cSumstats)=="A1")) cSumstats[,A1_ORIG:=A1]
+      if(any(colnames(cSumstats)=="A2")) cSumstats[,A2_ORIG:=A2]
       if(any(colnames(cSumstats)=="FRQ")) cSumstats[,FRQ_ORIG:=FRQ]
       
-      
       if(!is.null(ref)){
-        
         
         ##Synchronise SNP,CHR,BP,FRQ with reference
         if(harmoniseBPToReference & any(colnames(cSumstats)=="BP_REF")) cSumstats[,BP:=BP_REF]
@@ -1374,13 +1372,18 @@ supermunge <- function(
       setkeyv(cSumstats,cols = cSumstats.keys)
       cat(".")
       
-      if(!is.null(ref)){
+      #QC of allele configuration, or harmonisation with reference if missing allele columns
+      if(!is.null(ref) & any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")){
         ## Remove SNPs where alleles are not matching at least one of the reference alleles
         cSumstats.n<-nrow(cSumstats)
         cond.removeNonmatching<-(cSumstats$A1 != (cSumstats$A1_REF) & cSumstats$A1 != (cSumstats$A2_REF)) & (cSumstats$A2 != (cSumstats$A1_REF)  & cSumstats$A2 != (cSumstats$A2_REF))
         cSumstats<-cSumstats[!cond.removeNonmatching, ]
         cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; A1 or A2 not matching any ref allele",as.character(sum(cond.removeNonmatching))))
         sumstats.meta[iFile,c("Removed, nonmatching ref alleles")]<-sum(cond.removeNonmatching)
+      } else if(!is.null(ref) & any(colnames(cSumstats)=="A1_REF") & any(colnames(cSumstats)=="A2_REF")){
+        #the sumstats do not have A1 and A2
+        cSumstats[,A1:=A1_REF][,A2:=A2_REF]
+        cSumstats.meta<-rbind(cSumstats.meta,list("A1,A2","From reference"))
       }
       cat(".")
       
