@@ -603,7 +603,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.14.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.14.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1751,7 +1751,7 @@ supermunge <- function(
       if(any(colnames(cSumstats)=="N")){
         if(any(is.na(cSumstats$N))){
           mN<-mean(cSumstats[is.finite(N),]$N,na.rm=T)
-          cSumstats[is.na(get("N")), N:=mN]
+          cSumstats[is.na(get("N")), N:=mN] #eval() here?
         }
       }
       
@@ -2260,8 +2260,14 @@ supermunge <- function(
     
     #set N to NEFF if specified
     if(setNtoNEFF[iFile]){
-      cSumstats[,N:=NEFF_CAPPED][,NEFF:=NULL][,NEFF_CAPPED:=NULL][,N_CAS:=NULL][,N_CON:=NULL]
-      cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF (capped)"))
+      if(hasNEFF){
+        #use NEFF rather than the capped NEFF in case of dataset providing exact sub-cohort NEFF data rather than backed out NEFF.
+        cSumstats[,N:=NEFF][,NEFF:=NULL][,NEFF_CAPPED:=NULL][,N_CAS:=NULL][,N_CON:=NULL]
+        cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF (NOT capped)"))
+      } else {
+        cSumstats[,N:=NEFF_CAPPED][,NEFF:=NULL][,NEFF_CAPPED:=NULL][,N_CAS:=NULL][,N_CON:=NULL]
+        cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF (capped)"))
+      }
     }
     
     #NA values check
