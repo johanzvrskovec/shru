@@ -2214,22 +2214,38 @@ supermunge <- function(
       if(cSumstats.nNANEFF>0) cSumstats.meta<-rbind(cSumstats.meta,list("NEFF <= VSNP & SE",cSumstats.nNANEFF))
       
       maxN<-max(cSumstats[is.finite(N),]$N,na.rm = T)
-      
       cSumstats[,NEFF_CAPPED:=shru::clipValues(NEFF,max = 1.1*eval(maxN), min = 0.5*eval(maxN))]
-      cSumstats.meta <- rbind(
-        cSumstats.meta,
-        list("NEFF (mean total, capped at 1.1 and 0.5 N)",paste0(
-          round(
-            mean(
-              cSumstats[is.finite(NEFF_CAPPED),]$NEFF_CAPPED,
-              na.rm=T),
-            digits = 0))
-        )
-      )
-      #cSumstats[,NEFF_CAPPED:=NULL]
       
     }
     cat(".")
+    
+    if(any(colnames(cSumstats)=="NEFF")){
+      if(hasNEFF){
+        cSumstats.meta <- rbind(
+          cSumstats.meta,
+          list("NEFF (mean total, NOT capped)",paste0(
+            round(
+              mean(
+                cSumstats[is.finite(NEFF),]$NEFF,
+                na.rm=T),
+              digits = 0))
+          )
+        )
+        #cSumstats[,NEFF_CAPPED:=NULL]
+      } else if(any(colnames(cSumstats)=="NEFF_CAPPED")){
+        cSumstats.meta <- rbind(
+          cSumstats.meta,
+          list("NEFF (mean total, capped at 1.1 and 0.5 N)",paste0(
+            round(
+              mean(
+                cSumstats[is.finite(NEFF_CAPPED),]$NEFF_CAPPED,
+                na.rm=T),
+              digits = 0))
+          )
+        )
+      }
+    }
+    #cSumstats[,NEFF_CAPPED:=NULL]
     
     ## Check effect value credibility
     if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE")) {
