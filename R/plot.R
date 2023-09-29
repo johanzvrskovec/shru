@@ -279,7 +279,7 @@ plotAndTestBatteryForMVLDSC <- function(
     is.corr = F,
     number.digits = 3,
     newnames = newnames,
-    title = paste0("Genetic covariances, ",titleTemplate,titleAddition)
+    title = paste0("Genetic covariances (covg), ",titleTemplate,titleAddition)
   )
   
   plot.corr(
@@ -289,7 +289,7 @@ plotAndTestBatteryForMVLDSC <- function(
     is.corr = F,
     number.digits = 4,
     newnames = newnames,
-    title = paste0("Genetic covariances S.E., ",titleTemplate,titleAddition)
+    title = paste0("Genetic covariances (covg) S.E., ",titleTemplate,titleAddition)
   )
   
   S_ForCV<-abs(mvldsc$S)
@@ -561,7 +561,7 @@ plotAndTestBatteryForMVLDSC <- function(
     plot.corr(
       corr = dCV_cov,
       #pmat = covse.p.diff.fdr2,
-      filename = file.path(folderpath.plots,paste0("dcovse.std.",code,".png")),
+      filename = file.path(folderpath.plots,paste0("dcovgse.std.",code,".png")),
       is.corr = F,
       number.digits = 3,
       newnames = newnames,
