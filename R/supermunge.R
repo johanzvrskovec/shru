@@ -603,7 +603,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.14.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.14.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -2177,7 +2177,7 @@ supermunge <- function(
     #Calculate Effective Sample Size as advised from from the Genomic SEM Wiki
     
     hasNEFF <- any(colnames(cSumstats)=="NEFF")
-    if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="FRQ")){
+    if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="FRQ")){
       
       
       ## https://doi.org/10.1016/j.biopsych.2022.05.029
@@ -2280,9 +2280,11 @@ supermunge <- function(
         #use NEFF rather than the capped NEFF in case of dataset providing exact sub-cohort NEFF data rather than backed out NEFF.
         cSumstats[,N:=NEFF][,NEFF:=NULL][,NEFF_CAPPED:=NULL][,N_CAS:=NULL][,N_CON:=NULL]
         cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF (NOT capped)"))
-      } else {
+      } else if(any(colnames(cSumstats)=="NEFF_CAPPED")){
         cSumstats[,N:=NEFF_CAPPED][,NEFF:=NULL][,NEFF_CAPPED:=NULL][,N_CAS:=NULL][,N_CON:=NULL]
         cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF (capped)"))
+      } else {
+        stop("\nNEFF/NEFF_CAPPED required to store in N, but not found. Maybe the summary statistics do not have FRQ or SE?")
       }
     }
     

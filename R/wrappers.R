@@ -2,7 +2,7 @@
 
 #Function to calculate genetic correlations between a trait GWAS dataset and a set of other traits. The first specified trait will be used as the main trait to be used for computing genetic correlations against the rest of the traits, as per original ldsc.
 #Johan Zvrskovec, 2022
-#Based on Helena's previous script [sumstats_path]/scripts/runcorrelations_name.sh
+#Based on Helena Gaspar's previous script [sumstats_path]/scripts/runcorrelations_name.sh
 
 ldsc.orig <- function(
     trait_codes=NA, #A list of codes to use for your traits. If not specified, the codes will be set to the filenames of your gwas sumstat files as specified below, not including file sufix.
@@ -11,13 +11,13 @@ ldsc.orig <- function(
     ld_filepath=NA_character_, #Path to a file containing LD-scores as used by ldsc.
     ld_folderpath=NA_character_, #Path to a folder containing LD-scores as used by ldsc.
     output_file_path=NA_character_, #Path to the log file where you want the mandatory ldsc log output to be saved. Defaults to the main trait code and the file suffix 'ldsc' in the current folder.
-    samp_prev=NA, #list of sample prevalences with one element for each trait in the list of filepaths
-    pop_prev=NA, #list of population prevalences with one element for each trait in the list of filepaths,
+    samp_prev=NA_real_, #list of sample prevalences with one element for each trait in the list of filepaths
+    pop_prev=NA_real_, #list of population prevalences with one element for each trait in the list of filepaths,
     blocks=200 #number of blocks to use in ldsc
 ){
   
   #Set the trait codes if not specified in the argument.
-  if(length(trait_codes<1)){
+  if(length(trait_codes)<1){
     trait_codes <- basename(trait_filepaths)
   }
   
@@ -56,7 +56,7 @@ ldsc.orig <- function(
   print(samp_prev)
   print("Pop prev:")
   print(pop_prev)
-  if(!is.na(samp_prev) & !is.na(pop_prev)){
+  if(!is.null(samp_prev) & !is.null(pop_prev)){
     
     samp_prev[is.na(samp_prev)]<-"nan" #see the ldsc github
     pop_prev[is.na(pop_prev)]<-"nan"
