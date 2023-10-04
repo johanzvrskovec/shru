@@ -603,7 +603,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.14.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.15.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -2311,7 +2311,7 @@ supermunge <- function(
     if("N" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N")
     if("N_CAS" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CAS")
     if("N_CON" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CON")
-    if("NEFF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"NEFF")
+    if("NEFF" %in% colnames(cSumstats) & (hasNEFF |  process)) output.colnames<- c(output.colnames,"NEFF") #only output NEFF when original NEFF or process==TRUE (backed out NEFF)
     if("DF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"DF")
     #if("L2_REF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"L2_REF")
     if("LDIMP.K" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.K")
@@ -2321,9 +2321,9 @@ supermunge <- function(
     if("SINFO" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"SINFO")
     
     
-    output.colnames.more<-colnames(cSumstats)[!(colnames(cSumstats) %in% output.colnames)]
+    output.colnames.more<-cSumstats.names$std[!(cSumstats.names$std %in% output.colnames)]
     output.colnames.all<-c(output.colnames,output.colnames.more)
-    if(lossless){
+    if(lossless | !process){
       cSumstats<-cSumstats[,..output.colnames.all]
     } else {
       cSumstats<-cSumstats[,..output.colnames]
