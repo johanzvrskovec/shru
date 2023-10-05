@@ -1489,14 +1489,13 @@ supermunge <- function(
           ### Compute MAF
           cond.invertedMAF<-cSumstats$FRQ > .5
           cSumstats$MAF<-ifelse(cond.invertedMAF,1-cSumstats$FRQ,cSumstats$FRQ)
+          
+          ## Compute variance of individual variant effects according to 2pq
+          if(any(colnames(cSumstats)=="FRQ")) cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
+          cat(".")
         }
       }
-      cat(".")
-      
-      ## Compute variance of individual variant effects according to 2pq
-      if(any(colnames(cSumstats)=="FRQ")) cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
-      cat(".")
-      
+     
       
       #remove duplicate ID variants, ordered by ADBPADJ, -MAF
       if(any(colnames(cSumstats)=="MAF")){
@@ -2177,7 +2176,7 @@ supermunge <- function(
     #Calculate Effective Sample Size as advised from from the Genomic SEM Wiki
     
     hasNEFF <- any(colnames(cSumstats)=="NEFF")
-    if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="FRQ")){
+    if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="VSNP")){
       
       
       ## https://doi.org/10.1016/j.biopsych.2022.05.029
