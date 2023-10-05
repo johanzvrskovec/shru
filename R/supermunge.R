@@ -2268,8 +2268,8 @@ supermunge <- function(
       if(!any(is.finite(cSumstats$SE))) cSumstats$SE<-NULL
     }
     
-    #rename the ambiguous EFFECT column to BETA, as it should be a regression beta at this point
-    if(any(colnames(cSumstats)=="EFFECT")){
+    #rename the ambiguous EFFECT column to BETA, as it should be a regression beta at this point, IF PROCESSING ONLY
+    if(process & any(colnames(cSumstats)=="EFFECT")){
       cSumstats[,BETA:=EFFECT][,EFFECT:=NULL]
     }
     
@@ -2301,6 +2301,7 @@ supermunge <- function(
     if("FRQ_CAS" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"FRQ_CAS")
     if("FRQ_CON" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"FRQ_CON")
     #if("MAF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"MAF")
+    if("OR" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"OR")
     if("BETA" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"BETA")
     if("SE" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"SE")
     if("BETA.I" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"BETA.I")
