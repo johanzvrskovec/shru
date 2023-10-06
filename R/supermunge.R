@@ -2195,7 +2195,7 @@ supermunge <- function(
         )
       )
       
-      if(!any(colnames(cSumstats)=="N")) {
+      if(!any(colnames(cSumstats)=="N") & any(colnames(cSumstats)=="NEXP")) {
           cSumstats[,N:=NEXP]
           cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEXP"))
         }
@@ -2212,8 +2212,10 @@ supermunge <- function(
       
       if(cSumstats.nNANEFF>0) cSumstats.meta<-rbind(cSumstats.meta,list("NEFF <= VSNP & SE",cSumstats.nNANEFF))
       
-      maxN<-max(cSumstats[is.finite(N),]$N,na.rm = T)
-      cSumstats[,NEFF_CAPPED:=shru::clipValues(NEFF,max = 1.1*eval(maxN), min = 0.5*eval(maxN))]
+      if(any(colnames(cSumstats)=="N")){
+        maxN<-max(cSumstats[is.finite(N),]$N,na.rm = T)
+        cSumstats[,NEFF_CAPPED:=shru::clipValues(NEFF,max = 1.1*eval(maxN), min = 0.5*eval(maxN))]
+      }
       
     }
     cat(".")
@@ -2277,14 +2279,18 @@ supermunge <- function(
     if(setNtoNEFF[iFile]){
       if(hasNEFF){
         #use NEFF rather than the capped NEFF in case of dataset providing exact sub-cohort NEFF data rather than backed out NEFF.
-        cSumstats[,N:=NEFF][,NEFF:=NULL][,NEFF_CAPPED:=NULL][,N_CAS:=NULL][,N_CON:=NULL]
+        cSumstats[,N:=NEFF]
         cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF (NOT capped)"))
       } else if(any(colnames(cSumstats)=="NEFF_CAPPED")){
-        cSumstats[,N:=NEFF_CAPPED][,NEFF:=NULL][,NEFF_CAPPED:=NULL][,N_CAS:=NULL][,N_CON:=NULL]
+        cSumstats[,N:=NEFF_CAPPED]
         cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF (capped)"))
       } else {
         stop("\nNEFF/NEFF_CAPPED required to store in N, but not found. Maybe the summary statistics do not have FRQ or SE?")
       }
+      if(any(colnames(cSumstats)=="NEFF")) cSumstats[,NEFF:=NULL]
+      if(any(colnames(cSumstats)=="NEFF_CAPPED")) cSumstats[,NEFF_CAPPED:=NULL]
+      if(any(colnames(cSumstats)=="N_CAS")) cSumstats[,N_CAS:=NULL]
+      if(any(colnames(cSumstats)=="N_CON")) cSumstats[,N_CON:=NULL]
     }
     
     #NA values check
