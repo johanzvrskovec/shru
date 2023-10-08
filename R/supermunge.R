@@ -2287,10 +2287,15 @@ supermunge <- function(
       } else {
         stop("\nNEFF/NEFF_CAPPED required to store in N, but not found. Maybe the summary statistics do not have FRQ or SE?")
       }
-      if(any(colnames(cSumstats)=="NEFF")) cSumstats[,NEFF:=NULL]
-      if(any(colnames(cSumstats)=="NEFF_CAPPED")) cSumstats[,NEFF_CAPPED:=NULL]
-      if(any(colnames(cSumstats)=="N_CAS")) cSumstats[,N_CAS:=NULL]
-      if(any(colnames(cSumstats)=="N_CON")) cSumstats[,N_CON:=NULL]
+      cSumstats[,NEFF:=NULL][,NEFF_CAPPED:=NULL]
+      if(any(colnames(cSumstats)=="N_CAS") | any(colnames(cSumstats)=="N_CON")) {
+        cSumstats[,N_CAS:=N/2][N_CON=N/2]
+      }
+      
+      # if(any(colnames(cSumstats)=="NEFF")) cSumstats[,NEFF:=NULL]
+      # if(any(colnames(cSumstats)=="NEFF_CAPPED")) cSumstats[,NEFF_CAPPED:=NULL]
+      # if(any(colnames(cSumstats)=="N_CAS")) cSumstats[,N_CAS:=NULL]
+      # if(any(colnames(cSumstats)=="N_CON")) cSumstats[,N_CON:=NULL]
     }
     
     #NA values check
@@ -2326,8 +2331,8 @@ supermunge <- function(
     if("INFO" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"INFO")
     if("SINFO" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"SINFO")
     
-    
-    output.colnames.more<-cSumstats.names$std[!(cSumstats.names$std %in% output.colnames)]
+    current.colnames <- colnames(cSumstats)
+    output.colnames.more<-cSumstats.names$std[!(cSumstats.names$std %in% output.colnames) & (cSumstats.names$std %in% current.colnames)]
     output.colnames.all<-c(output.colnames,output.colnames.more)
     if(lossless | !process){
       cSumstats<-cSumstats[,..output.colnames.all]
