@@ -2289,7 +2289,7 @@ supermunge <- function(
       }
       cSumstats[,NEFF:=NULL][,NEFF_CAPPED:=NULL]
       if(any(colnames(cSumstats)=="N_CAS") | any(colnames(cSumstats)=="N_CON")) {
-        cSumstats[,N_CAS:=N/2][N_CON=N/2]
+        cSumstats[,N_CAS:=N/2][,N_CON:=N/2]
       }
       
       # if(any(colnames(cSumstats)=="NEFF")) cSumstats[,NEFF:=NULL]
