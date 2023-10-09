@@ -23,11 +23,11 @@ ldsc.orig <- function(
   
   #Add a second instance of a single dataset if only one is provided, to calculate its h2
   if(length(trait_filepaths<2)){
-    trait_filepaths<-c(trait_filepaths,trait_filepaths[1])
-    trait_codes<-c(trait_codes,trait_codes[1])
-    if(!is.na(samp_prev) & !is.na(pop_prev)){
-      samp_prev<-c(samp_prev,samp_prev[1])
-      pop_prev<-c(pop_prev,pop_prev[1])
+    trait_filepaths<-c(trait_filepaths[1],trait_filepaths[1])
+    trait_codes<-c(trait_codes[1],trait_codes[1])
+    if(!is.null(samp_prev) & !is.null(pop_prev)){
+      samp_prev<-c(samp_prev[1],samp_prev[1])
+      pop_prev<-c(pop_prev[1],pop_prev[1])
     }
   }
   
