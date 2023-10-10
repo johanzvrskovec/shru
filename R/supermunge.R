@@ -2393,7 +2393,7 @@ supermunge <- function(
         if(!doChrSplit | ((!any(colnames(cSumstats)=="CHR") & doChrSplit))){
           if(ldscCompatibility){
             #this may be more compatible with original LDSC
-            cSumstats<-as.data.frame(cSumstats)
+            cSumstats<-as.data.frame(cSumstats[,c("SNP","A1","A2","Z","N")])
             write.table(x = cSumstats,file = paste0(nfilepath,".sumstats"),sep="\t", quote = FALSE, row.names = F, append = F)
             if(file.exists(paste0(nfilepath,".sumstats.gz"))) file.remove(paste0(nfilepath,".sumstats.gz"))
             nfilepath.gzip<-gzip(paste0(nfilepath,".sumstats"))
