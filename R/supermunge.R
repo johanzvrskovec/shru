@@ -2391,6 +2391,7 @@ supermunge <- function(
         if(!doChrSplit | ((!any(colnames(cSumstats)=="CHR") & doChrSplit))){
           #this may be more compatible with original LDSC
           write.table(x = cSumstats,file = nfilepath,sep="\t", quote = FALSE, row.names = F, append = F)
+          if(file.exists(paste0(nfilepath,".gz"))) file.remove(paste0(nfilepath,".gz"))
           nfilepath.gzip<-gzip(nfilepath)
           #fwrite(x = cSumstats,file = paste0(nfilepath,".gz"),append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
           cat(paste("\nSupermunged dataset saved as", paste0(nfilepath,".gz")))
