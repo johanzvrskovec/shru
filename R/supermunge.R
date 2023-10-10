@@ -2397,12 +2397,14 @@ supermunge <- function(
             write.table(x = cSumstats,file = paste0(nfilepath,".sumstats"),sep="\t", quote = FALSE, row.names = F, append = F)
             if(file.exists(paste0(nfilepath,".sumstats.gz"))) file.remove(paste0(nfilepath,".sumstats.gz"))
             nfilepath.gzip<-gzip(paste0(nfilepath,".sumstats"))
+            cat(paste("\nSupermunged dataset saved as", paste0(nfilepath,".sumstats.gz")))
           } else {
             fwrite(x = cSumstats,file = paste0(nfilepath,".gz"),append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
+            cat(paste("\nSupermunged dataset saved as", paste0(nfilepath,".gz")))
           }
          
           
-          cat(paste("\nSupermunged dataset saved as", paste0(nfilepath,".gz")))
+          
         } else {
           dir.create(paste0(nfilepath,".chr"), showWarnings = FALSE)
           chromosomes<-unique(cSumstats$CHR)
