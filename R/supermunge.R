@@ -2389,9 +2389,10 @@ supermunge <- function(
         cat("\nSaving supermunged dataset...\n\n")
         if((!any(colnames(cSumstats)=="CHR") & doChrSplit)) warning("\nSplit by chromosome specified, but the dataset does not have a CHR column.")
         if(!doChrSplit | ((!any(colnames(cSumstats)=="CHR") & doChrSplit))){
-          #write.table(x = cSumstats,file = nfilepath,sep="\t", quote = FALSE, row.names = F, append = F)
-          #nfilepath.gzip<-gzip(nfilepath)
-          fwrite(x = cSumstats,file = paste0(nfilepath,".gz"),append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
+          #this may be more compatible with original LDSC
+          write.table(x = cSumstats,file = nfilepath,sep="\t", quote = FALSE, row.names = F, append = F)
+          nfilepath.gzip<-gzip(nfilepath)
+          #fwrite(x = cSumstats,file = paste0(nfilepath,".gz"),append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
           cat(paste("\nSupermunged dataset saved as", paste0(nfilepath,".gz")))
         } else {
           dir.create(paste0(nfilepath,".chr"), showWarnings = FALSE)
