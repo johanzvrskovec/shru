@@ -477,6 +477,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # process=T
 # standardiseEffectsToExposure=F
 # writeOutput=T
+# ldscCompatibility=F
 # filter.info=NULL
 # filter.or=NULL
 # filter.maf=NULL
@@ -533,6 +534,7 @@ supermunge <- function(
   process=T, #apply 'lossy' procedures apart from the explicit filters (incuding reference merging)
   standardiseEffectsToExposure=F,
   writeOutput=T,
+  ldscCompatibility=F,
   filter.info=NULL,
   filter.or=NULL,
   filter.maf=NULL,
@@ -2389,11 +2391,17 @@ supermunge <- function(
         cat("\nSaving supermunged dataset...\n\n")
         if((!any(colnames(cSumstats)=="CHR") & doChrSplit)) warning("\nSplit by chromosome specified, but the dataset does not have a CHR column.")
         if(!doChrSplit | ((!any(colnames(cSumstats)=="CHR") & doChrSplit))){
-          #this may be more compatible with original LDSC
-          write.table(x = cSumstats,file = nfilepath,sep="\t", quote = FALSE, row.names = F, append = F)
-          if(file.exists(paste0(nfilepath,".gz"))) file.remove(paste0(nfilepath,".gz"))
-          nfilepath.gzip<-gzip(nfilepath)
-          #fwrite(x = cSumstats,file = paste0(nfilepath,".gz"),append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
+          if(ldscCompatibility){
+            #this may be more compatible with original LDSC
+            cSumstats<-as.data.frame(cSumstats)
+            write.table(x = cSumstats,file = paste0(nfilepath,".sumstats"),sep="\t", quote = FALSE, row.names = F, append = F)
+            if(file.exists(paste0(nfilepath,".sumstats.gz"))) file.remove(paste0(nfilepath,".sumstats.gz"))
+            nfilepath.gzip<-gzip(paste0(nfilepath,".sumstats"))
+          } else {
+            fwrite(x = cSumstats,file = paste0(nfilepath,".gz"),append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
+          }
+         
+          
           cat(paste("\nSupermunged dataset saved as", paste0(nfilepath,".gz")))
         } else {
           dir.create(paste0(nfilepath,".chr"), showWarnings = FALSE)
