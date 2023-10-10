@@ -1343,8 +1343,10 @@ supermunge <- function(
         
         if(any(colnames(cSumstats)=="FRQ")){
           if(nrow(cSumstats[is.na(FRQ),])>0){
-            cSumstats.meta<-rbind(cSumstats.meta,list("FRQ missing, attempting to infer from reference FRQ",as.character(nrow(cSumstats[is.na(FRQ),]))))
-            cSumstats[is.na(FRQ),FRQ:=as.numeric(FRQ_REF)]
+            if(any(colnames(cSumstats)=="FRQ_REF")){
+              cSumstats.meta<-rbind(cSumstats.meta,list("FRQ missing, attempting to infer from reference FRQ",as.character(nrow(cSumstats[is.na(FRQ),]))))
+              cSumstats[is.na(FRQ),FRQ:=as.numeric(FRQ_REF)]
+            }
           }
         } else {
           sumstats.meta[iFile,c("no_FRQ")]<-T
