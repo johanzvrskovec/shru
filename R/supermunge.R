@@ -2388,21 +2388,22 @@ supermunge <- function(
       cat("\nNo warnings detected.\n")
     }
     
-    nfilepath<-file.path(pathDirOutput,traitNames[iFile])
+    
     if(writeOutput){
-        cat("\nSaving supermunged dataset...\n\n")
+        nfilename<-traitNames[iFile]
+        cat("\nSaving supermunged dataset",nfilename,"\n\n")
         if((!any(colnames(cSumstats)=="CHR") & doChrSplit)) warning("\nSplit by chromosome specified, but the dataset does not have a CHR column.")
         if(!doChrSplit | ((!any(colnames(cSumstats)=="CHR") & doChrSplit))){
           if(ldscCompatibility){
             #this may be more compatible with original LDSC
             cSumstats<-as.data.frame(cSumstats[,c("SNP","A1","A2","Z","N")])
-            write.table(x = cSumstats,file = paste0(nfilepath,".sumstats"),sep="\t", quote = FALSE, row.names = F, append = F)
-            if(file.exists(paste0(nfilepath,".sumstats.gz"))) file.remove(paste0(nfilepath,".sumstats.gz"))
-            nfilepath.gzip<-gzip(paste0(nfilepath,".sumstats"))
-            cat(paste("\nSupermunged dataset saved as", paste0(nfilepath,".sumstats.gz")))
+            write.table(x = cSumstats,file = file.path(pathDirOutput,paste0(nfilename,".sumstats")),sep="\t", quote = FALSE, row.names = F, append = F)
+            if(file.exists(file.path(pathDirOutput,paste0(nfilename,".sumstats")))) file.remove(file.path(pathDirOutput,paste0(nfilename,".sumstats")))
+            nfilename.gz <- gzip(file.path(pathDirOutput,paste0(nfilename,".sumstats")))
+            cat("\nSupermunged dataset saved as", nfilename.gz)
           } else {
-            fwrite(x = cSumstats,file = paste0(nfilepath,".gz"),append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
-            cat(paste("\nSupermunged dataset saved as", paste0(nfilepath,".gz")))
+            fwrite(x = cSumstats,file = file.path(pathDirOutput,paste0(nfilename,".gz")),append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
+            cat("\nSupermunged dataset saved as", file.path(pathDirOutput,paste0(nfilename,".gz")))
           }
          
           
