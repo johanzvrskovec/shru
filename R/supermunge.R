@@ -463,7 +463,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # linprob=NULL
 # se.logit=NULL
 # liftover=NULL
-# pathDirOutput="."
+# pathDirOutput=NULL
 # keepIndel=T
 # harmoniseAllelesToReference=F
 # harmoniseBPToReference=T
@@ -520,7 +520,7 @@ supermunge <- function(
   linprob=NULL,
   se.logit=NULL,
   liftover=NULL,
-  pathDirOutput=".",
+  pathDirOutput=NULL,
   keepIndel=T,
   harmoniseAllelesToReference=F,
   harmoniseBPToReference=T,
@@ -552,6 +552,12 @@ supermunge <- function(
 ){
   
   timeStart <- Sys.time()
+  
+  if(is.null(pathDirOutput) & writeOutput) {
+    normalizePath("./",mustWork = T) 
+  } else if(is.null(pathDirOutput)) {
+    normalizePath("./",mustWork = F) 
+  }
   
   if(length(list_df)>0){
     if(is.null(traitNames)){
@@ -2397,13 +2403,17 @@ supermunge <- function(
           if(ldscCompatibility){
             #this may be more compatible with original LDSC
             cSumstats<-as.data.frame(cSumstats[,c("SNP","A1","A2","Z","N")])
-            write.table(x = cSumstats,file = file.path(pathDirOutput,paste0(nfilename,".sumstats")),sep="\t", quote = FALSE, row.names = F, append = F)
+            filepath.out<-file.path(pathDirOutput,paste0(nfilename,".sumstats"))
+            #cat("\nWriting to ",filepath.out)
+            write.table(x = cSumstats,file = filepath.out,sep="\t", quote = FALSE, row.names = F, append = F)
             if(file.exists(file.path(pathDirOutput,paste0(nfilename,".sumstats")))) file.remove(file.path(pathDirOutput,paste0(nfilename,".sumstats")))
             nfilename.gz <- gzip(file.path(pathDirOutput,paste0(nfilename,".sumstats")))
             cat("\nSupermunged dataset saved as", nfilename.gz)
           } else {
-            fwrite(x = cSumstats,file = file.path(pathDirOutput,paste0(nfilename,".gz")),append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
-            cat("\nSupermunged dataset saved as", file.path(pathDirOutput,paste0(nfilename,".gz")))
+            filepath.out<-file.path(pathDirOutput,paste0(nfilename,".gz"))
+            #cat("\nWriting to ",filepath.out)
+            fwrite(x = cSumstats,file = filepath.out,append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
+            cat("\nSupermunged dataset saved as", filepath.out)
           }
          
           
