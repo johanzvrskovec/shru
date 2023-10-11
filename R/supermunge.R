@@ -2406,8 +2406,8 @@ supermunge <- function(
             filepath.out<-file.path(pathDirOutput,paste0(nfilename,".sumstats"))
             cat("\nWriting to ",filepath.out)
             write.table(x = cSumstats,file = filepath.out,sep="\t", quote = FALSE, row.names = F, append = F)
-            if(file.exists(filepath.out)) file.remove(filepath.out)
-            nfilename.gz <- gzip(filepath.out)
+            #if(file.exists(filepath.out)) file.remove(filepath.out)
+            nfilename.gz <- gzip(filepath.out,overwrite=T)
             cat("\nSupermunged dataset saved as", nfilename.gz)
           } else {
             filepath.out<-file.path(pathDirOutput,paste0(nfilename,".gz"))
