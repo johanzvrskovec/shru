@@ -611,7 +611,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.15.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.15.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -2406,8 +2406,8 @@ supermunge <- function(
             filepath.out<-file.path(pathDirOutput,paste0(nfilename,".sumstats"))
             cat("\nWriting to ",filepath.out)
             write.table(x = cSumstats,file = filepath.out,sep="\t", quote = FALSE, row.names = F, append = F)
-            if(file.exists(file.path(pathDirOutput,paste0(nfilename,".sumstats")))) file.remove(file.path(pathDirOutput,paste0(nfilename,".sumstats")))
-            nfilename.gz <- gzip(file.path(pathDirOutput,paste0(nfilename,".sumstats")))
+            if(file.exists(filepath.out)) file.remove(filepath.out)
+            nfilename.gz <- gzip(filepath.out)
             cat("\nSupermunged dataset saved as", nfilename.gz)
           } else {
             filepath.out<-file.path(pathDirOutput,paste0(nfilename,".gz"))
