@@ -2402,6 +2402,9 @@ supermunge <- function(
         if(!doChrSplit | ((!any(colnames(cSumstats)=="CHR") & doChrSplit))){
           if(ldscCompatibility){
             #this may be more compatible with original LDSC
+            cSumstats.n <- nrow(cSumstats)
+            cSumstats<-cSumstats[is.finite(Z) & is.finite(N),]
+            cat("\nRemoved ",as.character((cSumstats.n-nrow(cSumstats))),"additional rows for LDSC compatibitilty")
             cSumstats<-as.data.frame(cSumstats[,c("SNP","A1","A2","Z","N")])
             filepath.out<-file.path(pathDirOutput,paste0(nfilename,".sumstats"))
             cat("\nWriting to ",filepath.out)
