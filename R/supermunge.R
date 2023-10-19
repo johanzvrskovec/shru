@@ -478,6 +478,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # standardiseEffectsToExposure=F
 # writeOutput=T
 # ldscCompatibility=F
+# sortOutput=T
 # filter.info=NULL
 # filter.or=NULL
 # filter.maf=NULL
@@ -535,6 +536,7 @@ supermunge <- function(
   standardiseEffectsToExposure=F,
   writeOutput=T,
   ldscCompatibility=F,
+  sortOutput=T,
   filter.info=NULL,
   filter.or=NULL,
   filter.maf=NULL,
@@ -611,7 +613,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.15.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.16.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -685,7 +687,7 @@ supermunge <- function(
     # ref should be a data.table at this point
     
     # Column harmonisation
-    ref.keys<-c("SNP","A1","A2")
+    ref.keys<-c("SNP")
     #let's assume the ref is properly formatted and interpreted here with PLINK numeric chromosome numbers
     # ref[,SNP:=tolower(as.character(SNP))]
     # ref[,A1:=toupper(as.character(A1))]
@@ -696,6 +698,12 @@ supermunge <- function(
     if('BP' %in% names(ref)) {
       #ref[,BP:=as.integer(BP)]
       ref.keys<-c(ref.keys,'BP')
+    }
+    if('A1' %in% names(ref)) {
+      ref.keys<-c(ref.keys,'A1')
+    }
+    if('A2' %in% names(ref)) {
+      ref.keys<-c(ref.keys,'A2')
     }
     
     variantTable<-NA
@@ -2394,6 +2402,23 @@ supermunge <- function(
       cat("\nNo warnings detected.\n")
     }
     
+    if(sortOutput){
+      if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP") & any(colnames(cSumstats)=="CM") & any(colnames(cSumstats)=="FRQ") & any(colnames(cSumstats)=="L2")){
+        setorder(cSumstats,CHR,BP,CM,SNP,-FRQ,-L2)
+      } else if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP") & any(colnames(cSumstats)=="FRQ") & any(colnames(cSumstats)=="L2")){
+        setorder(cSumstats,CHR,BP,SNP,-FRQ,-L2)
+      } else if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP") & any(colnames(cSumstats)=="FRQ") & any(colnames(cSumstats)=="CM")){
+        setorder(cSumstats,CHR,BP,CM,SNP,-FRQ)
+      } else if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP") & any(colnames(cSumstats)=="FRQ")){
+        setorder(cSumstats,CHR,BP,SNP,-FRQ)
+      } else if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
+        setorder(cSumstats,CHR,BP,SNP)
+      } else if(any(colnames(cSumstats)=="CHR")){
+        setorder(cSumstats,CHR,SNP)
+      } else {
+        setorder(cSumstats,SNP)
+      }
+    }
     
     if(writeOutput){
         nfilename<-traitNames[iFile]
