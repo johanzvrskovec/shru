@@ -613,7 +613,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.16.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.16.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1220,13 +1220,17 @@ supermunge <- function(
         cSumstats.n<-nrow(cSumstats)
         
         #Join with reference on SNP rsID, only keeping SNPs with rsIDs part of the reference
-        #https://stackoverflow.com/questions/34644707/left-outer-join-with-data-table-with-different-names-for-key-variables/34645997#34645997
         ref.colnames<-shru::stdGwasColumnNames(colnames(ref),missingEssentialColumnsStop = NULL,ancestrySetting = ancestrySetting[iFile], warnings = F)
         cSumstats.merged.snp<-ref
         colnames(cSumstats.merged.snp)<-paste0(ref.colnames$std,"_REF")
         setkeyv(cSumstats.merged.snp, cols = paste0(key(ref),"_REF"))
         
         cSumstats.merged.snp<-cSumstats.merged.snp[!is.na(SNP_REF),]
+        
+        SNPsNotInRef<-cSumstats$SNP[!cSumstats$SNP %in% cSumstats.merged.snp$SNP_REF]
+        saveRDS(object = SNPsNotInRef,file = file.path(pathDirOutput,paste0(traitNames[iFile],".unmatched.Rds")))
+        rm(SNPsNotInRef)
+        
         cSumstats.merged.snp<-cSumstats.merged.snp[cSumstats, on=c(SNP_REF="SNP"), nomatch=0]
         #replace missing columns
         cSumstats.merged.snp[,SNP:=SNP_REF][,SNP_REF:=NULL]
