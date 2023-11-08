@@ -654,28 +654,40 @@ supermunge <- function(
   if(!is.null(rsSynonymsFilePath)){
     cat("\nReading variant ID synonyms...")
     
-    idSynonyms <- fread(file = rsSynonymsFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",header = F, fill=T,  blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F, skip = 2, sep = "")
-    cat(".")
-    #idSynonyms.map<-as.data.frame(matrix(data = NA, nrow = 0, ncol = 0))
-    idSynonyms$parts<-strsplit(x = idSynonyms$V1, split = " ")
-    cat(".")
-    idSynonyms[,V1:=NULL]
-    #idSynonyms[,parts2:=paste0("rs",parts)]
-    #idSynonyms$parts2<-lapply(idSynonyms$parts,FUN = function(x){paste0("rs",x)})
-    idSynonyms$parts.n<-lapply(idSynonyms$parts,FUN = function(x){length(x)})
-    idSynonyms[,parts.n:=as.integer(parts.n)]
-    idSynonyms$first.rs<-lapply(idSynonyms$parts,FUN = function(x){x[[1]]}) #current
-    idSynonyms[,first.rs:=paste0("rs",first.rs)]
-    idSynonyms[,first.rs:=as.character(first.rs)]
-    setkeyv(idSynonyms, cols = c("first.rs","parts.n"))
+    #test type
+    idSynonyms <- fread(file = rsSynonymsFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F,nrows = 100)
     cat(".")
     
-    uniqueSynonyms<-data.table(SNP=paste0("rs",unique(unlist(idSynonyms$parts))))
-    setkeyv(uniqueSynonyms, cols = c("SNP"))
-    cat(".")
+    if(any("SNP"==colnames(idSynonyms)) & any("SYN"==colnames(idSynonyms))){
+      #type1: SNP,REF
+      idSynonyms <- fread(file = rsSynonymsFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
+    } else {
+      idSynonyms <- fread(file = rsSynonymsFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",header = F, fill=T,  blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F, skip = 2, sep = "")
+      cat(".")
+      #idSynonyms.map<-as.data.frame(matrix(data = NA, nrow = 0, ncol = 0))
+      idSynonyms$parts<-strsplit(x = idSynonyms$V1, split = " ")
+      cat(".")
+      idSynonyms[,V1:=NULL]
+      #idSynonyms[,parts2:=paste0("rs",parts)]
+      #idSynonyms$parts2<-lapply(idSynonyms$parts,FUN = function(x){paste0("rs",x)})
+      idSynonyms$parts.n<-lapply(idSynonyms$parts,FUN = function(x){length(x)})
+      idSynonyms[,parts.n:=as.integer(parts.n)]
+      idSynonyms$first.rs<-lapply(idSynonyms$parts,FUN = function(x){x[[1]]}) #current
+      idSynonyms[,first.rs:=paste0("rs",first.rs)]
+      idSynonyms[,first.rs:=as.character(first.rs)]
+      setkeyv(idSynonyms, cols = c("first.rs","parts.n"))
+      cat(".")
+      
+      # #not used
+      # uniqueSynonyms<-data.table(SNP=paste0("rs",unique(unlist(idSynonyms$parts))))
+      # setkeyv(uniqueSynonyms, cols = c("SNP"))
+      
+      cat(".")
+      # idSynonyms2<-read.table(file = rsSynonymsFilePath,header = F,na.strings = c(".",NA,"NA",""), blank.lines.skip = T, encoding = "UTF-8", fill = T)
+      # rm(idSynonyms2)
+    }
     
-    # idSynonyms2<-read.table(file = rsSynonymsFilePath,header = F,na.strings = c(".",NA,"NA",""), blank.lines.skip = T, encoding = "UTF-8", fill = T)
-    # rm(idSynonyms2)
+   
     cat("Done!\n")
   }
   
@@ -1153,21 +1165,28 @@ supermunge <- function(
     
     #update variant ID's from synonym list
     if(!is.null(idSynonyms)){
-      # idSynonymsSplitMaxlength<-0
-      # crap <- lapply(idSynonyms$parts,FUN = function(x){if(length(x)>idSynonymsSplitMaxlength) idSynonymsSplitMaxlength<<- length(x)})
-      # rm(crap)
-      
-      for(iSynonym in 2:50){ #max 50 synonyms considered
-        #iSynonym<-2
-        cSynonym<-idSynonyms[parts.n>=iSynonym,]
-        if(nrow(cSynonym)>0){
-          cSynonym$SNP<-lapply(cSynonym$parts,FUN = function(x){ifelse(iSynonym<=length(x),x[[iSynonym]],NA)})
-          cSynonym[,SNP:=as.character(SNP)][,SNP:=paste0("rs",SNP)][,c("SNP","first.rs")]
-          setkeyv(cSynonym, cols = c("SNP"))
-          #temp<-cSumstats[cSynonym,on=c(SNP="SNP"), nomatch=0]
-          cSumstats[cSynonym,on=c(SNP="SNP"), SNP:=i.first.rs]
-        } else break
+      if(any("SNP"==colnames(idSynonyms)) & any("SYN"==colnames(idSynonyms))){
+        #type 1
+        cSumstats[idSynonyms,on=c(SYN="SNP"),SNP:=i.SNP]
+      } else {
+        #type 2
+        # idSynonymsSplitMaxlength<-0
+        # crap <- lapply(idSynonyms$parts,FUN = function(x){if(length(x)>idSynonymsSplitMaxlength) idSynonymsSplitMaxlength<<- length(x)})
+        # rm(crap)
+        
+        for(iSynonym in 2:50){ #max 50 synonyms considered
+          #iSynonym<-2
+          cSynonym<-idSynonyms[parts.n>=iSynonym,]
+          if(nrow(cSynonym)>0){
+            cSynonym$SNP<-lapply(cSynonym$parts,FUN = function(x){ifelse(iSynonym<=length(x),x[[iSynonym]],NA)})
+            cSynonym[,SNP:=as.character(SNP)][,SNP:=paste0("rs",SNP)][,c("SNP","first.rs")]
+            setkeyv(cSynonym, cols = c("SNP"))
+            #temp<-cSumstats[cSynonym,on=c(SNP="SNP"), nomatch=0]
+            cSumstats[cSynonym,on=c(SNP="SNP"), SNP:=i.first.rs]
+          } else break
+        }
       }
+      
       cat("📛")
     }
     
