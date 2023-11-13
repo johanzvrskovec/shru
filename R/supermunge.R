@@ -341,17 +341,18 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 #tests
 
 # single test with hard coded values
-# filePaths = "/Users/jakz/Downloads/FG_combined_1000G_density_formatted_21-03-29.txt"
+# filePaths = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/gwas_sumstats/cleaned/ANXI03.gz"
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/combined.hm3_1kg.snplist.vanilla.jz2020.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/w_hm3.snplist.flaskapp2018"
-# #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.eur.l2.jz2023.gz" #test with new refpanel
-# #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
+# refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.mix.l2.jz2024.gz" #test with new refpanel
+# rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = "FGTEST"
+# traitNames = "ANXITEST"
 # #N = 18000
 # pathDirOutput = "/Users/jakz/Downloads"
-# #test = T
+# test = T
+# ancestrySetting = "EUR"
 # # filter.maf = 0.01
 # # filter.info = 0.6
 
@@ -644,9 +645,11 @@ supermunge <- function(
     ref<-fread(file = refFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
     #ref <- read.table(refFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
     cat(paste0("\nRead reference variant file:\n",refFilePath))
-    if(test){
-      ref<-ref[1:(nrow(ref)/4)]
-    }
+  }
+  
+  #set test regime - does not produce real data!
+  if(!is.null(test)){
+    ref<-ref[1:(nrow(ref)/4)]
   }
   
   #read SNP id synonyms
@@ -1167,7 +1170,8 @@ supermunge <- function(
     if(!is.null(idSynonyms)){
       if(any("SNP"==colnames(idSynonyms)) & any("SYN"==colnames(idSynonyms))){
         #type 1
-        cSumstats[idSynonyms,on=c(SYN="SNP"),SNP:=i.SNP]
+        cSumstats[idSynonyms,on=c(SNP="SYN"),c('SNP','synUpdate'):=list(i.SNP,1)]
+        cSumstats.meta<-rbind(cSumstats.meta,list(paste("Updated synonym variants"),as.character(nrow(cSumstats[synUpdate==1,]))))
       } else {
         #type 2
         # idSynonymsSplitMaxlength<-0
@@ -1182,14 +1186,16 @@ supermunge <- function(
             cSynonym[,SNP:=as.character(SNP)][,SNP:=paste0("rs",SNP)][,c("SNP","first.rs")]
             setkeyv(cSynonym, cols = c("SNP"))
             #temp<-cSumstats[cSynonym,on=c(SNP="SNP"), nomatch=0]
-            cSumstats[cSynonym,on=c(SNP="SNP"), SNP:=i.first.rs]
+            cSumstats[cSynonym,on=c(SNP="SNP"), c('SNP','synUpdate'):=list(i.first.rs,1)]
+            cSumstats.meta<-rbind(cSumstats.meta,list(paste("Updated synonym variants"),as.character(nrow(cSumstats[synUpdate==1,]))))
           } else break
         }
       }
       
+      if(any("synUpdate"==colnames(cSumstats))) cSumstats[,synUpdate:=NULL]
+      
       cat("📛")
     }
-    
     
     if(process){
       cat("\nProcessing.")
@@ -1246,8 +1252,12 @@ supermunge <- function(
         
         cSumstats.merged.snp<-cSumstats.merged.snp[!is.na(SNP_REF),]
         
+        
         SNPsNotInRef<-cSumstats$SNP[!cSumstats$SNP %in% cSumstats.merged.snp$SNP_REF]
-        saveRDS(object = SNPsNotInRef,file = file.path(pathDirOutput,paste0(traitNames[iFile],".unmatched.Rds")))
+        # cSumstats.meta<-rbind(cSumstats.meta,list("Datset variants not in reference",as.character(length(SNPsNotInRef))))
+        if(doStatistics){
+          saveRDS(object = SNPsNotInRef,file = file.path(pathDirOutput,paste0(traitNames[iFile],".unmatched.Rds")))
+        }
         rm(SNPsNotInRef)
         
         cSumstats.merged.snp<-cSumstats.merged.snp[cSumstats, on=c(SNP_REF="SNP"), nomatch=0]
@@ -1259,7 +1269,8 @@ supermunge <- function(
         if(any(colnames(cSumstats)=="SNP") && any(colnames(ref)=="SNPR")) {
           cSumstats.merged.snpr<-ref
           colnames(cSumstats.merged.snpr)<-paste0(ref.colnames$std,"_REF")
-          setkeyv(cSumstats.merged.snpr, cols = paste0("SNPR_REF"))
+          cSumstats.merged.snpr[,SNPR_REF:=as.character(SNPR_REF)] #extra type conversion
+          setkeyv(cSumstats.merged.snpr, cols = c("SNPR_REF"))
           cSumstats.merged.snpr<-cSumstats.merged.snpr[!is.na(SNPR_REF),]
           cSumstats.merged.snpr<-cSumstats.merged.snpr[cSumstats, on=c(SNPR_REF='SNP'), nomatch=0]
           
