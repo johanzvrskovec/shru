@@ -340,18 +340,18 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 
 #tests
 
-# single test with hard coded values
-# filePaths = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/gwas_sumstats/cleaned/ANXI03.gz"
+# # single test with hard coded values
+# filePaths = "/users/k19049801/project/JZ_GED_PHD_ADMIN_GENERAL/data/gwas_sumstats/cleaned/ANXI03.gz"
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/combined.hm3_1kg.snplist.vanilla.jz2020.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/w_hm3.snplist.flaskapp2018"
-# refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.mix.l2.jz2024.gz" #test with new refpanel
-# rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
+# refFilePath = "/users/k19049801/project/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.eur.l2.jz2024.gz" #test with new refpanel
+# rsSynonymsFilePath = "/users/k19049801/project/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.jz2024.synonyms.gz"
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
 # traitNames = "ANXITEST"
 # #N = 18000
-# pathDirOutput = "/Users/jakz/Downloads"
-# test = T
+# #pathDirOutput = "/Users/jakz/Downloads"
+# #test = T
 # ancestrySetting = "EUR"
 # # filter.maf = 0.01
 # # filter.info = 0.6
@@ -614,7 +614,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.16.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.16.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -648,7 +648,7 @@ supermunge <- function(
   }
   
   #set test regime - does not produce real data!
-  if(!is.null(test)){
+  if(test){
     ref<-ref[1:(nrow(ref)/4)]
   }
   
