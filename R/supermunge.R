@@ -467,7 +467,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # pathDirOutput=NULL
 # keepIndel=T
 # forceAllelesToReference=F
-# harmoniseBPToReference=T
+# forceBPToReference=T
 # doChrSplit=F
 # doStatistics=F
 # mask=NULL
@@ -525,7 +525,7 @@ supermunge <- function(
   pathDirOutput=NULL,
   keepIndel=T,
   forceAllelesToReference=F,
-  harmoniseBPToReference=T,
+  forceBPToReference=T,
   doChrSplit=F,
   doStatistics=F,
   mask=NULL,
@@ -1358,7 +1358,7 @@ supermunge <- function(
       if(!is.null(ref)){
         
         ##Synchronise SNP,CHR,BP,FRQ with reference
-        if(harmoniseBPToReference & any(colnames(cSumstats)=="BP_REF")) cSumstats[,BP:=BP_REF]
+        if(forceBPToReference & any(colnames(cSumstats)=="BP_REF")) cSumstats[,BP:=BP_REF]
         
         ## Add in chr and bp from ref if not present in datasets
         if(any(colnames(cSumstats)=="CHR")){
@@ -1367,6 +1367,7 @@ supermunge <- function(
           sumstats.meta[iFile,c("no_CHR")]<-T
           cSumstats.warnings<-c(cSumstats.warnings,"No CHR column present!")
           if(any(colnames(cSumstats)=="CHR_REF")){
+            Sumstats.meta<-rbind(cSumstats.meta,list("CHR","Missing. Set from reference."))
             cSumstats[,CHR:=as.integer(CHR_REF)]
             cSumstats.keys<-c(cSumstats.keys,'CHR')
             cSumstats.warnings<-c(cSumstats.warnings,"Inferred all CHR from reference!")
@@ -1381,6 +1382,7 @@ supermunge <- function(
           sumstats.meta[iFile,c("no_BP")]<-T
           cSumstats.warnings<-c(cSumstats.warnings,"No BP column present!")
           if(any(colnames(cSumstats)=="BP_REF")){
+            cSumstats.meta<-rbind(cSumstats.meta,list("BP","Missing. Set from reference."))
             cSumstats[,BP:=as.integer(BP_REF)]
             cSumstats.warnings<-c(cSumstats.warnings,"Inferred all BP from reference!")
           } else {
@@ -1400,6 +1402,7 @@ supermunge <- function(
           sumstats.meta[iFile,c("no_FRQ")]<-T
           cSumstats.warnings<-c(cSumstats.warnings,"No FRQ column present!")
           if(any(colnames(cSumstats)=="FRQ_REF")){
+            cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Missing. Set from reference."))
             cSumstats[,FRQ:=as.numeric(FRQ_REF)]
             cSumstats.warnings<-c(cSumstats.warnings,"Inferred all FRQ from reference!")
           } else {
@@ -1411,9 +1414,9 @@ supermunge <- function(
         #dataset should have a FRQ column now
         #assign missing FRQ from fallback column (mixed ancestry for example) if still missing
         if(any(colnames(cSumstats)=="FRQFB_REF")){
-          if(nrow(cSumstats[is.na(FRQ),])>0){
-            cSumstats.meta<-rbind(cSumstats.meta,list("FRQ still missing, attempting to infer from reference fallback FRQ",as.character(nrow(cSumstats[is.na(FRQ),]))))
-            cSumstats[is.na(FRQ),FRQ:=as.numeric(FRQFB_REF)]
+          if(nrow(cSumstats[!is.finite(FRQ),])>0){
+            cSumstats.meta<-rbind(cSumstats.meta,list("FRQ still missing/non-finite, attempting to infer from reference fallback FRQ",as.character(nrow(cSumstats[!is.finite(FRQ),]))))
+            cSumstats[!is.finite(FRQ),FRQ:=as.numeric(FRQFB_REF)]
           }
         }
         
