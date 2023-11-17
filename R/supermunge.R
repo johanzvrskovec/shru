@@ -614,7 +614,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.16.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.16.3\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1518,7 +1518,20 @@ supermunge <- function(
           #cSumstats.meta<-rbind(cSumstats.meta,list("FRQ (median, min(abs), max(abs))",paste(median(cSumstats$FRQ, na.rm = T),", ",min(abs(cSumstats$FRQ), na.rm = T),", ", max(abs(cSumstats$FRQ), na.rm = T))))
           #### Check if value is within limits [0,1]
           if(any(cSumstats$FRQ>1,na.rm = T) || any(cSumstats$FRQ<0,na.rm = T)) {
-            stop(paste0('\nThere are FRQ values larger than 1 (',sum(cSumstats[is.finite(FRQ),]$FRQ>1),') or less than 0 (',sum(cSumstats[is.finite(FRQ),]$FRQ<0),') which is outside of the possible FRQ range.'))
+            
+            cSumstats.n.FRQmt<-sum(cSumstats[is.finite(FRQ),]$FRQ>1)
+            cSumstats.n.FRQlt<-sum(cSumstats[is.finite(FRQ),]$FRQ<0)
+            maf.max <- sqrt(max(cSumstats[FRQ<1 & FRQ>0,]$FRQ,na.rm=T))
+            maf.min <- sqrt(min(cSumstats[FRQ<1 & FRQ>0,]$FRQ,na.rm=T))
+            
+            if((cSumstats.n.FRQmt + cSumstats.n.FRQlt)/cSumstats.n>0.01 | !is.finite(maf.max) | !is.finite(maf.min)){
+            stop(paste0('\nThere are >1% FRQ values larger than 1 (',cSumstats.n.FRQmt,') or less than 0 (',cSumstats.n.FRQlt,') which is outside of the possible FRQ range.'))
+            } else {
+              cSumstats[FRQ>1,FRQ:=eval(maf.max)]
+              cSumstats.meta<-rbind(cSumstats.meta,list("FRQ",paste("FRQ > 1: ",cSumstats.n.FRQmt," set to ",maf.max)))
+              cSumstats[FRQ<0,FRQ:=eval(maf.min)]
+              cSumstats.meta<-rbind(cSumstats.meta,list("FRQ",paste("FRQ < 0: ",cSumstats.n.FRQmt," set to ",maf.min)))
+            }
           }
           
           ### Invert FRQ based on the previous reference matching
