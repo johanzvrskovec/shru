@@ -466,7 +466,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # liftover=NULL
 # pathDirOutput=NULL
 # keepIndel=T
-# harmoniseAllelesToReference=F
+# forceAllelesToReference=F
 # harmoniseBPToReference=T
 # doChrSplit=F
 # doStatistics=F
@@ -524,7 +524,7 @@ supermunge <- function(
   liftover=NULL,
   pathDirOutput=NULL,
   keepIndel=T,
-  harmoniseAllelesToReference=F,
+  forceAllelesToReference=F,
   harmoniseBPToReference=T,
   doChrSplit=F,
   doStatistics=F,
@@ -614,12 +614,12 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.16.3\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.17.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
   cat("\nkeepIndel=",keepIndel)
-  cat("\nharmoniseAllelesToReference=",harmoniseAllelesToReference)
+  cat("\nforceAllelesToReference=",forceAllelesToReference)
   cat("\nchangeEffectDirectionOnAlleleFlip=",setChangeEffectDirectionOnAlleleFlip)
   cat("\nprocess=",process)
   cat("\nimputeFromLD=",imputeFromLD)
@@ -1497,7 +1497,7 @@ supermunge <- function(
       cat(".")
       
       ## Invert alleles or harmonise (including their FRQ) to reference
-      if(!is.null(ref) & harmoniseAllelesToReference){
+      if(!is.null(ref) & forceAllelesToReference){
         # Fix A1 and A2 to reflect the reference alleles
         cSumstats[,A1:=A1_REF]
         cSumstats[,A2:=A2_REF]
@@ -1535,21 +1535,17 @@ supermunge <- function(
           }
           
           ### Invert FRQ based on the previous reference matching
-          if(any(colnames(cSumstats)=="cond.invertedAlleleOrder") & !harmoniseAllelesToReference) {
-            #alleleFRQ <- ifelse(cSumstats$cond.invertedAlleleOrder, (1-cSumstats$FRQ), cSumstats$FRQ) #old
-            cSumstats[,TFRQ:=FRQ]
-            cSumstats[cond.invertedAlleleOrder==T,TFRQ:=1-FRQ]
-            if(mean(cSumstats[is.finite(TFRQ),TFRQ][1]) < mean(cSumstats[is.finite(FRQ),FRQ][1]) * 1.1){
-              cSumstats[cond.invertedAlleleOrder==T,FRQ:=1-FRQ][,TFRQ:=NULL]
+          if(any(colnames(cSumstats)=="cond.invertedAlleleOrder") & !forceAllelesToReference) {
+              cSumstats[cond.invertedAlleleOrder==T,FRQ:=1-FRQ]
               #cSumstats$FRQ<-alleleFRQ
               cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Fitted (flipped) according to reference allele order"))
               sumstats.meta[iFile,c("FRQ.flipped")]<-T
             } else {
               cond.invertedMAF<-cSumstats$FRQ > .5
               cSumstats$FRQ<-ifelse(cond.invertedMAF,1-cSumstats$FRQ,cSumstats$FRQ)
-              cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Set to MAF"))
+              cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Forced to reference FRQ/MAF"))
               sumstats.meta[iFile,c("FRQ.flipped")]<-F
-            }
+            
           }
           ### Compute MAF
           cond.invertedMAF<-cSumstats$FRQ > .5
