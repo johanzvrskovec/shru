@@ -60,12 +60,25 @@ p.adjust2 <- function (p, method = p.adjust.methods, n = length(p))
   p0
 }
 
-# values1 = diag(p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$S)
-# standard_errors1 = diag(p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$S.SE)
-# values2 = diag(p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S)
-# standard_errors2 = diag(p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S.SE)
-# n1 <- diag(p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$cov.blocks)
-# n2 <- diag(p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$cov.blocks)
+getEffectiveNumberOfTests <- function(
+    covarianceMatrix,
+    symmetric = T,
+    eigenSumLimit = 0.995
+){
+  pcaRes <- eigen(mvldsc$V_Stand,symmetric = symmetric)
+  eigenSum<-sum(abs(pcaRes$values))
+  for(iEV in 1:length(pcaRes$values)){
+    if(sum(abs(pcaRes$values[1:iEV]))/eigenSum > eigenSumLimit) break
+  }
+  
+  return(iEV)
+}
+# values1 = diag(p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S)[p$sumstats.sel.ssimp.code]
+# standard_errors1 = diag(p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S.SE)[p$sumstats.sel.ssimp.code]
+# values2 = p$sumstats$h2.LDSC.1kg.maf0_01[p$sumstats$code %in% p$sumstats.sel.ssimp.code]
+# standard_errors2 = p$sumstats$h2.se.LDSC.1kg.maf0_01[p$sumstats$code %in% p$sumstats.sel.ssimp.code]
+# n1 <- diag(p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$cov.blocks)[p$sumstats.sel.ssimp.code]
+# n2 <- rep(200,length(p$sumstats.sel.ssimp.code))
 
 #uses student's t test (rather than welch's); assumes ~equal variances (even though we clearly rely on them not being exactly equal)
 #this test assumes per default that the variables are closely related/ NOT INDEPENDENT and have correlation ~ 1
@@ -105,12 +118,18 @@ test.meta.deltacovariance <- function(
   
   #these are approximately normal with N(n-1,2(n-1)) with the same mean and variance as the Chi2
   
+  #we need to do a double-sided/two-tailed test here, because of normal!!!
   mTest.standard_errors<-abs(t1 - t2)
   if(fullyDependent){
     sdeFullyDependentVariables<-sqrt(2*abs(2*(n1-1)-2*(n2-1))) #the intersect, again, from stochastic var. variance formulas
-    pTest.standard_errors<-pnorm(q = mTest.standard_errors, mean =  abs(n1-n2), sd = sdeFullyDependentVariables,lower.tail = F)
+    pTest.standard_errors<-ifelse(mTest.standard_errors > abs(n1-n2),
+                                  2*pnorm(q = mTest.standard_errors, mean =  abs(n1-n2), sd = sdeFullyDependentVariables,lower.tail = F),
+                                  2*pnorm(q = mTest.standard_errors, mean =  abs(n1-n2), sd = sdeFullyDependentVariables,lower.tail = T))
   } else {
-    pTest.standard_errors<-pnorm(q = mTest.standard_errors, mean =  abs(n1-n2), sd = sqrt(2*(n1-1)+2*(n2-1)),lower.tail = F)
+    sdeIndependentVariables <- sqrt(2*(n1-1)+2*(n2-1))
+    pTest.standard_errors<-ifelse(mTest.standard_errors > abs(n1-n2),
+                                  2*pnorm(q = mTest.standard_errors, mean =  abs(n1-n2), sd = sdeIndependentVariables, lower.tail = F),
+                                  2*pnorm(q = mTest.standard_errors, mean =  abs(n1-n2), sd = sdeIndependentVariables, lower.tail = T))
   }
   
   pTest.standard_errors.adj<-p.adjust2(pTest.standard_errors, method = "fdr", n = effectiveNumberOfTests)
@@ -123,5 +142,40 @@ test.meta.deltacovariance <- function(
       pTest.standard_errors.adj=pTest.standard_errors.adj
       )
     )
+  
+}
+
+
+# test.meta.deltacovariance for matrices
+# mValues1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$S
+# mStandard_errors1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$S.SE
+# mValues2 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S
+# mStandard_errors2 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S.SE
+# mN1 <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$cov.blocks
+# mN2 <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$cov.blocks
+test.meta.deltacovariance.matrix <- function(
+    mValues1,
+    mStandard_errors1,
+    mValues2,
+    mStandard_errors2,
+    mN1,
+    mN2,
+    symmetric=T,
+    effectiveNumberOfTests=NULL,
+    fullyDependent=T, #assumes practically fully dependent variables
+    mValueCovariances=NULL,
+    eigenSumLimit = 0.995
+){
+  
+  if(!is.null(mValueCovariances)){
+    effectiveNumberOfTests<-getEffectiveNumberOfTests(covarianceMatrix = mValueCovariances,symmetric = symmetric, eigenSumLimit = eigenSumLimit)
+  }
+  
+  if(!symmetric){
+    t<-test.meta.deltacovariance(
+      values1 = mValues1,standard_errors1 = mStandard_errors1,values2 = mValues2,standard_errors2 = mStandard_errors2,n1 = mN1,n2 = mN2,effectiveNumberOfTests = effectiveNumberOfTests,fullyDependent = fullyDependent)
+    mValues1
+  }
+  
   
 }
