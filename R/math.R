@@ -82,6 +82,7 @@ getEffectiveNumberOfTests <- function(
 
 #uses student's t test (rather than welch's); assumes ~equal variances (even though we clearly rely on them not being exactly equal)
 #this test assumes per default that the variables are closely related/ NOT INDEPENDENT and have correlation ~ 1
+
 test.meta.deltacovariance <- function(
     values1,
     standard_errors1,
@@ -93,20 +94,40 @@ test.meta.deltacovariance <- function(
     fullyDependent=T #assumes practically fully dependent variables
     ){
   #test covariance difference
-  mTest.values<-abs(values1-values2) #abs m because we want a one-sided test
+  mTest.values<-values1-values2
+  
+  #the test is double sided overall though, so 2*p!!!!!!!
   #old test was based on a normal
   if(fullyDependent){ # fully dependent samples
     sdeFullyDependentVariables<-sqrt(2*abs((n1-1)*standard_errors1^2-(n2-1)*standard_errors2^2)/(n1+n2-2)) #the intersect, from stochastic var. variance formulas
-    pTest.values<-pt(
-      q = ( mTest.values/(sdeFullyDependentVariables*sqrt((1/n1) + (1/n2)))),
-      df = (n1+n2-2),
-      lower.tail = F
-    ) 
+    
+    pTest.values <- ifelse(mTest.values > 0,
+      2*pt(
+        q = ( mTest.values/(sdeFullyDependentVariables*sqrt((1/n1) + (1/n2)))),
+        df = (n1+n2-2),
+        lower.tail = F
+      ) 
+    ,
+      2*pt(
+        q = ( mTest.values/(sdeFullyDependentVariables*sqrt((1/n1) + (1/n2)))),
+        df = (n1+n2-2),
+        lower.tail = T
+      ) 
+    )
   } else { #independent samples
-    pTest.values<-pt(
-      q = ( mTest.values/(sqrt((n1-1)*standard_errors1^2+(n2-1)*standard_errors2^2/(n1+n2-2))*sqrt((1/n1) + (1/n2)))),
-      df = (n1+n2-2),
-      lower.tail = F
+    
+    pTest.values <- ifelse(mTest.values > 0,
+                           2*pt(
+                             q = ( mTest.values/(sqrt((n1-1)*standard_errors1^2+(n2-1)*standard_errors2^2/(n1+n2-2))*sqrt((1/n1) + (1/n2)))),
+                             df = (n1+n2-2),
+                             lower.tail = F
+                           ) 
+                           ,
+                           2*pt(
+                             q = ( mTest.values/(sqrt((n1-1)*standard_errors1^2+(n2-1)*standard_errors2^2/(n1+n2-2))*sqrt((1/n1) + (1/n2)))),
+                             df = (n1+n2-2),
+                             lower.tail = T
+                           ) 
     )
   }
  
@@ -119,17 +140,17 @@ test.meta.deltacovariance <- function(
   #these are approximately normal with N(n-1,2(n-1)) with the same mean and variance as the Chi2
   
   #we need to do a double-sided/two-tailed test here, because of normal!!!
-  mTest.standard_errors<-abs(t1 - t2)
+  mTest.standard_errors<-t1 - t2
   if(fullyDependent){
     sdeFullyDependentVariables<-sqrt(2*abs(2*(n1-1)-2*(n2-1))) #the intersect, again, from stochastic var. variance formulas
-    pTest.standard_errors<-ifelse(mTest.standard_errors > abs(n1-n2),
-                                  2*pnorm(q = mTest.standard_errors, mean =  abs(n1-n2), sd = sdeFullyDependentVariables,lower.tail = F),
-                                  2*pnorm(q = mTest.standard_errors, mean =  abs(n1-n2), sd = sdeFullyDependentVariables,lower.tail = T))
+    pTest.standard_errors<-ifelse(mTest.standard_errors > (n1-n2),
+                                  2*pnorm(q = mTest.standard_errors, mean =  (n1-n2), sd = sdeFullyDependentVariables,lower.tail = F),
+                                  2*pnorm(q = mTest.standard_errors, mean =  (n1-n2), sd = sdeFullyDependentVariables,lower.tail = T))
   } else {
     sdeIndependentVariables <- sqrt(2*(n1-1)+2*(n2-1))
     pTest.standard_errors<-ifelse(mTest.standard_errors > abs(n1-n2),
-                                  2*pnorm(q = mTest.standard_errors, mean =  abs(n1-n2), sd = sdeIndependentVariables, lower.tail = F),
-                                  2*pnorm(q = mTest.standard_errors, mean =  abs(n1-n2), sd = sdeIndependentVariables, lower.tail = T))
+                                  2*pnorm(q = mTest.standard_errors, mean =  (n1-n2), sd = sdeIndependentVariables, lower.tail = F),
+                                  2*pnorm(q = mTest.standard_errors, mean =  (n1-n2), sd = sdeIndependentVariables, lower.tail = T))
   }
   
   pTest.standard_errors.adj<-p.adjust2(pTest.standard_errors, method = "fdr", n = effectiveNumberOfTests)
