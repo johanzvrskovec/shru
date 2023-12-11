@@ -65,7 +65,7 @@ getEffectiveNumberOfTests <- function(
     symmetric = T,
     eigenSumLimit = 0.995
 ){
-  pcaRes <- eigen(mvldsc$V_Stand,symmetric = symmetric)
+  pcaRes <- eigen(covarianceMatrix,symmetric = symmetric)
   eigenSum<-sum(abs(pcaRes$values))
   for(iEV in 1:length(pcaRes$values)){
     if(sum(abs(pcaRes$values[1:iEV]))/eigenSum > eigenSumLimit) break
@@ -83,6 +83,7 @@ getEffectiveNumberOfTests <- function(
 #uses student's t test (rather than welch's); assumes ~equal variances (even though we clearly rely on them not being exactly equal)
 #this test assumes per default that the variables are closely related/ NOT INDEPENDENT and have correlation ~ 1
 
+#These tests have to include both covariance values and their standard errors as the covariances are used for testing the difference in standard errors.
 test.meta.deltacovariance <- function(
     values1,
     standard_errors1,
@@ -166,7 +167,6 @@ test.meta.deltacovariance <- function(
   
 }
 
-
 # test.meta.deltacovariance for matrices
 # mValues1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$S
 # mStandard_errors1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$S.SE
@@ -174,6 +174,7 @@ test.meta.deltacovariance <- function(
 # mStandard_errors2 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S.SE
 # mN1 <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$cov.blocks
 # mN2 <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$cov.blocks
+# mValueCovariances <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$V_Stand
 test.meta.deltacovariance.matrix <- function(
     mValues1,
     mStandard_errors1,
@@ -188,15 +189,45 @@ test.meta.deltacovariance.matrix <- function(
     eigenSumLimit = 0.995
 ){
   
-  if(!is.null(mValueCovariances)){
+  if(is.null(effectiveNumberOfTests) & !is.null(mValueCovariances)){
     effectiveNumberOfTests<-getEffectiveNumberOfTests(covarianceMatrix = mValueCovariances,symmetric = symmetric, eigenSumLimit = eigenSumLimit)
   }
   
   if(!symmetric){
     t<-test.meta.deltacovariance(
       values1 = mValues1,standard_errors1 = mStandard_errors1,values2 = mValues2,standard_errors2 = mStandard_errors2,n1 = mN1,n2 = mN2,effectiveNumberOfTests = effectiveNumberOfTests,fullyDependent = fullyDependent)
-    mValues1
+  } else {
+    
+    mValues1.lm <- mValues1[lower.tri(mValues1,diag = T)]
+    standard_errors1.lm <- mStandard_errors1[lower.tri(mStandard_errors1,diag = T)]
+    mN1.lm <- mN1[lower.tri(mN1,diag = T)]
+    mValues2.lm <- mValues2[lower.tri(mValues2,diag = T)]
+    standard_errors2.lm <- mStandard_errors2[lower.tri(mStandard_errors2,diag = T)]
+    mN2.lm <- mN2[lower.tri(mN2,diag = T)]
+    
+    t<-test.meta.deltacovariance(
+      values1 = mValues1.lm,standard_errors1 = standard_errors1.lm,values2 = mValues2.lm,standard_errors2 = standard_errors2.lm,n1 = mN1.lm,n2 = mN2.lm,effectiveNumberOfTests = effectiveNumberOfTests,fullyDependent = fullyDependent)
+    
+    t.new<-c()
+    t.new$pTest.values <- matrix(data = NA, nrow = nrow(mValues1), ncol = ncol(mValues1))
+    rownames(t.new$pTest.values)<-rownames(mValues1)
+    colnames(t.new$pTest.values)<-colnames(mValues1)
+    t.new$pTest.values.adj<-t.new$pTest.values
+    t.new$pTest.standard_errors<-t.new$pTest.values
+    t.new$pTest.standard_errors.adj<-t.new$pTest.values
+    
+    t.new$pTest.values[lower.tri(t.new$pTest.values,diag = T)]<-t$pTest.values
+    t.new$pTest.values[upper.tri(t.new$pTest.values,diag = F)]<-t(t.new$pTest.values)[upper.tri(t.new$pTest.values,diag = F)]
+    t.new$pTest.values.adj[lower.tri(t.new$pTest.values,diag = T)]<-t$pTest.values.adj
+    t.new$pTest.values.adj[upper.tri(t.new$pTest.values,diag = F)]<-t(t.new$pTest.values.adj)[upper.tri(t.new$pTest.values.adj,diag = F)]
+    t.new$pTest.standard_errors[lower.tri(t.new$pTest.standard_errors,diag = T)]<-t$pTest.standard_errors
+    t.new$pTest.standard_errors[upper.tri(t.new$pTest.standard_errors,diag = F)]<-t(t.new$pTest.standard_errors)[upper.tri(t.new$pTest.standard_errors,diag = F)]
+    t.new$pTest.standard_errors.adj[lower.tri(t.new$pTest.standard_errors.adj,diag = T)]<-t$pTest.standard_errors.adj
+    t.new$pTest.standard_errors.adj[upper.tri(t.new$pTest.standard_errors.adj,diag = F)]<-t(t.new$pTest.standard_errors.adj)[upper.tri(t.new$pTest.standard_errors.adj,diag = F)]
+    
+    t<-t.new
   }
   
+  return(t)
   
 }
