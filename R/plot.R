@@ -304,7 +304,7 @@ plotAndTestBatteryForMVLDSC <- function(
     is.corr = F,
     number.digits = 4,
     newnames = newnames,
-    title = paste0("Genetic covariances (covG) Coefficient of Variation (CV), ",titleTemplate,titleAddition)
+    title = paste0("Genetic covariance (covG) Coefficients of Variation (CV), ",titleTemplate,titleAddition)
   )
   
   plot.corr(
@@ -360,7 +360,7 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("Differences in LD score regression intercepts, ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dI.totest[lower.tri(dI.totest)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dI.totest)),digits = 3),"]")
+      title = paste0("Differences in LD score regression intercepts, ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dI.totest[lower.tri(dI.totest, diag = T)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dI.totest)),digits = 3),"]")
     )
     
     dS_Stand<-clipValues(mvldsc$S_Stand,-1,1)-clipValues(mvldscComparison$S_Stand,-1,1) #re-compute as we need the full matrices here
@@ -372,7 +372,7 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("Differences in rG, ",titleTemplate,titleAddition,titleAdditionComparison," [abs(mean)=",round(mean(abs(dS_Stand.totest[lower.tri(dS_Stand.totest)])),digits = 2),"]")
+      title = paste0("Differences in rG, ",titleTemplate,titleAddition,titleAdditionComparison," [abs(mean)=",round(mean(abs(dS_Stand.totest[lower.tri(dS_Stand.totest, diag = T)])),digits = 2),"]")
     )
     
     # #relative, in percent
@@ -398,33 +398,33 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 1,
       newnames = newnames,
-      title = paste0("Relative (%) differences in covG, ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dS_rel.totest[lower.tri(dS_rel.totest)]),digits = 1),"]", " [mean(h2 only)=",round(mean(diag(dS_rel.totest)),digits = 1),"]")
+      title = paste0("Relative (%) differences in covG, ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dS_rel.totest[lower.tri(dS_rel.totest, diag = T)]),digits = 1),"]", " [mean(h2 only)=",round(mean(diag(dS_rel.totest)),digits = 1),"]")
     )
     
-    dS.SE<-mvldsc$S.SE-mvldscComparison$S.SE
-    dS.SE.totest<-dS.SE[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
-    plot.corr(
-      corr = dS.SE,
-      #pmat = covse.p.diff.fdr2,
-      filename = file.path(folderpath.plots,paste0("dcovgse.",code,".png")),
-      is.corr = F,
-      number.digits = 4,
-      newnames = newnames,
-      title = paste0("Differences in covG S.E., ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dS.SE.totest[lower.tri(dS.SE.totest)]),digits = 4),"]"," [mean(h2 only)=",round(mean(diag(dS.SE.totest)),digits = 4),"]")
-    )
-    
-    #relative, in percent
-    dS.SE_rel<-100*(mvldsc$S.SE-mvldscComparison$S.SE)/abs(mvldscComparison$S.SE)
-    dS.SE_rel.totest<-dS.SE_rel[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
-    plot.corr(
-      corr = dS.SE_rel,
-      #pmat = covse.p.diff.fdr2,
-      filename = file.path(folderpath.plots,paste0("dcovgse.rel.",code,".png")),
-      is.corr = F,
-      number.digits = 1,
-      newnames = newnames,
-      title = paste0("Relative (%) differences in covG S.E., ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dS.SE_rel.totest[lower.tri(dS.SE_rel.totest)]),digits = 1),"]", " [mean(h2 only)=",round(mean(diag(dS.SE_rel.totest)),digits = 1),"]")
-    )
+    # dS.SE<-mvldsc$S.SE-mvldscComparison$S.SE
+    # dS.SE.totest<-dS.SE[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
+    # plot.corr(
+    #   corr = dS.SE,
+    #   #pmat = covse.p.diff.fdr2,
+    #   filename = file.path(folderpath.plots,paste0("dcovgse.",code,".png")),
+    #   is.corr = F,
+    #   number.digits = 4,
+    #   newnames = newnames,
+    #   title = paste0("Differences in covG S.E., ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dS.SE.totest[lower.tri(dS.SE.totest)]),digits = 4),"]"," [mean(h2 only)=",round(mean(diag(dS.SE.totest)),digits = 4),"]")
+    # )
+    # 
+    # #relative, in percent
+    # dS.SE_rel<-100*(mvldsc$S.SE-mvldscComparison$S.SE)/abs(mvldscComparison$S.SE)
+    # dS.SE_rel.totest<-dS.SE_rel[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
+    # plot.corr(
+    #   corr = dS.SE_rel,
+    #   #pmat = covse.p.diff.fdr2,
+    #   filename = file.path(folderpath.plots,paste0("dcovgse.rel.",code,".png")),
+    #   is.corr = F,
+    #   number.digits = 1,
+    #   newnames = newnames,
+    #   title = paste0("Relative (%) differences in covG S.E., ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dS.SE_rel.totest[lower.tri(dS.SE_rel.totest)]),digits = 1),"]", " [mean(h2 only)=",round(mean(diag(dS.SE_rel.totest)),digits = 1),"]")
+    # )
     
     #cov CV, standardised
     comparison_S_ForCV<-abs(mvldscComparison$S)
@@ -440,7 +440,20 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("Differences in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dCV_cov.totest[lower.tri(dCV_cov.totest)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.totest)),digits = 3),"]")
+      title = paste0("Differences in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dCV_cov.totest[lower.tri(dCV_cov.totest, diag = T)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.totest)),digits = 3),"]")
+    )
+    
+    #cov CV, standardised, relative
+    dCV_cov_rel <- 100*(dCV_cov/(mvldscComparison$S.SE/comparison_S_ForCV))
+    dCV_cov.rel.totest <- dCV_cov_rel[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
+    plot.corr(
+      corr = dCV_cov_rel,
+      #pmat = covse.p.diff.fdr2,
+      filename = file.path(folderpath.plots,paste0("dcovgse.std.rel.",code,".png")),
+      is.corr = F,
+      number.digits = 2,
+      newnames = newnames,
+      title = paste0("Relative (%) differences in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dCV_cov.rel.totest[lower.tri(dCV_cov.rel.totest, diag = T)]),digits = 2),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.rel.totest)),digits = 2),"]")
     )
     
     #p-values for the covG difference
@@ -451,7 +464,7 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("delta covG significance (FDR corrected, ",effectiveNumberOfTests," effective tests), ",titleTemplate,titleAddition,titleAdditionComparison)
+      title = paste0("Significance level of differences in covG (FDR corrected, ",effectiveNumberOfTests," effective tests), ",titleTemplate,titleAddition,titleAdditionComparison)
     )
     
     #p-values for the covG S.E. difference
@@ -462,7 +475,7 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("covG delta S.E. significance (FDR corrected, ",effectiveNumberOfTests," effective tests), ",titleTemplate,titleAddition,titleAdditionComparison)
+      title = paste0("Significance level of differences in covG S.E. significance (FDR corrected, ",effectiveNumberOfTests," effective tests), ",titleTemplate,titleAddition,titleAdditionComparison)
     )
     
   }
