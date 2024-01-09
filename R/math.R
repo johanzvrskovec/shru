@@ -73,6 +73,7 @@ getEffectiveNumberOfTests <- function(
   
   return(iEV)
 }
+
 # values1 = diag(p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S)[p$sumstats.sel.ssimp.code]
 # standard_errors1 = diag(p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S.SE)[p$sumstats.sel.ssimp.code]
 # values2 = p$sumstats$h2.LDSC.1kg.maf0_01[p$sumstats$code %in% p$sumstats.sel.ssimp.code]
@@ -92,7 +93,8 @@ test.meta.deltacovariance <- function(
     n1,
     n2,
     effectiveNumberOfTests=length(values1),
-    fullyDependent=T #assumes practically fully dependent variables
+    fullyDependent=T, #assumes practically fully dependent variables
+    standard_error_std_value_lower_limit = 0.05
     ){
   #test covariance difference
   mTest.values<-values1-values2
@@ -135,8 +137,10 @@ test.meta.deltacovariance <- function(
   pTest.values.adj<-p.adjust2(pTest.values, method = "fdr", n = effectiveNumberOfTests)
 
   #test standard error difference - assuming difference between two chi2
-  t1<-n1*(n1-1)*(standard_errors1^2)/abs(values1) #we use the mean original variable in the denominator as in Pearsson's Chi2 test
-  t2<-n2*(n2-1)*(standard_errors2^2)/abs(values2)
+  values1<-ifelse(abs(values1)<standard_error_std_value_lower_limit,standard_error_std_value_lower_limit,abs(values1)) #these are low capped to avoid close to zero inflation of the test variables
+  values2<-ifelse(abs(values2)<standard_error_std_value_lower_limit,standard_error_std_value_lower_limit,abs(values2))
+  t1<-n1*(n1-1)*(standard_errors1^2)/values1 #we use the mean original variable in the denominator as in Pearsson's Chi2 test
+  t2<-n2*(n2-1)*(standard_errors2^2)/values2
   
   #these are approximately normal with N(n-1,2(n-1)) with the same mean and variance as the Chi2
   

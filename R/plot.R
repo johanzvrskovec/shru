@@ -42,9 +42,16 @@ plot.manhattan.custom<-function(
     ){
   #df<-cSumstats
   
+  df<-as.data.frame(df) #in case of data.table or similar
+  
   df$P<- shru::clipValues(df$P,min = 10^(-maxNLogP), max = NULL)
   df<-df[!is.na(df$P),]
-  df<-df[,c("SNP","BP","CHR","P","BETA","SE")]
+  cols<-c("SNP","BP","CHR")
+  if(any(colnames(df)=="P")) cols<-c(cols,"P")
+  if(any(colnames(df)=="BETA")) cols<-c(cols,"BETA")
+  if(any(colnames(df)=="SE")) cols<-c(cols,"SE")
+  
+  df<-df[,cols]
   #df$CHR<-as.integer(df$CHR)
   
   df<-df[df$P<0.07,]
@@ -143,15 +150,15 @@ plot.qq.custom <- function(ps, ci = 0.95) {
   )
   log10Pe <- expression(paste("Expected -log"[10], plain(P)))
   log10Po <- expression(paste("Observed -log"[10], plain(P)))
-  ggplot(df) +
-    geom_point(aes(expected, observed),
-               #shape = 1,
-               size = 1.1, alpha=0.8) +
-    geom_abline(intercept = 0, slope = 1, alpha = 0.5) +
-    geom_line(aes(expected, cupper), linetype = 2) +
-    geom_line(aes(expected, clower), linetype = 2) +
-    xlab(log10Pe) +
-    ylab(log10Po)
+  ggplot2::ggplot(df) +
+    ggplot2::geom_point(aes(expected, observed),
+                        #shape = 1,
+                        size = 1.1, alpha=0.8) +
+    ggplot2::geom_abline(intercept = 0, slope = 1, alpha = 0.5) +
+    ggplot2::geom_line(aes(expected, cupper), linetype = 2) +
+    ggplot2::geom_line(aes(expected, clower), linetype = 2) +
+    ggplot2::xlab(log10Pe) +
+    ggplot2::ylab(log10Po)
 }
 
 #plot for genetic correlations and similar, in matrix form
@@ -219,7 +226,6 @@ plot.corr <- function(corr, pmat=NULL, SE=NULL, filename, addrect = NULL, is.cor
 # titleAdditionComparison = ",\ncomparing with LDSC"
 
 #routine to test and generate plots for Genomic SEM multivariate LDSC results
-
 plotAndTestBatteryForMVLDSC <- function(
     mvldsc,
     code,
