@@ -173,13 +173,13 @@ test.meta.deltacovariance.matrix <- function(
   mValues1.diag.sqrt<-sqrt(diag(mValues1.abs))
   mValues1.diag.std<- mValues1.diag.sqrt %*% t(mValues1.diag.sqrt)
   mValues1.abs.capped<-mValues1.abs
-  mValues1.abs.capped[mValues1.abs<covariance_std_value_lower_limit*mValues1.diag.std]<-covariance_std_value_lower_limit*mValues1.diag.std[mValues1.abs<covariance_std_value_lower_limit*mValues1.diag.std] #these are low capped to avoid close to zero denominator inflation of the test variables
+  mValues1.abs.capped[!is.na(mValues1.abs) & mValues1.abs<covariance_std_value_lower_limit*mValues1.diag.std]<-covariance_std_value_lower_limit*mValues1.diag.std[!is.na(mValues1.abs) & mValues1.abs<covariance_std_value_lower_limit*mValues1.diag.std] #these are low capped to avoid close to zero denominator inflation of the test variables
   
   mValues2.abs <- abs(mValues2)
   mValues2.diag.sqrt<-sqrt(diag(mValues2.abs))
   mValues2.diag.std<- mValues2.diag.sqrt %*% t(mValues2.diag.sqrt)
   mValues2.abs.capped<-mValues2.abs
-  mValues2.abs.capped[mValues2.abs<covariance_std_value_lower_limit*mValues2.diag.std]<-covariance_std_value_lower_limit*mValues2.diag.std[mValues2.abs<covariance_std_value_lower_limit*mValues2.diag.std] #these are low capped to avoid close to zero denominator inflation of the test variables
+  mValues2.abs.capped[!is.na(mValues2.abs) & mValues2.abs<covariance_std_value_lower_limit*mValues2.diag.std]<-covariance_std_value_lower_limit*mValues2.diag.std[!is.na(mValues2.abs) & mValues2.abs<covariance_std_value_lower_limit*mValues2.diag.std] #these are low capped to avoid close to zero denominator inflation of the test variables
   
   t1<-mN1*(mN1-1)*(mStandard_errors1^2)/mValues1.abs.capped #we use the mean original variable in the denominator as in Pearsson's Chi2 test
   t2<-mN2*(mN2-1)*(mStandard_errors2^2)/mValues2.abs.capped
