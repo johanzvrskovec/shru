@@ -614,7 +614,7 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.17.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.17.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -2328,15 +2328,16 @@ supermunge <- function(
     
     #remove columns if they are all NA
     if(any(colnames(cSumstats)=="EFFECT")){
-      if(!any(is.finite(cSumstats$EFFECT))) cSumstats$EFFECT<-NULL
+      if(!any(is.finite(cSumstats$EFFECT))) cSumstats[,EFFECT:=NULL]
     }
     if(any(colnames(cSumstats)=="SE")){
-      if(!any(is.finite(cSumstats$SE))) cSumstats$SE<-NULL
+      if(!any(is.finite(cSumstats$SE))) cSumstats[,SE:=NULL]
     }
     
-    #rename the ambiguous EFFECT column to BETA, as it should be a regression beta at this point, IF PROCESSING ONLY
+    #rename the ambiguous EFFECT column to BETA, remove OR (new), as it should be a regression beta at this point, IF PROCESSING ONLY
     if(process & any(colnames(cSumstats)=="EFFECT")){
       cSumstats[,BETA:=EFFECT][,EFFECT:=NULL]
+      if(any(colnames(cSumstats)=="OR")) cSumstats[,OR:=NULL]
     }
     
     #set N to NEFF if specified
