@@ -74,104 +74,11 @@ getEffectiveNumberOfTests <- function(
   return(iEV)
 }
 
-# values1 = diag(p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S)[p$sumstats.sel.ssimp.code]
-# standard_errors1 = diag(p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S.SE)[p$sumstats.sel.ssimp.code]
-# values2 = p$sumstats$h2.LDSC.1kg.maf0_01[p$sumstats$code %in% p$sumstats.sel.ssimp.code]
-# standard_errors2 = p$sumstats$h2.se.LDSC.1kg.maf0_01[p$sumstats$code %in% p$sumstats.sel.ssimp.code]
-# n1 <- diag(p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$cov.blocks)[p$sumstats.sel.ssimp.code]
-# n2 <- rep(200,length(p$sumstats.sel.ssimp.code))
-
 #uses student's t test (rather than welch's); assumes ~equal variances (even though we clearly rely on them not being exactly equal)
 #this test assumes per default that the variables are closely related/ NOT INDEPENDENT and have correlation ~ 1
 
 #These tests have to include both covariance values and their standard errors as the covariances are used for testing the difference in standard errors.
-test.meta.deltacovariance <- function(
-    values1,
-    standard_errors1,
-    values2,
-    standard_errors2,
-    n1,
-    n2,
-    effectiveNumberOfTests=length(values1),
-    fullyDependent=T, #assumes practically fully dependent variables
-    standard_error_std_value_lower_limit = 0.05
-    ){
-  #test covariance difference
-  mTest.values<-values1-values2
-  
-  #the test is double sided overall though, so 2*p!!!!!!!
-  #old test was based on a normal
-  if(fullyDependent){ # fully dependent samples
-    sdeFullyDependentVariables<-sqrt(2*abs((n1-1)*standard_errors1^2-(n2-1)*standard_errors2^2)/(n1+n2-2)) #the intersect, from stochastic var. variance formulas
-    
-    pTest.values <- ifelse(mTest.values > 0,
-      2*pt(
-        q = ( mTest.values/(sdeFullyDependentVariables*sqrt((1/n1) + (1/n2)))),
-        df = (n1+n2-2),
-        lower.tail = F
-      ) 
-    ,
-      2*pt(
-        q = ( mTest.values/(sdeFullyDependentVariables*sqrt((1/n1) + (1/n2)))),
-        df = (n1+n2-2),
-        lower.tail = T
-      ) 
-    )
-  } else { #independent samples
-    
-    pTest.values <- ifelse(mTest.values > 0,
-                           2*pt(
-                             q = ( mTest.values/(sqrt((n1-1)*standard_errors1^2+(n2-1)*standard_errors2^2/(n1+n2-2))*sqrt((1/n1) + (1/n2)))),
-                             df = (n1+n2-2),
-                             lower.tail = F
-                           ) 
-                           ,
-                           2*pt(
-                             q = ( mTest.values/(sqrt((n1-1)*standard_errors1^2+(n2-1)*standard_errors2^2/(n1+n2-2))*sqrt((1/n1) + (1/n2)))),
-                             df = (n1+n2-2),
-                             lower.tail = T
-                           ) 
-    )
-  }
- 
-  pTest.values.adj<-p.adjust2(pTest.values, method = "fdr", n = effectiveNumberOfTests)
 
-  #test standard error difference - assuming difference between two chi2
-  values1<-ifelse(abs(values1)<standard_error_std_value_lower_limit,standard_error_std_value_lower_limit,abs(values1)) #these are low capped to avoid close to zero inflation of the test variables
-  values2<-ifelse(abs(values2)<standard_error_std_value_lower_limit,standard_error_std_value_lower_limit,abs(values2))
-  t1<-n1*(n1-1)*(standard_errors1^2)/values1 #we use the mean original variable in the denominator as in Pearsson's Chi2 test
-  t2<-n2*(n2-1)*(standard_errors2^2)/values2
-  
-  #these are approximately normal with N(n-1,2(n-1)) with the same mean and variance as the Chi2
-  
-  #we need to do a double-sided/two-tailed test here, because of normal!!!
-  mTest.standard_errors<-t1 - t2
-  if(fullyDependent){
-    sdeFullyDependentVariables<-sqrt(2*abs(2*(n1-1)-2*(n2-1))) #the intersect, again, from stochastic var. variance formulas
-    pTest.standard_errors<-ifelse(mTest.standard_errors > (n1-n2),
-                                  2*pnorm(q = mTest.standard_errors, mean =  (n1-n2), sd = sdeFullyDependentVariables,lower.tail = F),
-                                  2*pnorm(q = mTest.standard_errors, mean =  (n1-n2), sd = sdeFullyDependentVariables,lower.tail = T))
-  } else {
-    sdeIndependentVariables <- sqrt(2*(n1-1)+2*(n2-1))
-    pTest.standard_errors<-ifelse(mTest.standard_errors > abs(n1-n2),
-                                  2*pnorm(q = mTest.standard_errors, mean =  (n1-n2), sd = sdeIndependentVariables, lower.tail = F),
-                                  2*pnorm(q = mTest.standard_errors, mean =  (n1-n2), sd = sdeIndependentVariables, lower.tail = T))
-  }
-  
-  pTest.standard_errors.adj<-p.adjust2(pTest.standard_errors, method = "fdr", n = effectiveNumberOfTests)
-
-  return(
-    list(
-      pTest.values=pTest.values,
-      pTest.values.adj=pTest.values.adj,
-      pTest.standard_errors=pTest.standard_errors,
-      pTest.standard_errors.adj=pTest.standard_errors.adj
-      )
-    )
-  
-}
-
-# test.meta.deltacovariance for matrices
 # mValues1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$S
 # mStandard_errors1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$S.SE
 # mValues2 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S
@@ -190,6 +97,7 @@ test.meta.deltacovariance.matrix <- function(
     effectiveNumberOfTests=NULL,
     fullyDependent=T, #assumes practically fully dependent variables
     mValueCovariances=NULL,
+    covariance_std_value_lower_limit = 0.05,
     eigenSumLimit = 0.995
 ){
   
@@ -197,41 +105,134 @@ test.meta.deltacovariance.matrix <- function(
     effectiveNumberOfTests<-getEffectiveNumberOfTests(covarianceMatrix = mValueCovariances,symmetric = symmetric, eigenSumLimit = eigenSumLimit)
   }
   
-  if(!symmetric){
-    t<-test.meta.deltacovariance(
-      values1 = mValues1,standard_errors1 = mStandard_errors1,values2 = mValues2,standard_errors2 = mStandard_errors2,n1 = mN1,n2 = mN2,effectiveNumberOfTests = effectiveNumberOfTests,fullyDependent = fullyDependent)
-  } else {
+  #old function call
+  
+  # if(!symmetric){
+  #   t<-test.meta.deltacovariance(
+  #     values1 = mValues1,standard_errors1 = mStandard_errors1,values2 = mValues2,standard_errors2 = mStandard_errors2,n1 = mN1,n2 = mN2,effectiveNumberOfTests = effectiveNumberOfTests,fullyDependent = fullyDependent)
+  # } else {
+  #   t<-test.meta.deltacovariance(
+  #     values1 = mValues1.lm,standard_errors1 = standard_errors1.lm,values2 = mValues2.lm,standard_errors2 = standard_errors2.lm,n1 = mN1.lm,n2 = mN2.lm,effectiveNumberOfTests = effectiveNumberOfTests,fullyDependent = fullyDependent)
+  
+  #let's not do this yet to keep proper track of the standardisation required for the genetic covariance cutoff in the test of differences in genetic covariance standard error
+  # mValues1.lm <- mValues1[lower.tri(mValues1,diag = T)]
+  # standard_errors1.lm <- mStandard_errors1[lower.tri(mStandard_errors1,diag = T)]
+  # mN1.lm <- mN1[lower.tri(mN1,diag = T)]
+  # mValues2.lm <- mValues2[lower.tri(mValues2,diag = T)]
+  # standard_errors2.lm <- mStandard_errors2[lower.tri(mStandard_errors2,diag = T)]
+  # mN2.lm <- mN2[lower.tri(mN2,diag = T)]
+  
+  #begin perform test
     
-    mValues1.lm <- mValues1[lower.tri(mValues1,diag = T)]
-    standard_errors1.lm <- mStandard_errors1[lower.tri(mStandard_errors1,diag = T)]
-    mN1.lm <- mN1[lower.tri(mN1,diag = T)]
-    mValues2.lm <- mValues2[lower.tri(mValues2,diag = T)]
-    standard_errors2.lm <- mStandard_errors2[lower.tri(mStandard_errors2,diag = T)]
-    mN2.lm <- mN2[lower.tri(mN2,diag = T)]
+  #test covariance difference
+  mTest.values<-mValues1-mValues2
+  
+  #the test is double sided overall though, so 2*p!!!!!!!
+  #old test was based on a normal
+  if(fullyDependent){ # fully dependent samples
+    sdeFullyDependentVariables<-sqrt(2*abs((mN1-1)*mStandard_errors1^2-(mN2-1)*mStandard_errors2^2)/(mN1+mN2-2)) #the intersect, from stochastic var. variance formulas
     
-    t<-test.meta.deltacovariance(
-      values1 = mValues1.lm,standard_errors1 = standard_errors1.lm,values2 = mValues2.lm,standard_errors2 = standard_errors2.lm,n1 = mN1.lm,n2 = mN2.lm,effectiveNumberOfTests = effectiveNumberOfTests,fullyDependent = fullyDependent)
+    pTest.values <- ifelse(mTest.values > 0,
+                           2*pt(
+                             q = ( mTest.values/(sdeFullyDependentVariables*sqrt((1/mN1) + (1/mN2)))),
+                             df = (mN1+mN2-2),
+                             lower.tail = F
+                           ) 
+                           ,
+                           2*pt(
+                             q = ( mTest.values/(sdeFullyDependentVariables*sqrt((1/mN1) + (1/mN2)))),
+                             df = (mN1+mN2-2),
+                             lower.tail = T
+                           ) 
+    )
+  } else { #independent samples
     
-    t.new<-c()
-    t.new$pTest.values <- matrix(data = NA, nrow = nrow(mValues1), ncol = ncol(mValues1))
-    rownames(t.new$pTest.values)<-rownames(mValues1)
-    colnames(t.new$pTest.values)<-colnames(mValues1)
-    t.new$pTest.values.adj<-t.new$pTest.values
-    t.new$pTest.standard_errors<-t.new$pTest.values
-    t.new$pTest.standard_errors.adj<-t.new$pTest.values
-    
-    t.new$pTest.values[lower.tri(t.new$pTest.values,diag = T)]<-t$pTest.values
-    t.new$pTest.values[upper.tri(t.new$pTest.values,diag = F)]<-t(t.new$pTest.values)[upper.tri(t.new$pTest.values,diag = F)]
-    t.new$pTest.values.adj[lower.tri(t.new$pTest.values,diag = T)]<-t$pTest.values.adj
-    t.new$pTest.values.adj[upper.tri(t.new$pTest.values,diag = F)]<-t(t.new$pTest.values.adj)[upper.tri(t.new$pTest.values.adj,diag = F)]
-    t.new$pTest.standard_errors[lower.tri(t.new$pTest.standard_errors,diag = T)]<-t$pTest.standard_errors
-    t.new$pTest.standard_errors[upper.tri(t.new$pTest.standard_errors,diag = F)]<-t(t.new$pTest.standard_errors)[upper.tri(t.new$pTest.standard_errors,diag = F)]
-    t.new$pTest.standard_errors.adj[lower.tri(t.new$pTest.standard_errors.adj,diag = T)]<-t$pTest.standard_errors.adj
-    t.new$pTest.standard_errors.adj[upper.tri(t.new$pTest.standard_errors.adj,diag = F)]<-t(t.new$pTest.standard_errors.adj)[upper.tri(t.new$pTest.standard_errors.adj,diag = F)]
-    
-    t<-t.new
+    pTest.values <- ifelse(mTest.values > 0,
+                           2*pt(
+                             q = ( mTest.values/(sqrt((mN1-1)*mStandard_errors1^2+(mN2-1)*mStandard_errors2^2/(mN1+mN2-2))*sqrt((1/mN1) + (1/mN2)))),
+                             df = (mN1+mN2-2),
+                             lower.tail = F
+                           ) 
+                           ,
+                           2*pt(
+                             q = ( mTest.values/(sqrt((mN1-1)*mStandard_errors1^2+(mN2-1)*mStandard_errors2^2/(mN1+mN2-2))*sqrt((1/mN1) + (1/mN2)))),
+                             df = (mN1+mN2-2),
+                             lower.tail = T
+                           ) 
+    )
   }
   
-  return(t)
+  pTest.values.adj<-matrix(data = p.adjust2(pTest.values, method = "fdr", n = effectiveNumberOfTests), nrow = nrow(pTest.values), ncol = ncol(pTest.values))
+  rownames(pTest.values.adj)<-rownames(pTest.values)
+  colnames(pTest.values.adj)<-colnames(pTest.values)
+  
+  
+  #test standard error difference - assuming difference between two chi2
+  
+  mValues1.abs <- abs(mValues1)
+  mValues1.diag.sqrt<-sqrt(diag(mValues1.abs))
+  mValues1.diag.std<- mValues1.diag.sqrt %*% t(mValues1.diag.sqrt)
+  mValues1.abs.capped<-mValues1.abs
+  mValues1.abs.capped[mValues1.abs<covariance_std_value_lower_limit*mValues1.diag.std]<-covariance_std_value_lower_limit*mValues1.diag.std[mValues1.abs<covariance_std_value_lower_limit*mValues1.diag.std] #these are low capped to avoid close to zero denominator inflation of the test variables
+  
+  mValues2.abs <- abs(mValues2)
+  mValues2.diag.sqrt<-sqrt(diag(mValues2.abs))
+  mValues2.diag.std<- mValues2.diag.sqrt %*% t(mValues2.diag.sqrt)
+  mValues2.abs.capped<-mValues2.abs
+  mValues2.abs.capped[mValues2.abs<covariance_std_value_lower_limit*mValues2.diag.std]<-covariance_std_value_lower_limit*mValues2.diag.std[mValues2.abs<covariance_std_value_lower_limit*mValues2.diag.std] #these are low capped to avoid close to zero denominator inflation of the test variables
+  
+  t1<-mN1*(mN1-1)*(mStandard_errors1^2)/mValues1.abs.capped #we use the mean original variable in the denominator as in Pearsson's Chi2 test
+  t2<-mN2*(mN2-1)*(mStandard_errors2^2)/mValues2.abs.capped
+  
+  #these are approximately normal with N(n-1,2(n-1)) with the same mean and variance as the Chi2
+  
+  #we need to do a double-sided/two-tailed test here, because of normal!!!
+  mTest.standard_errors<-t1 - t2
+  if(fullyDependent){
+    sdeFullyDependentVariables<-sqrt(2*abs(2*(mN1-1)-2*(mN2-1))) #the intersect, again, from stochastic var. variance formulas
+    pTest.standard_errors<-ifelse(mTest.standard_errors > (mN1-mN2),
+                                  2*pnorm(q = mTest.standard_errors, mean =  (mN1-mN2), sd = sdeFullyDependentVariables,lower.tail = F),
+                                  2*pnorm(q = mTest.standard_errors, mean =  (mN1-mN2), sd = sdeFullyDependentVariables,lower.tail = T))
+  } else {
+    sdeIndependentVariables <- sqrt(2*(mN1-1)+2*(mN2-1))
+    pTest.standard_errors<-ifelse(mTest.standard_errors > abs(mN1-mN2),
+                                  2*pnorm(q = mTest.standard_errors, mean =  (mN1-mN2), sd = sdeIndependentVariables, lower.tail = F),
+                                  2*pnorm(q = mTest.standard_errors, mean =  (mN1-mN2), sd = sdeIndependentVariables, lower.tail = T))
+  }
+  
+  pTest.standard_errors.adj<-matrix(data = p.adjust2(pTest.standard_errors, method = "fdr", n = effectiveNumberOfTests), nrow = nrow(pTest.standard_errors), ncol = ncol(pTest.standard_errors))
+  rownames(pTest.standard_errors.adj)<-rownames(pTest.standard_errors)
+  colnames(pTest.standard_errors.adj)<-colnames(pTest.standard_errors)
+  
+  #end perform tests
+  
+  #old matrix re-creation
+  # t.new<-c()
+  # t.new$pTest.values <- matrix(data = NA, nrow = nrow(mValues1), ncol = ncol(mValues1))
+  # rownames(t.new$pTest.values)<-rownames(mValues1)
+  # colnames(t.new$pTest.values)<-colnames(mValues1)
+  # t.new$pTest.values.adj<-t.new$pTest.values
+  # t.new$pTest.standard_errors<-t.new$pTest.values
+  # t.new$pTest.standard_errors.adj<-t.new$pTest.values
+  # 
+  # t.new$pTest.values[lower.tri(t.new$pTest.values,diag = T)]<-t$pTest.values
+  # t.new$pTest.values[upper.tri(t.new$pTest.values,diag = F)]<-t(t.new$pTest.values)[upper.tri(t.new$pTest.values,diag = F)]
+  # t.new$pTest.values.adj[lower.tri(t.new$pTest.values,diag = T)]<-t$pTest.values.adj
+  # t.new$pTest.values.adj[upper.tri(t.new$pTest.values,diag = F)]<-t(t.new$pTest.values.adj)[upper.tri(t.new$pTest.values.adj,diag = F)]
+  # t.new$pTest.standard_errors[lower.tri(t.new$pTest.standard_errors,diag = T)]<-t$pTest.standard_errors
+  # t.new$pTest.standard_errors[upper.tri(t.new$pTest.standard_errors,diag = F)]<-t(t.new$pTest.standard_errors)[upper.tri(t.new$pTest.standard_errors,diag = F)]
+  # t.new$pTest.standard_errors.adj[lower.tri(t.new$pTest.standard_errors.adj,diag = T)]<-t$pTest.standard_errors.adj
+  # t.new$pTest.standard_errors.adj[upper.tri(t.new$pTest.standard_errors.adj,diag = F)]<-t(t.new$pTest.standard_errors.adj)[upper.tri(t.new$pTest.standard_errors.adj,diag = F)]
+  # 
+  # t<-t.new
+  
+  return(
+    list(
+      pTest.values=pTest.values,
+      pTest.values.adj=pTest.values.adj,
+      pTest.standard_errors=pTest.standard_errors,
+      pTest.standard_errors.adj=pTest.standard_errors.adj
+    )
+  )
   
 }

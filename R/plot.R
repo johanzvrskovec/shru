@@ -300,7 +300,7 @@ plotAndTestBatteryForMVLDSC <- function(
   #TODO - add to ldscpp
   S_ForCV<-abs(mvldsc$S)
   g_se <- sqrt(diag(S_ForCV))
-  S_se2 <- g_se %*% t(g_se)
+  S_se2 <- g_se %*% t(g_se) #this is the diagonal based genetic covariance
   S_ForCV[S_ForCV < S_se2 * cv.S_StandLimit] <- (S_se2 * cv.S_StandLimit)[S_ForCV < S_se2 * cv.S_StandLimit] #cap at min rg 0.05 to avoid extreme values
   S.CV<-(mvldsc$S.SE/S_ForCV)
   plot.corr(
