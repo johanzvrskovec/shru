@@ -1751,25 +1751,31 @@ supermunge <- function(
             cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","interpreting candidate variants as reference as they are more numerous"))
           }
           
-          if(
-            (nFlipCandiate <= nFlipReference & abs(meffects.candidate.inverted - meffects.reference) > (abs(meffects.candidate - meffects.reference) + 1*sdeffects.reference)) |
-            (nFlipCandiate > nFlipReference & abs(meffects.reference.inverted - meffects.candidate) > (abs(meffects.reference - meffects.candidate) + 1*sdeffects.candidate))
-            ){
-            cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","inverted > plain+1sd"))
-            sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-T
-            if(is.null(changeEffectDirectionOnAlleleFlip)){
-              changeEffectDirectionOnAlleleFlip<-F #inactivate the correction of effect direction on allele flip because of less credible new effect mean.
-            } else if(changeEffectDirectionOnAlleleFlip){
-              cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip specified, but the mean effect difference between plain and inverted variants is much larger than between plain and non-inverted, indicating that inverted effects may be invalid.")
-            }
+          if(is.finite(nFlipReference) & is.finite(nFlipCandiate) & is.finite(meffects.reference) & is.finite(meffects.candidate)) { #safety check so the conditions below do not crash in case of all reference/candidates
             
-          } else {
-            cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect, relationship","inverted < plain+1sd"))
-            sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-F
-            if(!is.null(changeEffectDirectionOnAlleleFlip)){
-              if(!changeEffectDirectionOnAlleleFlip) cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip inactivated, but the mean effect difference between untouched and inverted variants is much smaller than between untouched and non-inverted, indicating that inverted effects for these variants may still be valid.")
+          #This is just for notifications, the real flip comes below!
+            if(
+              (nFlipCandiate <= nFlipReference & abs(meffects.candidate.inverted - meffects.reference) > (abs(meffects.candidate - meffects.reference) + 1*sdeffects.reference)) |
+              (nFlipCandiate > nFlipReference & abs(meffects.reference.inverted - meffects.candidate) > (abs(meffects.reference - meffects.candidate) + 1*sdeffects.candidate))
+              ){
+              cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","inverted > plain+1sd"))
+              sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-T
+              if(is.null(changeEffectDirectionOnAlleleFlip)){
+                changeEffectDirectionOnAlleleFlip<-F #inactivate the correction of effect direction on allele flip because of less credible new effect mean.
+              } else if(changeEffectDirectionOnAlleleFlip){
+                cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip specified, but the mean effect difference between plain and inverted variants is much larger than between plain and non-inverted, indicating that inverted effects may be invalid.")
+              }
+              
+            } else {
+              cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect, relationship","inverted < plain+1sd"))
+              sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-F
+              if(!is.null(changeEffectDirectionOnAlleleFlip)){
+                if(!changeEffectDirectionOnAlleleFlip) cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip inactivated, but the mean effect difference between untouched and inverted variants is much smaller than between untouched and non-inverted, indicating that inverted effects for these variants may still be valid.")
+              }
             }
+          
           }
+          
         }
       }
       cat(".")
