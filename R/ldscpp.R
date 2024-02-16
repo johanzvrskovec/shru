@@ -298,7 +298,7 @@ ldscpp <- function(
   
   
   if(!(is.null(trait.names))){
-    check_names<-str_detect(trait.names, "-")
+    check_names<-stringr::str_detect(trait.names, "-")
     if(any(check_names))
       warning("Your trait names specified include mathematical arguments (e.g., + or -) that will be misread by lavaan. Please rename the traits using the trait.names argument.")
   }
