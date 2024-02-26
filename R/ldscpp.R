@@ -165,7 +165,7 @@ ldscpp <- function(
   # correctAttenuationBias = F
   # doubleRegressionRoutine = F
   # preweight.INFO=F
-  # resamplingMethod="jn"
+  # resamplingMethod="vbcs"
   # blocksizeCM = NA
   # filter.info = 0.6
   # filter.info.lt = 0.8
@@ -1655,7 +1655,7 @@ ldscpp <- function(
           N.vec[1, s] <- N.bar
           
           #standard
-          jackknife.cov <- cov(delete.values)/n.blocksToUse #Original
+          jackknife.cov <- cov(delete.values) #/n.blocksToUse #Original #SAMPLING covariance!!
           jackknife.se <- sqrt(diag(jackknife.cov))
           intercept.se <- jackknife.se[length(jackknife.se)]
           coef.cov <- jackknife.cov[1:n.annot,1:n.annot]/(N.bar^2)
@@ -1744,12 +1744,27 @@ ldscpp <- function(
         cov.p.unsigned[k, j] <- 2 * pnorm(abs(reg.tot.unsigned / tot.se.unsigned), lower.tail = FALSE)
         cov.blocks[k, j] <- n.blocksToUse
         
-        LOG("Results following")
-        LOG("Mean abs(Z*Z): ", round(mean(abs(merged$ZZ)), 4), ", Median abs(Z*Z): ", round(median(abs(merged$ZZ)), 4))
-        LOG("Cross trait Intercept, sign/unsign: ", round(intercept, 4), " (", round(intercept.se, 4), ") / ",round(intercept.unsigned, 4), " (", round(intercept.se.unsigned, 4), ")")
-        LOG("Total Observed Scale Genetic Covariance (g_cov), sign/unsign: ", round(reg.tot, 4), " (", round(tot.se, 4), ") / ", round(reg.tot.unsigned, 4), " (", round(tot.se.unsigned, 4), ")")
-        LOG("g_cov Z, sign/unsign: ", round(reg.tot / tot.se,3), " / ", round(reg.tot.unsigned / tot.se.unsigned,3))
-        LOG("g_cov P-value, sign/unsign: ", round(cov.p[k, j], 6), " / ", round(cov.p.unsigned[k, j], 6))
+        if(any(!is.na(delete.values.unsigned))){
+          
+          LOG("Results following")
+          LOG("Mean abs(Z*Z): ", round(mean(abs(merged$ZZ)), 4), ", Median abs(Z*Z): ", round(median(abs(merged$ZZ)), 4))
+          LOG("Cross trait Intercept, sign/unsign: ", round(intercept, 4), " (", round(intercept.se, 4), ") / ",round(intercept.unsigned, 4), " (", round(intercept.se.unsigned, 4), ")")
+          LOG("Total Observed Scale Genetic Covariance (g_cov), sign/unsign: ", round(reg.tot, 4), " (", round(tot.se, 4), ") / ", round(reg.tot.unsigned, 4), " (", round(tot.se.unsigned, 4), ")")
+          LOG("g_cov Z, sign/unsign: ", round(reg.tot / tot.se,3), " / ", round(reg.tot.unsigned / tot.se.unsigned,3))
+          LOG("g_cov P-value, sign/unsign: ", round(cov.p[k, j], 6), " / ", round(cov.p.unsigned[k, j], 6))
+          
+        } else {
+          
+          LOG("Results following")
+          LOG("Mean abs(Z*Z): ", round(mean(abs(merged$ZZ)), 4), ", Median abs(Z*Z): ", round(median(abs(merged$ZZ)), 4))
+          LOG("Cross trait Intercept: ", round(intercept, 4), " (", round(intercept.se, 4), ")")
+          LOG("Total Observed Scale Genetic Covariance (g_cov): ", round(reg.tot, 4), " (", round(tot.se, 4), ")")
+          LOG("g_cov Z: ", round(reg.tot / tot.se,3))
+          LOG("g_cov P-value: ", round(cov.p[k, j], 6))
+          
+        }
+        
+      
         #}
         
         ### Total count
@@ -1831,7 +1846,12 @@ ldscpp <- function(
           if(is.null(trait.names)){
             chi2<-traits[k]
           }else{chi2 <- trait.names[k]}
+          
+          if(any(!is.na(delete.values.unsigned))){
           LOG("Total Liability Scale covG for ", chi1, " and ",chi2,": ", round(S[k, j], 4), " (", round(SE[k, j], 5), ") / ", round(S.unsigned[k, j], 4), " (", round(SE.unsigned[k, j], 5), ")"," [", round(SE[k, j]/S[k, j], 5),"]")
+          } else {
+            LOG("Total Liability Scale covG for ", chi1, " and ",chi2,": ", round(S[k, j], 4), " (", round(SE[k, j], 5), ")"," [", round(SE[k, j]/S[k, j], 5),"]")
+          }
           LOG("     ", print = FALSE)
         }
       }
@@ -1886,8 +1906,18 @@ ldscpp <- function(
           if(is.null(trait.names)){
             chi2<-traits[k]
           }else{chi2 <- trait.names[k]}
-          LOG("Genetic Correlation between ", chi1, " and ", chi2, ", sign/unsign: ",
-              round(S_Stand[k, j], 4), " (", round(SE_Stand[k, j], 4), ") / ",round(S_Stand.unsigned[k, j], 4), " (", round(SE_Stand.unsigned[k, j], 4), ")")
+          
+          if(any(!is.na(delete.values.unsigned))){
+          
+            LOG("Genetic Correlation between ", chi1, " and ", chi2, ", sign/unsign: ",
+                round(S_Stand[k, j], 4), " (", round(SE_Stand[k, j], 4), ") / ",round(S_Stand.unsigned[k, j], 4), " (", round(SE_Stand.unsigned[k, j], 4), ")")
+            
+          } else {
+            
+            LOG("Genetic Correlation between ", chi1, " and ", chi2, ": ",
+                round(S_Stand[k, j], 4), " (", round(SE_Stand[k, j], 4), ")")
+            
+          }
           LOG("     ", print = FALSE)
         }
       }
@@ -1971,7 +2001,13 @@ ldscpp <- function(
       impstats[j,c("m.cell.mean.nonimputed")] <- c(mean(mCellstats.nonimputed.m[j,],na.rm=T))
     }
     
-    cResults <- list(V=V, S=S, I=I, N=N.vec, m=M.tot, S.SE=S.SE, mgc=mgc, V_Stand=V_Stand, S_Stand=S_Stand, S_Stand.SE=S_Stand.SE, cov.p=cov.p, V.unsigned=V.unsigned, S.unsigned=S.unsigned, I.unsigned=I.unsigned, S.SE.unsigned=S.SE.unsigned, V_Stand.unsigned=V_Stand.unsigned, S_Stand.unsigned=S_Stand.unsigned, S_Stand.SE.unsigned=S_Stand.SE.unsigned, cov.p.unsigned=cov.p.unsigned, cov.blocks=cov.blocks, impstats=impstats, m.imputed=mCellstats.imputed.m, m.imputed.full=mCellstats.imputed.full.m, m.imputed.partial=mCellstats.imputed.partial.m, m.nonimputed=mCellstats.nonimputed.m)
+    cResults <- list(V=V, S=S, I=I, N=N.vec, m=M.tot, S.SE=S.SE, mgc=mgc, 
+                     V_Stand=V_Stand, S_Stand=S_Stand, S_Stand.SE=S_Stand.SE, cov.p=cov.p, 
+                     V.unsigned=V.unsigned, S.unsigned=S.unsigned, I.unsigned=I.unsigned, S.SE.unsigned=S.SE.unsigned, V_Stand.unsigned=V_Stand.unsigned, S_Stand.unsigned=S_Stand.unsigned, S_Stand.SE.unsigned=S_Stand.SE.unsigned, 
+                     cov.p.unsigned=cov.p.unsigned, cov.blocks=cov.blocks,
+                     blockValues.LDSR_beta=lV,blockValues.LDSR_beta.unsigned=lV.unsigned,
+                     impstats=impstats, m.imputed=mCellstats.imputed.m, m.imputed.full=mCellstats.imputed.full.m, m.imputed.partial=mCellstats.imputed.partial.m, m.nonimputed=mCellstats.nonimputed.m
+                     )
     
     if(iFold==0){
       primeResults<-cResults
