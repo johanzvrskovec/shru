@@ -18,8 +18,8 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 
 #tests
 
-# # single test with hard coded values
-# filePaths = "/Users/jakz/project/JZ_GED_PHD_ADMIN_GENERAL/data/gwas_sumstats/raw/MDD_MHQ_METACARPA_INFO6_A5_NTOT.gz"
+# single test with hard coded values
+# filePaths = "/Users/jakz/project/JZ_GED_PHD_ADMIN_GENERAL/data/gwas_sumstats/raw/MDD2018_ex23andMe.gz"
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/combined.hm3_1kg.snplist.vanilla.jz2020.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/w_hm3.snplist.flaskapp2018"
@@ -27,13 +27,14 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # #rsSynonymsFilePath = "/users/k19049801/project/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.jz2024.synonyms.gz"
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
 # traitNames = "MDDTEST"
+# outputFormat = "cojo"
 # #N = 18000
 # pathDirOutput = "/Users/jakz/Downloads"
 # #test = T
 # #ancestrySetting = "EUR"
 # filter.maf = 0.001
 # filter.info = 0.6
-# process=F
+# process=T
 
 # smres <- shru::supermunge(
 #   filePaths = "/Users/jakz/Downloads/FG_combined_1000G_density_formatted_21-03-29.txt",
@@ -157,7 +158,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # process=T
 # standardiseEffectsToExposure=F
 # writeOutput=T
-# ldscCompatibility=F
+# outputFormat="default"
 # sortOutput=T
 # filter.info=NULL
 # filter.or=NULL
@@ -215,7 +216,8 @@ supermunge <- function(
   process=T, #apply 'lossy' procedures apart from the explicit filters (incuding reference merging)
   standardiseEffectsToExposure=F,
   writeOutput=T,
-  ldscCompatibility=F,
+  outputFormat="default", #default,ldsc,cojo
+  #ldscCompatibility=F,
   sortOutput=T,
   filter.info=NULL,
   filter.or=NULL,
@@ -293,7 +295,10 @@ supermunge <- function(
     liftover<-rep(!is.null(chainFilePath),nDatasets)
   }
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.18.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  #outputFormat case insensitivity
+  outputFormat<-tolower(outputFormat)
+  
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.19.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -2160,27 +2165,32 @@ supermunge <- function(
         cat("\nSaving supermunged dataset",nfilename,"\n\n")
         if((!any(colnames(cSumstats)=="CHR") & doChrSplit)) warning("\nSplit by chromosome specified, but the dataset does not have a CHR column.")
         if(!doChrSplit | ((!any(colnames(cSumstats)=="CHR") & doChrSplit))){
-          if(ldscCompatibility){
+          if(outputFormat=="ldsc"){
             #this may be more compatible with original LDSC
             cSumstats.n <- nrow(cSumstats)
             cSumstats<-cSumstats[is.finite(Z) & is.finite(N),][,N:=round(N)]
             cat("\nRemoved ",as.character((cSumstats.n-nrow(cSumstats))),"additional rows for LDSC compatibitilty")
             cSumstats<-as.data.frame(cSumstats[,c("SNP","A1","A2","Z","N")])
             filepath.out<-file.path(pathDirOutput,paste0(nfilename,".sumstats"))
-            cat("\nWriting to ",filepath.out)
+            cat("\nWriting to (LDSC format) ",filepath.out)
             write.table(x = cSumstats,file = filepath.out,sep="\t", quote = FALSE, row.names = F, append = F)
             #if(file.exists(filepath.out)) file.remove(filepath.out)
             nfilename.gz <- gzip(filepath.out,overwrite=T)
             cat("\nSupermunged dataset saved as", nfilename.gz)
+          } else if(outputFormat=="cojo"){
+            #SNP A1 A2 freq b se p N
+            cSumstats<-as.data.frame(cSumstats[,.(SNP,A1,A2,freq=FRQ,b=BETA,se=SE,p=P,N)])
+            filepath.out<-file.path(pathDirOutput,paste0(nfilename,".gz"))
+            cat("\nWriting to (COJO format) ",filepath.out)
+            fwrite(x = cSumstats,file = filepath.out,append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
+            cat("\nSupermunged dataset saved as", filepath.out)
           } else {
             filepath.out<-file.path(pathDirOutput,paste0(nfilename,".gz"))
-            cat("\nWriting to ",filepath.out)
+            cat("\nWriting to (supermunge default format)",filepath.out)
             fwrite(x = cSumstats,file = filepath.out,append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
             cat("\nSupermunged dataset saved as", filepath.out)
           }
          
-          
-          
         } else {
           dir.create(paste0(nfilepath,".chr"), showWarnings = FALSE)
           chromosomes<-unique(cSumstats$CHR)
