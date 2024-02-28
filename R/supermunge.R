@@ -2179,6 +2179,9 @@ supermunge <- function(
             cat("\nSupermunged dataset saved as", nfilename.gz)
           } else if(outputFormat=="cojo"){
             #SNP A1 A2 freq b se p N
+            cSumstats.n <- nrow(cSumstats)
+            cSumstats<-cSumstats[is.finite(P) & is.finite(N),][,N:=round(N)]
+            cat("\nRemoved ",as.character((cSumstats.n-nrow(cSumstats))),"additional rows for LDSC COJO compatibility")
             cSumstats<-as.data.frame(cSumstats[,.(SNP,A1,A2,freq=FRQ,b=BETA,se=SE,p=P,N)])
             filepath.out<-file.path(pathDirOutput,paste0(nfilename,".gz"))
             cat("\nWriting to (COJO format) ",filepath.out)
