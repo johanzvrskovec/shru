@@ -466,8 +466,8 @@ supermunge <- function(
     cat("\nse.logit=",se.logit[iFile])
     cat("\nprop=",prop[iFile])
     
-    if(!is.null(ref)){
-      cat("\n\nUsing variant reference:\n",ref)
+    if(!is.null(ref) & !is.null(refFilePath)){
+      cat("\n\nUsing variant reference:\n",refFilePath)
     }
     
     
