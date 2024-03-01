@@ -329,6 +329,7 @@ ldscpp <- function(
   mCellstats.imputed.partial.m <- matrix(NA,nrow=n.traits,ncol=n.traits)
   mCellstats.nonimputed.m <- matrix(NA,nrow=n.traits,ncol=n.traits)
   LD.SS<-c()
+  nVar.per.block<-c()
   
   
   
@@ -1339,6 +1340,7 @@ ldscpp <- function(
           LDvsChiCorrelation.block.values<-c()
           LDvsChiCorrelation.block.values.neg<-c()
           LD.block.SS<-c()
+          nVars.block<-c()
           
           mPos<-c()
           mNeg<-c()
@@ -1393,6 +1395,7 @@ ldscpp <- function(
                   LDvsChiCorrelation.block.values[iBlock]<-cor(x = mLD,y = mChi)
                 }
                 LD.block.SS[iBlock]<-sum((merged.block$m.LD - mean(merged.block$m.LD, na.rm=T))^2, na.rm = T)
+                nVars.block[iBlock]<-nrow(merged.block)
               
                 iBlock <- iBlock + 1
               }
@@ -1445,6 +1448,7 @@ ldscpp <- function(
           LDvsChiCorrelation.block.values<-c()
           LDvsChiCorrelation.block.values.neg<-c()
           LD.block.SS<-c()
+          nVars.block<-c()
           
           mPos<-c()
           mNeg<-c()
@@ -1488,6 +1492,7 @@ ldscpp <- function(
               LDvsChiCorrelation.block.values[i]<-cor(x = cMLD[,1],y = cMChi)
             }
             LD.block.SS[i]<-sum((cMLD[,1] - mean(cMLD[,1], na.rm=T))^2, na.rm = T)
+            nVars.block[i]<-nrow(cMLD)
             
           }
           
@@ -1770,6 +1775,8 @@ ldscpp <- function(
         
         #LD square sums per block
         LD.SS[s]<-list(LD.block.SS)
+        #number of vars (m) per block
+        nVar.per.block[s]<-list(nVars.block)
         
       
         #}
@@ -2013,6 +2020,7 @@ ldscpp <- function(
                      cov.p.unsigned=cov.p.unsigned, cov.blocks=cov.blocks,
                      blockValues.LDSR_beta=lV,blockValues.LDSR_beta.unsigned=lV.unsigned,
                      LD.SS=LD.SS,
+                     nVar.per.block=nVar.per.block,
                      impstats=impstats, m.imputed=mCellstats.imputed.m, m.imputed.full=mCellstats.imputed.full.m, m.imputed.partial=mCellstats.imputed.partial.m, m.nonimputed=mCellstats.nonimputed.m
                      )
     
