@@ -328,6 +328,7 @@ ldscpp <- function(
   mCellstats.imputed.full.m <- matrix(NA,nrow=n.traits,ncol=n.traits)
   mCellstats.imputed.partial.m <- matrix(NA,nrow=n.traits,ncol=n.traits)
   mCellstats.nonimputed.m <- matrix(NA,nrow=n.traits,ncol=n.traits)
+  LD.SS<-c()
   
   
   
@@ -1290,8 +1291,8 @@ ldscpp <- function(
         # merged$w2 <- merged$het.w2*merged$oc.w2
         # merged$initial.w2 <- sqrt(merged$w2)
         
-        merged$weights_cov <- (merged$w + merged$w2)/2 #TEST!!! keep the original scale of the weights
-        #merged$weights_cov <- (merged$w + merged$w2)/sum(merged$w + merged$w2, na.rm = T) #mod addition - remove NAs here
+        #merged$weights_cov <- (merged$w + merged$w2)/2 #TEST!!! keep the original scale of the weights
+        merged$weights_cov <- (merged$w + merged$w2)/sum(merged$w + merged$w2, na.rm = T) #mod addition - remove NAs here
         #merged$weights_cov <- (merged$initial.w + merged$initial.w2)/sum(merged$initial.w + merged$initial.w2 ) #original
         
         merged[,L2:=(L2+i.L2)/2][,i.L2:=NULL]
@@ -1337,6 +1338,7 @@ ldscpp <- function(
           xtx.block.values.neg <- xtx.block.values
           LDvsChiCorrelation.block.values<-c()
           LDvsChiCorrelation.block.values.neg<-c()
+          LD.block.SS<-c()
           
           mPos<-c()
           mNeg<-c()
@@ -1390,6 +1392,7 @@ ldscpp <- function(
                   xtx.block.values[iBlock] <- list(as.data.frame(t(t(mLD) %*% mLD)))
                   LDvsChiCorrelation.block.values[iBlock]<-cor(x = mLD,y = mChi)
                 }
+                LD.block.SS[iBlock]<-sum((merged.block$m.LD - mean(merged.block$m.LD, na.rm=T))^2, na.rm = T)
               
                 iBlock <- iBlock + 1
               }
@@ -1439,9 +1442,9 @@ ldscpp <- function(
           xtx.block.values <- matrix(data=NA,nrow =((n.annot+1)* n.blocksToUse),ncol =(n.annot+1))
           xty.block.values.neg <- xty.block.values
           xtx.block.values.neg <- xtx.block.values
-            
           LDvsChiCorrelation.block.values<-c()
           LDvsChiCorrelation.block.values.neg<-c()
+          LD.block.SS<-c()
           
           mPos<-c()
           mNeg<-c()
@@ -1484,6 +1487,7 @@ ldscpp <- function(
               xtx.block.values[replace.from[i]:replace.to[i],] <- as.matrix(t(cMLD)%*% cMLD)
               LDvsChiCorrelation.block.values[i]<-cor(x = cMLD[,1],y = cMChi)
             }
+            LD.block.SS[i]<-sum((cMLD[,1] - mean(cMLD[,1], na.rm=T))^2, na.rm = T)
             
           }
           
@@ -1764,6 +1768,9 @@ ldscpp <- function(
           
         }
         
+        #LD square sums per block
+        LD.SS[s]<-list(LD.block.SS)
+        
       
         #}
         
@@ -1946,7 +1953,6 @@ ldscpp <- function(
     print(impstats)
     
   
-    
     # mod additions - added the suggested computations of standard error matrices from the website
     rownames(S)<-colnames(S)
     rownames(S.unsigned)<-colnames(S.unsigned)
@@ -2006,6 +2012,7 @@ ldscpp <- function(
                      V.unsigned=V.unsigned, S.unsigned=S.unsigned, I.unsigned=I.unsigned, S.SE.unsigned=S.SE.unsigned, V_Stand.unsigned=V_Stand.unsigned, S_Stand.unsigned=S_Stand.unsigned, S_Stand.SE.unsigned=S_Stand.SE.unsigned, 
                      cov.p.unsigned=cov.p.unsigned, cov.blocks=cov.blocks,
                      blockValues.LDSR_beta=lV,blockValues.LDSR_beta.unsigned=lV.unsigned,
+                     LD.SS=LD.SS,
                      impstats=impstats, m.imputed=mCellstats.imputed.m, m.imputed.full=mCellstats.imputed.full.m, m.imputed.partial=mCellstats.imputed.partial.m, m.nonimputed=mCellstats.nonimputed.m
                      )
     
