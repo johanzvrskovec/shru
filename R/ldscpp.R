@@ -1984,7 +1984,7 @@ ldscpp <- function(
       for(k in j:length(traits)){
         if(j == k){
           LOG("     ", print = FALSE)
-          LOG("Total Liability Scale h2 for: ", chi1,": ", round(S[j, j], 4), " (", round(SE[j, j], 5), ")"," [", round(SE[k, j]/S[k, j], 5),"]")
+          LOG("Total Liability Scale h2 for: ", chi1,": ", round(S[j, j], 4), " (", round(S.SE[j, j], 5), ")"," [", round(S.SE[k, j]/S[k, j], 5),"]")
         }
         
         if(j != k){
@@ -1993,9 +1993,9 @@ ldscpp <- function(
           }else{chi2 <- trait.names[k]}
           
           if(any(!is.na(delete.values.unsigned))){
-          LOG("Total Liability Scale covG for ", chi1, " and ",chi2,": ", round(S[k, j], 4), " (", round(SE[k, j], 5), ") / ", round(S.unsigned[k, j], 4), " (", round(SE.unsigned[k, j], 5), ")"," [", round(SE[k, j]/S[k, j], 5),"]")
+          LOG("Total Liability Scale covG for ", chi1, " and ",chi2,": ", round(S[k, j], 4), " (", round(S.SE[k, j], 5), ") / ", round(S.unsigned[k, j], 4), " (", round(SE.unsigned[k, j], 5), ")"," [", round(S.SE[k, j]/S[k, j], 5),"]")
           } else {
-            LOG("Total Liability Scale covG for ", chi1, " and ",chi2,": ", round(S[k, j], 4), " (", round(SE[k, j], 5), ")"," [", round(SE[k, j]/S[k, j], 5),"]")
+            LOG("Total Liability Scale covG for ", chi1, " and ",chi2,": ", round(S[k, j], 4), " (", round(S.SE[k, j], 5), ")"," [", round(S.SE[k, j]/S[k, j], 5),"]")
           }
           LOG("     ", print = FALSE)
         }
@@ -2022,12 +2022,12 @@ ldscpp <- function(
           if(any(!is.na(delete.values.unsigned))){
           
             LOG("Genetic Correlation between ", chi1, " and ", chi2, ", sign/unsign: ",
-                round(S_Stand[k, j], 4), " (", round(SE_Stand[k, j], 4), ") / ",round(S_Stand.unsigned[k, j], 4), " (", round(SE_Stand.unsigned[k, j], 4), ")")
+                round(S_Stand[k, j], 4), " (", round(S_Stand.SE[k, j], 4), ") / ",round(S_Stand.unsigned[k, j], 4), " (", round(S_Stand.SE.unsigned[k, j], 4), ")")
             
           } else {
             
             LOG("Genetic Correlation between ", chi1, " and ", chi2, ": ",
-                round(S_Stand[k, j], 4), " (", round(SE_Stand[k, j], 4), ")")
+                round(S_Stand[k, j], 4), " (", round(S_Stand.SE[k, j], 4), ")")
             
           }
           LOG("     ", print = FALSE)
