@@ -219,11 +219,11 @@ plot.corr <- function(corr, pmat=NULL, SE=NULL, filename, addrect = NULL, is.cor
 
 # mvldsc = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw
 # folderpath.plots = p$folderpath.plots
-# code = "maf0_05_hc1kg"
-# titleTemplate = "~GSEM LDSC,"
-# titleAddition = "\nLDSC++, HC1kGP3 reference, MAF > 0.01"
-# mvldscComparison = p$mvLD$covstruct.mvLDSC.GSEMemulation.1kg.maf0_01
-# titleAdditionComparison = ",\ncomparing with LDSC"
+# code = "ldscTest"
+# titleTemplate = "LDSC TEST,"
+# titleAddition = "\nLDSC++, 1kGP3 reference, MAF > 0.01"
+# mvldscComparison = p$mvLD$covstruct.mvLDSC.1kg.jn.varblock
+# titleAdditionComparison = ",\ncomparing with LDSC, JN, variable blocks"
 
 #routine to test and generate plots for Genomic SEM multivariate LDSC results
 plotAndTestBatteryForMVLDSC <- function(
@@ -366,7 +366,7 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("Differences in LD score regression intercepts, ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dI.totest[lower.tri(dI.totest, diag = T)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dI.totest)),digits = 3),"]")
+      title = paste0("Differences in LD score regression intercepts, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dI.totest[lower.tri(dI.totest, diag = T)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dI.totest)),digits = 3),"]")
     )
     
     dS_Stand<-clipValues(mvldsc$S_Stand,-1,1)-clipValues(mvldscComparison$S_Stand,-1,1) #re-compute as we need the full matrices here
@@ -378,7 +378,7 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("Differences in rG, ",titleTemplate,titleAddition,titleAdditionComparison," [abs(mean)=",round(mean(abs(dS_Stand.totest[lower.tri(dS_Stand.totest, diag = T)])),digits = 2),"]")
+      title = paste0("Differences in rG, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[abs(mean)=",round(mean(abs(dS_Stand.totest[lower.tri(dS_Stand.totest, diag = T)])),digits = 2),"]")
     )
     
     # #relative, in percent
@@ -404,7 +404,7 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 1,
       newnames = newnames,
-      title = paste0("Relative (%) differences in covG, ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dS_rel.totest[lower.tri(dS_rel.totest, diag = T)]),digits = 1),"]", " [mean(h2 only)=",round(mean(diag(dS_rel.totest)),digits = 1),"]")
+      title = paste0("Relative (%) differences in covG, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dS_rel.totest[lower.tri(dS_rel.totest, diag = T)]),digits = 1),"]", " [mean(h2 only)=",round(mean(diag(dS_rel.totest)),digits = 1),"]")
     )
     
     # dS.SE<-mvldsc$S.SE-mvldscComparison$S.SE
@@ -446,10 +446,11 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("Differences in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dCV_cov.totest[lower.tri(dCV_cov.totest, diag = T)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.totest)),digits = 3),"]")
+      title = paste0("Differences in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dCV_cov.totest[lower.tri(dCV_cov.totest, diag = T)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.totest)),digits = 3),"]")
     )
     
     #cov CV, standardised, relative
+    nUniqueNegative <- sum(dCV_cov[lower.tri(dCV_cov,diag = T)]<0,na.rm = T)
     dCV_cov_rel <- 100*(dCV_cov/(mvldscComparison$S.SE/comparison_S_ForCV))
     dCV_cov.rel.totest <- dCV_cov_rel[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
     plot.corr(
@@ -459,7 +460,7 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 2,
       newnames = newnames,
-      title = paste0("Relative (%) differences in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dCV_cov.rel.totest[lower.tri(dCV_cov.rel.totest, diag = T)]),digits = 2),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.rel.totest)),digits = 2),"]")
+      title = paste0("Relative (%) differences in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dCV_cov.rel.totest[lower.tri(dCV_cov.rel.totest, diag = T)]),digits = 2),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.rel.totest)),digits = 2),"] [#neg=",nUniqueNegative,"]")
     )
     
     #p-values for the covG difference

@@ -78,14 +78,15 @@ getEffectiveNumberOfTests <- function(
 #this test assumes per default that the variables are closely related/ NOT INDEPENDENT and have correlation ~ 1
 
 #These tests have to include both covariance values and their standard errors as the covariances are used for testing the difference in standard errors.
-
-# mValues1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$S
-# mStandard_errors1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$S.SE
+# 
+# mValues1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S
+# mStandard_errors1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S.SE
 # mValues2 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S
 # mStandard_errors2 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S.SE
-# mN1 <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$cov.blocks
+# mN1 <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$cov.blocks
 # mN2 <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$cov.blocks
-# mValueCovariances <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.rblock.winfo.altcw$V_Stand
+# mValueCovariances <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$V_Stand
+
 test.meta.deltacovariance.matrix <- function(
     mValues1,
     mStandard_errors1,
@@ -130,35 +131,18 @@ test.meta.deltacovariance.matrix <- function(
   #the test is double sided overall though, so 2*p!!!!!!!
   #old test was based on a normal
   if(fullyDependent){ # fully dependent samples
-    sdeFullyDependentVariables<-sqrt(2*abs((mN1-1)*mStandard_errors1^2-(mN2-1)*mStandard_errors2^2)/(mN1+mN2-2)) #the intersect, from stochastic var. variance formulas
+    varFullyDependentVariables<-abs(mStandard_errors1 - mStandard_errors2)^2 #from variance formulas, as corr -> 1
     
-    pTest.values <- ifelse(mTest.values > 0,
-                           2*pt(
-                             q = ( mTest.values/(sdeFullyDependentVariables*sqrt((1/mN1) + (1/mN2)))),
-                             df = (mN1+mN2-2),
-                             lower.tail = F
-                           ) 
-                           ,
-                           2*pt(
-                             q = ( mTest.values/(sdeFullyDependentVariables*sqrt((1/mN1) + (1/mN2)))),
-                             df = (mN1+mN2-2),
-                             lower.tail = T
-                           ) 
-    )
+    pTest.values <- 2*pnorm(
+                         q = abs(mTest.values)/sqrt(varFullyDependentVariables),
+                         lower.tail = F
+                       )
+    
   } else { #independent samples
     
-    pTest.values <- ifelse(mTest.values > 0,
-                           2*pt(
-                             q = ( mTest.values/(sqrt((mN1-1)*mStandard_errors1^2+(mN2-1)*mStandard_errors2^2/(mN1+mN2-2))*sqrt((1/mN1) + (1/mN2)))),
-                             df = (mN1+mN2-2),
-                             lower.tail = F
-                           ) 
-                           ,
-                           2*pt(
-                             q = ( mTest.values/(sqrt((mN1-1)*mStandard_errors1^2+(mN2-1)*mStandard_errors2^2/(mN1+mN2-2))*sqrt((1/mN1) + (1/mN2)))),
-                             df = (mN1+mN2-2),
-                             lower.tail = T
-                           ) 
+    pTest.values <- 2*pnorm(
+      q = abs(mTest.values)/sqrt(mStandard_errors1^2 + mStandard_errors2^2),
+      lower.tail = F
     )
   }
   
@@ -167,7 +151,7 @@ test.meta.deltacovariance.matrix <- function(
   colnames(pTest.values.adj)<-colnames(pTest.values)
   
   
-  #test standard error difference - assuming difference between two chi2
+  #test standard error difference - using difference between two chi2 (normal approx) test variables
   
   mValues1.abs <- abs(mValues1)
   mValues1.diag.sqrt<-sqrt(diag(mValues1.abs))
@@ -181,8 +165,13 @@ test.meta.deltacovariance.matrix <- function(
   mValues2.abs.capped<-mValues2.abs
   mValues2.abs.capped[!is.na(mValues2.abs) & mValues2.abs<covariance_std_value_lower_limit*mValues2.diag.std]<-covariance_std_value_lower_limit*mValues2.diag.std[!is.na(mValues2.abs) & mValues2.abs<covariance_std_value_lower_limit*mValues2.diag.std] #these are low capped to avoid close to zero denominator inflation of the test variables
   
-  t1<-mN1*(mN1-1)*(mStandard_errors1^2)/mValues1.abs.capped #we use the mean original variable in the denominator as in Pearsson's Chi2 test
-  t2<-mN2*(mN2-1)*(mStandard_errors2^2)/mValues2.abs.capped
+  #create standardised standard errors
+  #TODO!! This is work in progress
+  
+  
+  #old test variables
+  # t1<-mN1*(mN1-1)*(mStandard_errors1^2)/mValues1.abs.capped #we use the mean original variable in the denominator as in Pearsson's Chi2 test
+  # t2<-mN2*(mN2-1)*(mStandard_errors2^2)/mValues2.abs.capped
   
   #these are approximately normal with N(n-1,2(n-1)) with the same mean and variance as the Chi2
   

@@ -62,7 +62,9 @@ ldscpp <- function(
                      k.folds=0, #folds to prepare for later cross validation, set to > 0 to run additional folds using the train ratio to set the size of the train subsets
                      trainRatio=0.8, #train to total ratio for the fold subsets
                      exportReadyMergedTraits=F, #export merged datasets as a list, for multiple runs
-                     force.M = NULL #set the M value (number of variants in the LD score library)
+                     force.M = NULL, #set the M value (number of variants in the LD score library)
+                     covariance_std_value_lower_limit = 0.05, #Mod addition - lower limit of genetic covariance to allow for the denominator in standardising covG S.E.
+                     verbose = F #T -> print cell-wise results
                      
 ) {
   
@@ -126,6 +128,8 @@ ldscpp <- function(
   # trainRatio=0.8 #train to total ratio for the fold subsets
   # exportReadyMergedTraits=F
   # force.M = NULL
+  # covariance_std_value_lower_limit = 0.05
+  # verbose = F
 
   #small test
   # traits = p$sumstats.sel$mungedpath[1:2] #traits = p$sumstats.sel$imputedpath.500
@@ -1212,15 +1216,15 @@ ldscpp <- function(
         #cellstats - after final filter
         
         if(any(colnames(merged)=="SINFO") ){
-          mCellstats.imputed.m[k,j]<-nrow(merged[is.finite(SINFO) | is.finite(i.SINFO),])
-          mCellstats.imputed.full.m[k,j]<-nrow(merged[is.finite(SINFO) & is.finite(i.SINFO),])
-          mCellstats.imputed.partial.m[k,j]<-nrow(merged[(is.finite(SINFO) & is.na(i.SINFO)) | (is.na(SINFO) & is.finite(i.SINFO)),])
-          mCellstats.nonimputed.m[k,j]<-m.nonimputed
+          mCellstats.imputed.m[k,j]<-mCellstats.imputed.m[j,k]<-nrow(merged[is.finite(SINFO) | is.finite(i.SINFO),])
+          mCellstats.imputed.full.m[k,j]<-mCellstats.imputed.full.m[j,k]<-nrow(merged[is.finite(SINFO) & is.finite(i.SINFO),])
+          mCellstats.imputed.partial.m[k,j]<-mCellstats.imputed.partial.m[j,k]<-nrow(merged[(is.finite(SINFO) & is.na(i.SINFO)) | (is.na(SINFO) & is.finite(i.SINFO)),])
+          mCellstats.nonimputed.m[k,j]<-mCellstats.nonimputed.m[j,k]<-m.nonimputed
         } else {
-          mCellstats.imputed.m[k,j]<-0
-          mCellstats.imputed.full.m[k,j]<-0
-          mCellstats.imputed.partial.m[k,j]<-0
-          mCellstats.nonimputed.m[k,j]<-nrow(merged)
+          mCellstats.imputed.m[k,j]<-mCellstats.imputed.m[j,k]<-0
+          mCellstats.imputed.full.m[k,j]<-mCellstats.imputed.full.m[j,k]<-0
+          mCellstats.imputed.partial.m[k,j]<-mCellstats.imputed.partial.m[j,k]<-0
+          mCellstats.nonimputed.m[k,j]<-mCellstats.nonimputed.m[j,k]<-nrow(merged)
         }
         
         
@@ -1491,7 +1495,7 @@ ldscpp <- function(
               xtx.block.values[replace.from[i]:replace.to[i],] <- as.matrix(t(cMLD)%*% cMLD)
               LDvsChiCorrelation.block.values[i]<-cor(x = cMLD[,1],y = cMChi)
             }
-            LD.block.SS[i]<-sum((cMLD[,1] - mean(cMLD[,1], na.rm=T))^2, na.rm = T)
+            LD.block.SS[i]<-sum((cMLD[,1] - mean(cMLD[,1], na.rm=T))^2, na.rm = T) #we don't really use this
             nVars.block[i]<-nrow(cMLD)
             
           }
@@ -1739,38 +1743,41 @@ ldscpp <- function(
           conversion.factor <- (pop.prev^2*(1-pop.prev)^2)/(samp.prev*(1-samp.prev)* dnorm(qnorm(1-pop.prev))^2)
           Liab.S[j] <- conversion.factor
           Liab.S.unsigned[j] <- conversion.factor
-          LOG("     ", print = FALSE)
-          LOG("Please note that the results initially printed to the screen and log file reflect the NON-liability h2 and cov_g. However, a liability conversion is being used for trait ",
-              chi1, " when creating the genetic covariance matrix used as input for Genomic SEM and liability scale results are printed at the end of the log file.")
-          LOG("     ", print = FALSE)
+          if(verbose){
+            LOG("     ", print = FALSE)
+            LOG("Please note that the results initially printed to the screen and log file reflect the NON-liability h2 and cov_g. However, a liability conversion is being used for trait ",
+                chi1, " when creating the genetic covariance matrix used as input for Genomic SEM and liability scale results are printed at the end of the log file.")
+            LOG("     ", print = FALSE)
+          }
         }
         
         cov[k, j] <- cov[j, k] <- reg.tot
         cov.unsigned[k, j] <- cov.unsigned[j, k] <- reg.tot.unsigned
         I[k, j] <- I[j, k] <- intercept
         I.unsigned[k, j] <- I.unsigned[j, k] <- intercept.unsigned
-        cov.p[k, j] <- 2 * pnorm(abs(reg.tot / tot.se), lower.tail = FALSE)
-        cov.p.unsigned[k, j] <- 2 * pnorm(abs(reg.tot.unsigned / tot.se.unsigned), lower.tail = FALSE)
-        cov.blocks[k, j] <- n.blocksToUse
-        
-        if(any(!is.na(delete.values.unsigned))){
-          
-          LOG("Results following")
-          LOG("Mean abs(Z*Z): ", round(mean(abs(merged$ZZ)), 4), ", Median abs(Z*Z): ", round(median(abs(merged$ZZ)), 4))
-          LOG("Cross trait Intercept, sign/unsign: ", round(intercept, 4), " (", round(intercept.se, 4), ") / ",round(intercept.unsigned, 4), " (", round(intercept.se.unsigned, 4), ")")
-          LOG("Total Observed Scale Genetic Covariance (g_cov), sign/unsign: ", round(reg.tot, 4), " (", round(tot.se, 4), ") / ", round(reg.tot.unsigned, 4), " (", round(tot.se.unsigned, 4), ")")
-          LOG("g_cov Z, sign/unsign: ", round(reg.tot / tot.se,3), " / ", round(reg.tot.unsigned / tot.se.unsigned,3))
-          LOG("g_cov P-value, sign/unsign: ", round(cov.p[k, j], 6), " / ", round(cov.p.unsigned[k, j], 6))
-          
-        } else {
-          
-          LOG("Results following")
-          LOG("Mean abs(Z*Z): ", round(mean(abs(merged$ZZ)), 4), ", Median abs(Z*Z): ", round(median(abs(merged$ZZ)), 4))
-          LOG("Cross trait Intercept: ", round(intercept, 4), " (", round(intercept.se, 4), ")")
-          LOG("Total Observed Scale Genetic Covariance (g_cov): ", round(reg.tot, 4), " (", round(tot.se, 4), ")")
-          LOG("g_cov Z: ", round(reg.tot / tot.se,3))
-          LOG("g_cov P-value: ", round(cov.p[k, j], 6))
-          
+        cov.p[k, j] <- cov.p[j, k] <- 2 * pnorm(abs(reg.tot / tot.se), lower.tail = FALSE)
+        cov.p.unsigned[k, j] <- cov.p.unsigned[j, k] <- 2 * pnorm(abs(reg.tot.unsigned / tot.se.unsigned), lower.tail = FALSE)
+        cov.blocks[k, j] <- cov.blocks[j, k] <- n.blocksToUse
+        if(verbose){
+          if(any(!is.na(delete.values.unsigned))){
+            
+            LOG("Results following")
+            LOG("Mean abs(Z*Z): ", round(mean(abs(merged$ZZ)), 4), ", Median abs(Z*Z): ", round(median(abs(merged$ZZ)), 4))
+            LOG("Cross trait Intercept, sign/unsign: ", round(intercept, 4), " (", round(intercept.se, 4), ") / ",round(intercept.unsigned, 4), " (", round(intercept.se.unsigned, 4), ")")
+            LOG("Total Observed Scale Genetic Covariance (g_cov), sign/unsign: ", round(reg.tot, 4), " (", round(tot.se, 4), ") / ", round(reg.tot.unsigned, 4), " (", round(tot.se.unsigned, 4), ")")
+            LOG("g_cov Z, sign/unsign: ", round(reg.tot / tot.se,3), " / ", round(reg.tot.unsigned / tot.se.unsigned,3))
+            LOG("g_cov P-value, sign/unsign: ", round(cov.p[k, j], 6), " / ", round(cov.p.unsigned[k, j], 6))
+            
+          } else {
+            
+            LOG("Results following")
+            LOG("Mean abs(Z*Z): ", round(mean(abs(merged$ZZ)), 4), ", Median abs(Z*Z): ", round(median(abs(merged$ZZ)), 4))
+            LOG("Cross trait Intercept: ", round(intercept, 4), " (", round(intercept.se, 4), ")")
+            LOG("Total Observed Scale Genetic Covariance (g_cov): ", round(reg.tot, 4), " (", round(tot.se, 4), ")")
+            LOG("g_cov Z: ", round(reg.tot / tot.se,3))
+            LOG("g_cov P-value: ", round(cov.p[k, j], 6))
+            
+          }
         }
         
         #LD square sums per block
@@ -1790,9 +1797,11 @@ ldscpp <- function(
       
       if(limited) break
     } #cell loop
+    
+    
   
     lV.lengths <- c()
-    lV.lengths.unsigned <- c()
+    lV.lengths.unsigned <- c() #THESE SHOULD BE THE SAME LENGTHS THOUGH???
     for(i in 1:length(lV)){
       lV.lengths[i]<-length(lV[[i]])
     }
@@ -1811,38 +1820,160 @@ ldscpp <- function(
       mV.unsigned[,i]<-padList(lV.unsigned[[i]],padding = NA_real_, targetLength = nrow(mV.unsigned))
     }
     
-    ## Scale V to N per study (assume m constant)
-    # /!\ crossprod instead of tcrossprod because N.vec is a one-row matrix
-    v.out <- cov(mV,use="pairwise.complete.obs") / crossprod(N.vec * (sqrt(nrow(mV)) / M.tot))
-    v.out.unsigned <- cov(mV.unsigned,use="pairwise.complete.obs") / crossprod(N.vec * (sqrt(nrow(mV.unsigned)) / M.tot))
-    
-    ### Scale S and V to liability:
-    ratio <- tcrossprod(sqrt(Liab.S))
-    S <- cov * ratio
-    ratio.unsigned <- tcrossprod(sqrt(Liab.S.unsigned))
-    S.unsigned <- cov.unsigned * ratio.unsigned
-    
-    #calculate the ratio of the rescaled and original S matrices
-    scaleO <- gdata::lowerTriangle(ratio, diag = TRUE)
-    scaleO.unsigned <- gdata::lowerTriangle(ratio.unsigned, diag = TRUE)
-    
-    #rescale the sampling correlation matrix by the appropriate diagonals
-    V <- v.out * tcrossprod(scaleO)
-    V.unsigned <- v.out.unsigned * tcrossprod(scaleO.unsigned)
-    
+    # *****S specific
+    ### Scale S to liability:
+    ratio.liability <- tcrossprod(sqrt(Liab.S))
+    S <- cov * ratio.liability
+    ratio.liability.unsigned <- tcrossprod(sqrt(Liab.S.unsigned))
+    S.unsigned <- cov.unsigned * ratio.liability.unsigned
     
     #name traits according to trait.names argument
     #use general format of V1-VX if no names provided
     colnames(S) <- if (is.null(trait.names)) paste0("V", 1:ncol(S)) else trait.names
     colnames(S.unsigned) <- if (is.null(trait.names)) paste0("V", 1:ncol(S.unsigned)) else trait.names
     
-    #if(mean(Liab.S)!=1){ #always show this
-    r<-nrow(S)
-    SE<-matrix(0, r, r)
-    SE.unsigned<-matrix(0, r, r)
-    SE[lower.tri(SE,diag=TRUE)] <-sqrt(diag(V))
-    SE.unsigned[lower.tri(SE.unsigned,diag=TRUE)] <-sqrt(diag(V.unsigned))
+    rownames(S)<-colnames(S)
+    rownames(S.unsigned)<-colnames(S.unsigned)
     
+    #more names
+    colnames(I)<-colnames(I)
+    rownames(I)<-rownames(I)
+    colnames(I.unsigned)<-colnames(I.unsigned)
+    rownames(I.unsigned)<-rownames(I.unsigned)
+    colnames(cov.p)<-colnames(S)
+    rownames(cov.p)<-rownames(S)
+    colnames(cov.p.unsigned)<-colnames(S)
+    rownames(cov.p.unsigned)<-rownames(S)
+    colnames(cov.blocks)<-colnames(S)
+    rownames(cov.blocks)<-rownames(S)
+    
+    #calculate the ratio of the rescaled and original S matrices
+    scale.liability.lt <- gdata::lowerTriangle(ratio.liability, diag = TRUE)
+    scale.liability.unsigned.lt <- gdata::lowerTriangle(ratio.liability.unsigned, diag = TRUE)
+    
+    #mod additions - initialise S_Stand, set all NA element in S to 0 so not to have NA values
+    S_Stand<-matrix(NA, nrow(S), nrow(S))
+    S[is.na(S)]<-0
+    S_Stand.unsigned<-matrix(NA, nrow(S.unsigned), nrow(S.unsigned))
+    S.unsigned[is.na(S.unsigned)]<-0
+    
+    ##calculate standardized results to print genetic correlations to log and screen
+    #mod change - will run with negative heritabilities
+    ratio.standardisation <- tcrossprod(1 / sqrt(abs(diag(S)))) #mod addition  - take the absolute of the diagonal rather than the actual values in case there are negative heritabilities
+    ratio.standardisation.unsigned <- tcrossprod(1 / sqrt(abs(diag(S.unsigned))))
+    S_Stand <- S * ratio.standardisation
+    S_Stand.unsigned <- S.unsigned * ratio.standardisation.unsigned
+    colnames(S_Stand)<-colnames(S)
+    colnames(S_Stand.unsigned)<-colnames(S_Stand.unsigned)
+    rownames(S_Stand)<-colnames(S)
+    rownames(S_Stand.unsigned)<-colnames(S_Stand.unsigned)
+    
+    #calculate the ratio of the rescaled and original S matrices
+    scale.standardisation.lt <- gdata::lowerTriangle(ratio.standardisation, diag = TRUE)
+    scale.standardisation.unsigned.lt <- gdata::lowerTriangle(ratio.standardisation.unsigned, diag = TRUE)
+    
+    ### We need capped absolute covG estimates for the later standardised S.E.s
+    S.abs.capped<-abs(S)
+    S.abs.capped[!is.na(abs(S_Stand)) & abs(S_Stand) < covariance_std_value_lower_limit]<-covariance_std_value_lower_limit*abs(S)[!is.na(abs(S_Stand)) & abs(S_Stand) < covariance_std_value_lower_limit] #these are low capped to avoid close to zero denominator inflation of the test variables
+    
+    S.abs.capped.unsigned<-abs(S.unsigned)
+    S.abs.capped.unsigned[!is.na(abs(S_Stand.unsigned)) & abs(S_Stand.unsigned) < covariance_std_value_lower_limit]<-covariance_std_value_lower_limit*abs(S.unsigned)[!is.na(abs(S_Stand.unsigned)) & abs(S_Stand.unsigned) < covariance_std_value_lower_limit] #these are low capped to avoid close to zero denominator inflation of the test variables
+    
+    # *****V specific
+    ## Scale V to N per study (assume m constant)
+    # /!\ crossprod instead of tcrossprod because N.vec is a one-row matrix
+    #mod addition/change - use cov.blocks matrix rather than n.blocks (constant) as this is trait specific
+    
+    scale.nPerStudy <- 1/crossprod(N.vec * (sqrt(gdata::lowerTriangle(cov.blocks, diag = TRUE)) / M.tot))
+    
+    v.out <- cov(mV,use="pairwise.complete.obs") * scale.nPerStudy
+    v.out.unsigned <- cov(mV.unsigned,use="pairwise.complete.obs") * scale.nPerStudy
+    
+    #rescale the sampling correlation matrix by the appropriate diagonals
+    V <- v.out * tcrossprod(scale.liability.lt)
+    V.unsigned <- v.out.unsigned * tcrossprod(scale.liability.unsigned.lt)
+    
+    #S.E. of S
+    r<-nrow(S)
+    S.SE<-matrix(0, r, r)
+    S.SE.unsigned<-matrix(0, r, r)
+    S.SE[lower.tri(S.SE,diag=TRUE)] <-sqrt(diag(V))
+    S.SE.unsigned[lower.tri(S.SE.unsigned,diag=TRUE)] <-sqrt(diag(V.unsigned))
+    S.SE[upper.tri(S.SE)]<-t(S.SE)[upper.tri(S.SE)]
+    S.SE.unsigned[upper.tri(S.SE.unsigned)]<-t(S.SE.unsigned)[upper.tri(S.SE.unsigned)]
+    colnames(S.SE)<-colnames(S)
+    colnames(S.SE.unsigned)<-colnames(S.unsigned)
+    rownames(S.SE)<-colnames(S)
+    rownames(S.SE.unsigned)<-colnames(S.unsigned)
+    
+   
+    
+    ###mod addition - also compute standardised S.E's - have better chi-squared properties (Pearsson's test)
+    #ONLY FOR THE V DIAGONAL AS OF NOW
+    #V.std <- matrix(data = NA, nrow = ncol(mV), ncol=ncol(mV))
+    cov.out.std.vec <- matrix(data = NA, nrow = 1, ncol=ncol(mV))
+    cov.vec <- gdata::lowerTriangle(cov, diag = TRUE)
+    S.abs.capped.vec <- gdata::lowerTriangle(S.abs.capped, diag = TRUE)
+    scale.nPerStudy.vec <- diag(scale.nPerStudy)
+    scale.liability.lt.vec<-diag(tcrossprod(scale.liability.lt))
+
+    for(j in 1:ncol(mV)){
+      #j<-1
+      cov.out.std.vec[j]<-
+        scale.liability.lt.vec[j] * M.tot * sum(((mV[,j]-cov.vec[j])^2) ,na.rm = T)/(S.abs.capped.vec[j]*N.vec[j]) #do not use the scale.nPerStudy as it contains the block-count
+    }
+    
+    cov.out.std_normal.vec<-(cov.out.std.vec-lV.lengths+1)/sqrt(2*(lV.lengths-1))
+    cov.out.std_normal.vec.p<-pnorm(abs(cov.out.std_normal.vec), lower.tail = FALSE)
+    
+    #Pearsons's standardised S.E. of S - for chi-square distributed tests
+    r<-nrow(S)
+    S.SE.std<-matrix(0, r, r)
+    #S.SE.std.unsigned<-matrix(0, r, r) #you can only get these of signed values as of now
+    S.SE.std[lower.tri(S.SE.std,diag=TRUE)] <- S.SE.std[upper.tri(S.SE.std,diag=TRUE)] <- sqrt(cov.out.std.vec)
+    #S.SE.std.unsigned[lower.tri(S.SE.std.unsigned,diag=TRUE)] <- sqrt(cov.out.std.unsigned.vec)
+    #S.SE.std[upper.tri(S.SE.std)]<-t(S.SE.std)[upper.tri(S.SE.std)] #old
+    colnames(S.SE.std)<-colnames(S)
+    rownames(S.SE.std)<-colnames(S)
+    
+    #Pearsons's standardised S.E. of S - for chi-square distributed tests - as std normal
+    r<-nrow(S)
+    S.SE.std_normal<-matrix(0, r, r)
+    S.SE.std_normal[lower.tri(S.SE.std_normal,diag=TRUE)] <- S.SE.std_normal[upper.tri(S.SE.std_normal,diag=TRUE)] <- sqrt(cov.out.std_normal.vec)
+    colnames(S.SE.std_normal)<-colnames(S)
+    rownames(S.SE.std_normal)<-colnames(S)
+    
+    r<-nrow(S)
+    S.SE.std_normal.p<-matrix(0, r, r)
+    S.SE.std_normal.p[lower.tri(S.SE.std_normal.p,diag=TRUE)] <- S.SE.std_normal.p[upper.tri(S.SE.std_normal.p,diag=TRUE)] <- cov.out.std_normal.vec.p
+    colnames(S.SE.std_normal.p)<-colnames(S)
+    rownames(S.SE.std_normal.p)<-colnames(S)
+
+    #mod additions - initialise V_Stand, set all NA element in V to 0 so not to have NA values
+    V_Stand<-matrix(NA, nrow(V), nrow(V))
+    V[is.na(V)]<-0
+    V_Stand.unsigned<-matrix(NA, nrow(V.unsigned), nrow(V.unsigned))
+    V.unsigned[is.na(V.unsigned)]<-0
+    
+    #rescale the sampling correlation matrix by the appropriate diagonals
+    V_Stand <- V * tcrossprod(scale.standardisation.lt)
+    V_Stand.unsigned <- V.unsigned * tcrossprod(scale.standardisation.unsigned.lt)
+    
+    #enter SEs from diagonal of standardized V
+    r<-nrow(S)
+    S_Stand.SE<-matrix(0, r, r)
+    S_Stand.SE[lower.tri(S_Stand.SE,diag=TRUE)] <- S_Stand.SE[upper.tri(S_Stand.SE,diag=TRUE)] <- sqrt(diag(V_Stand))
+    r<-nrow(S.unsigned)
+    S_Stand.SE.unsigned<-matrix(0, r, r)
+    S_Stand.SE.unsigned[lower.tri(S_Stand.SE.unsigned,diag=TRUE)] <- S_Stand.SE.unsigned[upper.tri(S_Stand.SE.unsigned,diag=TRUE)] <- sqrt(diag(V_Stand.unsigned))
+    
+    colnames(S_Stand.SE)<-colnames(S)
+    colnames(S_Stand.SE.unsigned)<-colnames(S.unsigned)
+    rownames(S_Stand.SE)<-colnames(S)
+    rownames(S_Stand.SE.unsigned)<-colnames(S.unsigned)
+    
+    
+    #if(mean(Liab.S)!=1){ #always show this
     LOG(c("     ", "     "), print = FALSE)
     LOG("(Liability) Scale Results")
     
@@ -1872,40 +2003,7 @@ ldscpp <- function(
     }
     #}
     
-    #mod additions - initialise S_Stand, set all NA element in S to 0 so not to have NA values
-    S_Stand<-matrix(NA, nrow(S), nrow(S))
-    V_Stand<-matrix(NA, nrow(V), nrow(V))
-    S[is.na(S)]<-0
-    S_Stand.unsigned<-matrix(NA, nrow(S.unsigned), nrow(S.unsigned))
-    V_Stand.unsigned<-matrix(NA, nrow(V.unsigned), nrow(V.unsigned))
-    S.unsigned[is.na(S.unsigned)]<-0
-      
-    ##calculate standardized results to print genetic correlations to log and screen
-    #mod change - will run with negative heritabilities
-    ratio <- tcrossprod(1 / sqrt(abs(diag(S)))) #mod addition  - take the absolute of the diagonal rather than the actual values in case there are negative heritabilities
-    ratio.unsigned <- tcrossprod(1 / sqrt(abs(diag(S.unsigned))))
-    S_Stand <- S * ratio
-    S_Stand.unsigned <- S.unsigned * ratio.unsigned
     
-    #calculate the ratio of the rescaled and original S matrices
-    scaleO <- gdata::lowerTriangle(ratio, diag = TRUE)
-    scaleO.unsigned <- gdata::lowerTriangle(ratio.unsigned, diag = TRUE)
-    
-    ## MAke sure that if ratio in NaN (devision by zero) we put the zero back in
-    # -> not possible because of 'all(diag(S) > 0)'
-    # scaleO[is.nan(scaleO)] <- 0
-    
-    #rescale the sampling correlation matrix by the appropriate diagonals
-    V_Stand <- V * tcrossprod(scaleO)
-    V_Stand.unsigned <- V.unsigned * tcrossprod(scaleO.unsigned)
-    
-    #enter SEs from diagonal of standardized V
-    r<-nrow(S)
-    SE_Stand<-matrix(0, r, r)
-    SE_Stand[lower.tri(SE_Stand,diag=TRUE)] <- sqrt(diag(V_Stand))
-    r<-nrow(S.unsigned)
-    SE_Stand.unsigned<-matrix(0, r, r)
-    SE_Stand.unsigned[lower.tri(SE_Stand.unsigned,diag=TRUE)] <- sqrt(diag(V_Stand.unsigned))
     
     
     LOG(c("     ", "     "), print = FALSE)
@@ -1957,53 +2055,7 @@ ldscpp <- function(
     LOG("     ", print = FALSE)
     
     #print stats
-    print(impstats)
-    
-  
-    # mod additions - added the suggested computations of standard error matrices from the website
-    rownames(S)<-colnames(S)
-    rownames(S.unsigned)<-colnames(S.unsigned)
-    S.SE<-matrix(0, nrow(S), nrow(S))
-    S.SE.unsigned<-matrix(0, nrow(S.unsigned), nrow(S.unsigned))
-    colnames(S.SE)<-colnames(S)
-    colnames(S.SE.unsigned)<-colnames(S.unsigned)
-    rownames(S.SE)<-colnames(S)
-    rownames(S.SE.unsigned)<-colnames(S.unsigned)
-    S.SE[lower.tri(S.SE,diag=TRUE)] <-sqrt(diag(V))
-    S.SE.unsigned[lower.tri(S.SE.unsigned,diag=TRUE)] <-sqrt(diag(V.unsigned))
-    S.SE[upper.tri(S.SE)]<-t(S.SE)[upper.tri(S.SE)]
-    S.SE.unsigned[upper.tri(S.SE.unsigned)]<-t(S.SE.unsigned)[upper.tri(S.SE.unsigned)]
-    
-    colnames(S_Stand)<-colnames(S)
-    colnames(S_Stand.unsigned)<-colnames(S_Stand.unsigned)
-    rownames(S_Stand)<-colnames(S)
-    rownames(S_Stand.unsigned)<-colnames(S_Stand.unsigned)
-    S_Stand.SE<-matrix(0, nrow(S_Stand), nrow(S_Stand))
-    S_Stand.SE.unsigned<-matrix(0, nrow(S_Stand.unsigned), nrow(S_Stand.unsigned))
-    colnames(S_Stand.SE)<-colnames(S)
-    colnames(S_Stand.SE.unsigned)<-colnames(S.unsigned)
-    rownames(S_Stand.SE)<-colnames(S)
-    rownames(S_Stand.SE.unsigned)<-colnames(S.unsigned)
-    S_Stand.SE[lower.tri(S_Stand.SE,diag=TRUE)] <-sqrt(diag(V_Stand))
-    S_Stand.SE.unsigned[lower.tri(S_Stand.SE.unsigned,diag=TRUE)] <-sqrt(diag(V_Stand.unsigned))
-    S_Stand.SE[upper.tri(S_Stand.SE)]<-t(S_Stand.SE)[upper.tri(S_Stand.SE)]
-    S_Stand.SE.unsigned[upper.tri(S_Stand.SE.unsigned)]<-t(S_Stand.SE.unsigned)[upper.tri(S_Stand.SE.unsigned)]
-    
-    cov.p[upper.tri(cov.p)]<-t(cov.p)[upper.tri(cov.p)]
-    colnames(cov.p)<-colnames(S)
-    rownames(cov.p)<-rownames(S)
-    cov.p.unsigned[upper.tri(cov.p.unsigned)]<-t(cov.p.unsigned)[upper.tri(cov.p.unsigned)]
-    colnames(cov.p.unsigned)<-colnames(S)
-    rownames(cov.p.unsigned)<-rownames(S)
-    
-    cov.blocks[upper.tri(cov.blocks)]<-t(cov.blocks)[upper.tri(cov.blocks)]
-    colnames(cov.blocks)<-colnames(S)
-    rownames(cov.blocks)<-rownames(S)
-    
-    mCellstats.imputed.m[upper.tri(mCellstats.imputed.m)]<-t(mCellstats.imputed.m)[upper.tri(mCellstats.imputed.m)]
-    mCellstats.imputed.full.m[upper.tri(mCellstats.imputed.full.m)]<-t(mCellstats.imputed.full.m)[upper.tri(mCellstats.imputed.full.m)]
-    mCellstats.imputed.partial.m[upper.tri(mCellstats.imputed.partial.m)]<-t(mCellstats.imputed.partial.m)[upper.tri(mCellstats.imputed.partial.m)]
-    mCellstats.nonimputed.m[upper.tri(mCellstats.nonimputed.m)]<-t(mCellstats.nonimputed.m)[upper.tri(mCellstats.nonimputed.m)]
+    #print(impstats)
     
     
     for(j in 1:n.traits){
@@ -2018,6 +2070,7 @@ ldscpp <- function(
                      V_Stand=V_Stand, S_Stand=S_Stand, S_Stand.SE=S_Stand.SE, cov.p=cov.p, 
                      V.unsigned=V.unsigned, S.unsigned=S.unsigned, I.unsigned=I.unsigned, S.SE.unsigned=S.SE.unsigned, V_Stand.unsigned=V_Stand.unsigned, S_Stand.unsigned=S_Stand.unsigned, S_Stand.SE.unsigned=S_Stand.SE.unsigned, 
                      cov.p.unsigned=cov.p.unsigned, cov.blocks=cov.blocks,
+                     S.SE.std=S.SE.std,S.SE.std_normal=S.SE.std_normal,S.SE.std_normal.p=S.SE.std_normal.p,
                      blockValues.LDSR_beta=lV,blockValues.LDSR_beta.unsigned=lV.unsigned,
                      LD.SS=LD.SS,
                      nVar.per.block=nVar.per.block,
