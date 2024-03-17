@@ -132,24 +132,23 @@ ldscpp <- function(
   # verbose = F
 
   #small test
-  # traits = p$sumstats.sel$mungedpath[1:2] #traits = p$sumstats.sel$imputedpath.500
-  # sample.prev =  p$sumstats.sel$samplePrevalence[1:2]
-  # population.prev = p$sumstats.sel$populationPrevalence[1:2]
-  # trait.names = p$sumstats.sel$code[1:2]
-  # filepathLD = p$filepath.SNPReference.1kg
-  # #ld = p$folderpath.data.mvLDSC.ld.hm3
-  # resamplingMethod = "cv"
-  # N.mode="variable"
-  # minBlocksizeCM = NA #because we use the hm3 LD-scores without cM measures
-  # # filter.sinfo = 0
-  # # filter.sinfo.imputed = 0.9
+  # traits = p$sumstats[c("ANXI03","BODY14"),]$mungedpath.supermunge.1kg.orig.unfiltered
+  # sample.prev =  p$sumstats[c("ANXI03","BODY14"),]$samplePrevalence
+  # population.prev = p$sumstats[c("ANXI03","BODY14"),]$populationPrevalence
+  # trait.names = p$sumstats[c("ANXI03","BODY14"),]$code
+  # ld = p$folderpath.data.mvLDSC.ld.hm3
+  # n.blocks = 200
+  # ldsc.log = p$setup.code.date
+  # preweight.alternativeCorrelationCorrection = F
+  # preweight.ChiSquare = F
+  # correctAttenuationBias = F
+  # doubleRegressionRoutine = F
+  # preweight.INFO=F
+  # resamplingMethod="jn"
+  # blocksizeCM = NA #inactivate CM window def
   # filter.info = 0.6
   # filter.maf = 0.01
-  # filter.chisq.min = 0.01579077 #EXPERIMENTAL! qchisq(p = 0.1,df = 1)
-  # filter.region.df = p$highld_b38
-  # #filter.mhc = 37
-  # N = p$sumstats.sel$n_total[1:2]
-  # ldsc.log = p$setup.code.date
+  # filter.zz.min = 0
   
   # #large/small test
   # traits = p$sumstats[c("BIPO02","BODY14"),]$mungedpath.supermunge.1kg.orig.unfiltered
@@ -1092,6 +1091,11 @@ ldscpp <- function(
     return(list(all_y=all_y,impstats=impstats,median_all_y=median_all_y, mgc=mgc, M.tot=M.tot))
   }
   
+  if(resamplingMethod=="jn"){
+    LOG("Using jackknife resampling")
+  } else { #if(resamplingMethod="vbcs")
+    LOG("Using variable block-count sampling")
+  }
   
   #fold loop
   n.folds<-2*k.folds
@@ -1209,7 +1213,8 @@ ldscpp <- function(
           n.snps <- nrow(merged)
           #NEW! ZZ filter - filter on ZZ rather than individual trait Chi-square stats
           merged <- merged[abs(ZZ)>filter.zz.min, ]
-          LOG(n.snps - nrow(merged), " variants excluded based on ZZ")
+          nzzexcluded <- n.snps - nrow(merged)
+          if(nzzexcluded>0) LOG(nzzexcluded, " variants excluded based on ZZ")
         }
         
         
@@ -1512,7 +1517,7 @@ ldscpp <- function(
         delete.values.unsigned <- matrix(data=NA,nrow=nrow(xty.block.values),ncol =(n.annot+1))
         
         if(resamplingMethod=="jn"){
-          LOG("Using jackknife resampling")
+          #LOG("Using jackknife resampling")
           for(i in 1:n.blocksToUse){
             #i<-1
             xty.delete <- xty-xty.block.values[i,]
@@ -1560,7 +1565,7 @@ ldscpp <- function(
           lV.unsigned[s]<-lV[s]
         
         } else { #if(resamplingMethod="vbcs")
-          LOG("Using variable block-count sampling")
+          #LOG("Using variable block-count sampling")
           attenuationCorrectionFactor <-c()
           for(i in 1:n.blocksToUse){
             #i<-1
@@ -1882,9 +1887,11 @@ ldscpp <- function(
     # *****V specific
     ## Scale V to N per study (assume m constant)
     # /!\ crossprod instead of tcrossprod because N.vec is a one-row matrix
-    #mod addition/change - use cov.blocks matrix rather than n.blocks (constant) as this is trait specific
     
-    scale.nPerStudy <- 1/crossprod(N.vec * (sqrt(gdata::lowerTriangle(cov.blocks, diag = TRUE)) / M.tot))
+    #DO WE REALLY NEED THE BLOCKS HERE??? I DON'T THINK SO, BECAUE WE ARE STILL USING STANDARD ERRORS (SAMPLING DISTRIBUTION) AND NOT TRYING TO ESTIMATE THE POPULATION VARIANCE.
+    scale.nPerStudy <- 1/crossprod(N.vec / M.tot) #experimental version
+    #mod addition/change - use cov.blocks matrix rather than n.blocks (constant) as this is trait specific
+    #scale.nPerStudy <- 1/crossprod(N.vec * (sqrt(gdata::lowerTriangle(cov.blocks, diag = TRUE)) / M.tot)) #Old Genomic SEM equivalent version
     
     v.out <- cov(mV,use="pairwise.complete.obs") * scale.nPerStudy
     v.out.unsigned <- cov(mV.unsigned,use="pairwise.complete.obs") * scale.nPerStudy
@@ -1908,7 +1915,7 @@ ldscpp <- function(
     
    
     
-    ###mod addition - also compute standardised S.E's - have better chi-squared properties (Pearsson's test)
+    ###mod addition - also compute standardised S.E's - have better chi-squared properties (Pearson's formula/test)
     #ONLY FOR THE V DIAGONAL AS OF NOW
     #V.std <- matrix(data = NA, nrow = ncol(mV), ncol=ncol(mV))
     cov.out.std.vec <- matrix(data = NA, nrow = 1, ncol=ncol(mV))
@@ -1936,18 +1943,18 @@ ldscpp <- function(
     colnames(S.SE.std)<-colnames(S)
     rownames(S.SE.std)<-colnames(S)
     
-    #Pearsons's standardised S.E. of S - for chi-square distributed tests - as std normal
+    #Pearsons's standardised variances. of S - for chi-square distributed tests - as std normal
     r<-nrow(S)
-    S.SE.std_normal<-matrix(0, r, r)
-    S.SE.std_normal[lower.tri(S.SE.std_normal,diag=TRUE)] <- S.SE.std_normal[upper.tri(S.SE.std_normal,diag=TRUE)] <- sqrt(cov.out.std_normal.vec)
-    colnames(S.SE.std_normal)<-colnames(S)
-    rownames(S.SE.std_normal)<-colnames(S)
+    S.VAR.std_normal<-matrix(0, r, r)
+    S.VAR.std_normal[lower.tri(S.VAR.std_normal,diag=TRUE)] <- S.VAR.std_normal[upper.tri(S.VAR.std_normal,diag=TRUE)] <- cov.out.std_normal.vec
+    colnames(S.VAR.std_normal)<-colnames(S)
+    rownames(S.VAR.std_normal)<-colnames(S)
     
     r<-nrow(S)
-    S.SE.std_normal.p<-matrix(0, r, r)
-    S.SE.std_normal.p[lower.tri(S.SE.std_normal.p,diag=TRUE)] <- S.SE.std_normal.p[upper.tri(S.SE.std_normal.p,diag=TRUE)] <- cov.out.std_normal.vec.p
-    colnames(S.SE.std_normal.p)<-colnames(S)
-    rownames(S.SE.std_normal.p)<-colnames(S)
+    S.VAR.std_normal.p<-matrix(0, r, r)
+    S.VAR.std_normal.p[lower.tri(S.VAR.std_normal.p,diag=TRUE)] <- S.VAR.std_normal.p[upper.tri(S.VAR.std_normal.p,diag=TRUE)] <- cov.out.std_normal.vec.p
+    colnames(S.VAR.std_normal.p)<-colnames(S)
+    rownames(S.VAR.std_normal.p)<-colnames(S)
 
     #mod additions - initialise V_Stand, set all NA element in V to 0 so not to have NA values
     V_Stand<-matrix(NA, nrow(V), nrow(V))
@@ -1984,7 +1991,7 @@ ldscpp <- function(
       for(k in j:length(traits)){
         if(j == k){
           LOG("     ", print = FALSE)
-          LOG("Total Liability Scale h2 for: ", chi1,": ", round(S[j, j], 4), " (", round(S.SE[j, j], 5), ")"," [", round(S.SE[k, j]/S[k, j], 5),"]")
+          LOG("Total Liability Scale h2 for: ", chi1,": ", round(S[j, j], 3), " (", round(S.SE[j, j], 4), ")"," [", round(S.SE[k, j]/S[k, j], 3),"]"," {", round(sign(S.VAR.std_normal[k, j])*sqrt(abs(S.VAR.std_normal[k, j])), 3),"}")
         }
         
         if(j != k){
@@ -1993,9 +2000,9 @@ ldscpp <- function(
           }else{chi2 <- trait.names[k]}
           
           if(any(!is.na(delete.values.unsigned))){
-          LOG("Total Liability Scale covG for ", chi1, " and ",chi2,": ", round(S[k, j], 4), " (", round(S.SE[k, j], 5), ") / ", round(S.unsigned[k, j], 4), " (", round(SE.unsigned[k, j], 5), ")"," [", round(S.SE[k, j]/S[k, j], 5),"]")
+          LOG("Total Liability Scale covG for ", chi1, " and ",chi2,": ", round(S[k, j], 3), " (", round(S.SE[k, j], 4), ")"," [", round(S.SE[k, j]/S[k, j], 3),"]"," / ", round(S.unsigned[k, j], 3), " (", round(SE.unsigned[k, j], 4), ")"," [", round(S.SE.unsigned[k, j]/S.unsigned[k, j], 3),"]",)
           } else {
-            LOG("Total Liability Scale covG for ", chi1, " and ",chi2,": ", round(S[k, j], 4), " (", round(S.SE[k, j], 5), ")"," [", round(S.SE[k, j]/S[k, j], 5),"]")
+            LOG("Total Liability Scale covG for ", chi1, " and ",chi2,": ", round(S[k, j], 3), " (", round(S.SE[k, j], 4), ")"," [", round(S.SE[k, j]/S[k, j], 3),"]"," {", round(sign(S.VAR.std_normal[k, j])*sqrt(abs(S.VAR.std_normal[k, j])), 3),"}")
           }
           LOG("     ", print = FALSE)
         }
@@ -2070,7 +2077,7 @@ ldscpp <- function(
                      V_Stand=V_Stand, S_Stand=S_Stand, S_Stand.SE=S_Stand.SE, cov.p=cov.p, 
                      V.unsigned=V.unsigned, S.unsigned=S.unsigned, I.unsigned=I.unsigned, S.SE.unsigned=S.SE.unsigned, V_Stand.unsigned=V_Stand.unsigned, S_Stand.unsigned=S_Stand.unsigned, S_Stand.SE.unsigned=S_Stand.SE.unsigned, 
                      cov.p.unsigned=cov.p.unsigned, cov.blocks=cov.blocks,
-                     S.SE.std=S.SE.std,S.SE.std_normal=S.SE.std_normal,S.SE.std_normal.p=S.SE.std_normal.p,
+                     S.SE.std=S.SE.std,S.VAR.std_normal=S.VAR.std_normal,S.VAR.std_normal.p=S.VAR.std_normal.p,
                      blockValues.LDSR_beta=lV,blockValues.LDSR_beta.unsigned=lV.unsigned,
                      LD.SS=LD.SS,
                      nVar.per.block=nVar.per.block,
