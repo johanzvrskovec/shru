@@ -1373,15 +1373,9 @@ ldscpp <- function(
               
               if(nrow(merged.block)>=minBlocksizeM){
                 
-                if(N.mode=="variable"){
-                  mLD<-as.matrix(cbind(merged.block$N.bar*merged.block$m.LD,merged.block$N.bar*merged.block$m.intercept))
-                  mChi<-as.matrix(cbind(merged.block$m.Chi))
-                } else {
-                  #original - using mean N later
-                  mLD<-as.matrix(cbind(merged.block$m.LD,merged.block$m.intercept))
-                  mChi<-as.matrix(cbind(merged.block$m.Chi))
-                }
-                
+                #original - using mean N later
+                mLD<-as.matrix(cbind(merged.block$m.LD,merged.block$m.intercept))
+                mChi<-as.matrix(cbind(merged.block$m.Chi))
                 
                 if(doubleRegressionRoutine){
                   mPos[iBlock]<-sum(mChi>0)
@@ -1460,20 +1454,14 @@ ldscpp <- function(
           mPos<-c()
           mNeg<-c()
           
-          if(N.mode=="variable"){
-            mLD<-as.matrix(cbind(merged$N.bar*merged$m.LD,merged$N.bar*merged$m.intercept))
-            mChi<-as.matrix(cbind(merged$m.Chi))
-          } else {
-            #original - using mean N later
-            mLD<-as.matrix(cbind(merged$m.LD,merged$m.intercept))
-            mChi<-as.matrix(cbind(merged$m.Chi))
-          }
+          #original - using mean N later
+          mLD<-as.matrix(cbind(merged$m.LD,merged$m.intercept))
+          mChi<-as.matrix(cbind(merged$m.Chi))
           
           select.from <- floor(seq(from=1,to=n.snps,length.out =(n.blocksToUse+1)))
           select.to <- c(select.from[2:n.blocksToUse]-1,n.snps)
           replace.from <- seq(from=1,to=nrow(xtx.block.values),by =(n.annot+1))
           replace.to <- seq(from =(n.annot+1),to=nrow(xtx.block.values),by =(n.annot+1))
-          
           
           for(i in 1:n.blocksToUse){
             #i<-1
@@ -1914,7 +1902,7 @@ ldscpp <- function(
     # }
     
     cov.out.std_normal.vec<-(cov.out.std.vec-lV.lengths+1)/sqrt(2*(lV.lengths-1))
-    cov.out.std_normal.vec.p<-2*pnorm(abs(cov.out.std_normal.vec), lower.tail = FALSE)
+    cov.out.std_normal.vec.p<-2*pnorm(abs(cov.out.std_normal.vec), lower.tail = FALSE) #two sided!!
     
     #Pearsons's standardised S.E. of S - for chi-square distributed tests
     r<-nrow(S)
