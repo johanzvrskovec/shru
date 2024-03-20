@@ -43,7 +43,6 @@ ldscpp <- function(
                      filter.gwasssimputedonly=F,
                      N=NULL,
                      M.mode="maf", #maf/real - maf: the size of the LD-score library with MAF>0.05, real: use the actual number of variants included in the trait/LD-score overlap
-                     N.mode="mean", #mean or variable  - the variable mode seems not to work! WIP!
                      forceN=FALSE,
                      leave.chr=NULL, #vector with chromosome numbers to leave out of the analysis
                      limited=FALSE, #only run for the first outer loop over traits, for pairwise comparisons with the first specified trait
@@ -108,7 +107,6 @@ ldscpp <- function(
   # filter.gwasssimputedonly=F
   # N=NULL
   # M.mode="maf"
-  # N.mode= "mean" #"variable"
   # forceN=FALSE
   # leave.chr=NULL #vector with chromosome numbers to leave out of the analysis
   # limited=FALSE #only run for the first outer loop over traits, for pairwise comparisons with the first specified trait
@@ -312,13 +310,13 @@ ldscpp <- function(
   
   # Storage:
   N.vec <- matrix(NA,nrow=1,ncol=n.V)
-  cov <- matrix(NA,nrow=n.traits,ncol=n.traits)
+  cov <- matrix(NA,nrow=n.traits,ncol=n.traits) #this is the scaled covariance
   cov.p <- matrix(NA,nrow=n.traits,ncol=n.traits)
   cov.unsigned <- matrix(NA,nrow=n.traits,ncol=n.traits)
   cov.p.unsigned <- matrix(NA,nrow=n.traits,ncol=n.traits)
   cov.blocks <- matrix(NA,nrow=n.traits,ncol=n.traits)
   #V.hold <- matrix(NA,nrow=n.blocks,ncol=n.V)
-  lV <- c() #new storage for results of varying blocksize
+  lV <- c() #new storage for results of varying blocksize (unscaled!!)
   lV.unsigned <- c()
   Liab.S <- rep(1, n.traits)
   Liab.S.unsigned <- rep(1, n.traits)
@@ -1097,6 +1095,8 @@ ldscpp <- function(
     LOG("Using variable block-count sampling")
   }
   
+  LOG("M = ", M.tot)
+  
   #fold loop
   n.folds<-2*k.folds
   foldResults<-list()
@@ -1239,8 +1239,6 @@ ldscpp <- function(
         
         #mod addition - compute M from the actual number of variants in the merged dataset
         #M_5_50 total sum was 7925897 for the new reference panel LD scores
-        if(M.mode=='real') M.tot <- n.snps
-        LOG("M = ", M.tot, " using the ",M.mode," mode")
         
         
         ## ADD INTERCEPT:
@@ -1528,16 +1526,8 @@ ldscpp <- function(
           reg <- solve(xtx, xty)
           
           #convert coeficients to heritability
-          if(N.mode=="variable"){
-            intercept <- reg[2]*N.bar
-            coefs <- reg[1]
-            #fix reg, delete.values so it corresponds to a standard LD-score regression
-            reg<-reg*N.bar
-            delete.values<-delete.values*N.bar
-          } else {
-            intercept <- reg[2]
-            coefs <- reg[1]/N.bar
-          }
+          intercept <- reg[2]
+          coefs <- reg[1]/N.bar
           reg.tot <- coefs*M.tot #replaced m with M.tot, they should be the same
           
           tot.delete.values <- delete.values[,1:n.annot]
@@ -1546,7 +1536,7 @@ ldscpp <- function(
           for(i in 1:n.blocksToUse){pseudo.values[i,] <- (n.blocksToUse*reg)-((n.blocksToUse-1)* delete.values[i,])}
           
           
-          jackknife.cov <- cov(pseudo.values)/n.blocksToUse
+          jackknife.cov <- cov(pseudo.values)/n.blocksToUse #should be n.blocksToUse^2 ??? we do not correct this
           jackknife.se <- sqrt(diag(jackknife.cov))
           intercept.se <- jackknife.se[length(jackknife.se)]
           coef.cov <- jackknife.cov[1:n.annot,1:n.annot]/(N.bar^2)
@@ -1673,7 +1663,7 @@ ldscpp <- function(
           N.vec[1, s] <- N.bar
           
           #standard
-          jackknife.cov <- cov(delete.values) #/n.blocksToUse #Original #SAMPLING covariance!!
+          jackknife.cov <- cov(delete.values)/n.blocksToUse #Should be n.blocks -1 ?
           jackknife.se <- sqrt(diag(jackknife.cov))
           intercept.se <- jackknife.se[length(jackknife.se)]
           coef.cov <- jackknife.cov[1:n.annot,1:n.annot]/(N.bar^2)
@@ -1688,16 +1678,8 @@ ldscpp <- function(
           #reg <- t(as.matrix(data.frame(v1=median(delete.values[is.finite(delete.values[,1]),1]),v2=median(delete.values[is.finite(delete.values[,2]),2]))))
           
           #convert coeficients to heritability
-          if(N.mode=="variable"){
-            intercept <- reg[2]*N.bar
-            coefs <- reg[1]
-            #fix reg, delete.values so it corresponds to a standard LD-score regression
-            reg <- reg * N.bar #this is not used later - delete?
-            delete.values<-delete.values*N.bar
-          } else {
-            intercept <- reg[[2]]
-            coefs <- reg[[1]]/N.bar
-          }
+          intercept <- reg[[2]]
+          coefs <- reg[[1]]/N.bar
           reg.tot <- coefs*M.tot #replaced m with M.tot, they should be the same
           
           
@@ -1722,22 +1704,10 @@ ldscpp <- function(
             reg.unsigned <- t(as.matrix(data.frame(v1=mean(delete.values.unsigned[is.finite(delete.values.unsigned[,1]),1]),v2=mean(delete.values.unsigned[is.finite(delete.values.unsigned[,2]),2]))))
             
             #convert coeficients to heritability
-            if(N.mode=="variable"){ #the variable mode may have errors - do not use
-              intercept <- reg[2]*N.bar
-              intercept.unsigned <- reg.unsigned[2]*N.bar
-              coefs <- reg[1]
-              coefs.unsigned <- reg.unsigned[1]
-              #fix reg, delete.values so it corresponds to a standard LD-score regression
-              reg <- reg * N.bar #this is not used later - delete?
-              reg.unsigned <- reg.unsigned * N.bar #this is not used later - delete?
-              delete.values<-delete.values*N.bar
-              delete.values.unsigned<-delete.values.unsigned*N.bar
-            } else {
-              intercept <- reg[[2]]
-              intercept.unsigned <- reg.unsigned[[2]]
-              coefs <- reg[[1]]/N.bar
-              coefs.unsigned <- reg.unsigned[[1]]/N.bar
-            }
+            intercept <- reg[[2]]
+            intercept.unsigned <- reg.unsigned[[2]]
+            coefs <- reg[[1]]/N.bar
+            coefs.unsigned <- reg.unsigned[[1]]/N.bar
             reg.tot <- coefs*M.tot #replaced m with M.tot, they should be the same
             reg.tot.unsigned <- coefs.unsigned*M.tot
           }
@@ -1826,6 +1796,7 @@ ldscpp <- function(
     }
     
     # *****S specific
+    ## cov is already scaled to Mldsr, Nbar, and B(n blocks)
     ### Scale S to liability:
     ratio.liability <- tcrossprod(sqrt(Liab.S))
     S <- cov * ratio.liability
@@ -1886,13 +1857,18 @@ ldscpp <- function(
     
     # *****V specific
     ## Scale V to N per study (assume m constant)
+    ### cov.blocks is NOT previously scaled to Mldsr, Nbar, and B(n blocks)
     # /!\ crossprod instead of tcrossprod because N.vec is a one-row matrix
-    
-    #DO WE REALLY NEED THE BLOCKS HERE??? I DON'T THINK SO, BECAUE WE ARE STILL USING STANDARD ERRORS (SAMPLING DISTRIBUTION) AND NOT TRYING TO ESTIMATE THE POPULATION VARIANCE.
-    scale.nPerStudy <- 1/crossprod(N.vec / M.tot) #experimental version
     #mod addition/change - use cov.blocks matrix rather than n.blocks (constant) as this is trait specific
-    #scale.nPerStudy <- 1/crossprod(N.vec * (sqrt(gdata::lowerTriangle(cov.blocks, diag = TRUE)) / M.tot)) #Old Genomic SEM equivalent version
+    #!!!we do not use the corrected cov.blocks -1
+    #These are on the covariance scale rather than the linear/mean scale (?)
+    #original
+    scale.nPerStudy <- 1/crossprod(N.vec * (sqrt(gdata::lowerTriangle(cov.blocks, diag = TRUE)) / M.tot))
+    scale.nPerStudy.noblocks <- 1/crossprod(N.vec / M.tot)
+    #scale.nPerStudy <- as.matrix(M.tot / (sqrt(N.vec) * sqrt(gdata::lowerTriangle(cov.blocks, diag = TRUE))))
+    #scale.nPerStudy.noblocks <- as.matrix(M.tot / sqrt(N.vec))
     
+    #original
     v.out <- cov(mV,use="pairwise.complete.obs") * scale.nPerStudy
     v.out.unsigned <- cov(mV.unsigned,use="pairwise.complete.obs") * scale.nPerStudy
     
@@ -1921,17 +1897,24 @@ ldscpp <- function(
     cov.out.std.vec <- matrix(data = NA, nrow = 1, ncol=ncol(mV))
     cov.vec <- gdata::lowerTriangle(cov, diag = TRUE)
     S.abs.capped.vec <- gdata::lowerTriangle(S.abs.capped, diag = TRUE)
-    scale.nPerStudy.vec <- diag(scale.nPerStudy)
-    scale.liability.lt.vec<-diag(tcrossprod(scale.liability.lt))
+    scale.nPerStudy.noblocks.vec <- diag(scale.nPerStudy.noblocks)
+    #scale.liability.lt.vec<-diag(tcrossprod(scale.liability.lt))
+    
+    #this is on the linear/mean scale
+    #the per-study scaling is on the covariance scale, so we need the square root of this
+    mV.scaled <- sqrt(scale.nPerStudy.noblocks.vec) * scale.liability.lt * mV
+    
+    cov.out.std.vec <- colSums((mV.scaled - cov.vec)^2, na.rm = T)/S.abs.capped.vec
 
-    for(j in 1:ncol(mV)){
-      #j<-1
-      cov.out.std.vec[j]<-
-        scale.liability.lt.vec[j] * M.tot * sum(((mV[,j]-cov.vec[j])^2) ,na.rm = T)/(S.abs.capped.vec[j]*N.vec[j]) #do not use the scale.nPerStudy as it contains the block-count
-    }
+    #old
+    # for(j in 1:ncol(mV)){
+    #   #j<-1
+    #   cov.out.std.vec[j]<-
+    #     scale.liability.lt.vec[j] * sum(((mV[,j]-cov.vec[j])^2) ,na.rm = T)/(S.abs.capped.vec[j]) #do not use the scale.nPerStudy as it contains the block-count
+    # }
     
     cov.out.std_normal.vec<-(cov.out.std.vec-lV.lengths+1)/sqrt(2*(lV.lengths-1))
-    cov.out.std_normal.vec.p<-pnorm(abs(cov.out.std_normal.vec), lower.tail = FALSE)
+    cov.out.std_normal.vec.p<-2*pnorm(abs(cov.out.std_normal.vec), lower.tail = FALSE)
     
     #Pearsons's standardised S.E. of S - for chi-square distributed tests
     r<-nrow(S)
