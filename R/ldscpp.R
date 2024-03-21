@@ -1884,7 +1884,8 @@ ldscpp <- function(
     #V.std <- matrix(data = NA, nrow = ncol(mV), ncol=ncol(mV))
     cov.out.std.vec <- matrix(data = NA, nrow = 1, ncol=ncol(mV))
     cov.vec <- gdata::lowerTriangle(cov, diag = TRUE)
-    S.abs.capped.vec <- gdata::lowerTriangle(S.abs.capped, diag = TRUE)
+    S.abs.capped.vec <- gdata::lowerTriangle(S.abs.capped, diag = TRUE) #we don't need this now!!!
+    
     scale.nPerStudy.noblocks.vec <- diag(scale.nPerStudy.noblocks)
     #scale.liability.lt.vec<-diag(tcrossprod(scale.liability.lt))
     
@@ -1892,7 +1893,7 @@ ldscpp <- function(
     #the per-study scaling is on the covariance scale, so we need the square root of this
     mV.scaled <- sqrt(scale.nPerStudy.noblocks.vec) * scale.liability.lt * mV
     
-    cov.out.std.vec <- colSums((mV.scaled - cov.vec)^2, na.rm = T)/S.abs.capped.vec
+    cov.out.std.vec <- colSums((mV.scaled - cov.vec)^2, na.rm = T)/(diag(V)*gdata::lowerTriangle(cov.blocks, diag = TRUE))
 
     #old
     # for(j in 1:ncol(mV)){
