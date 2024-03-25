@@ -344,16 +344,15 @@ plotAndTestBatteryForMVLDSC <- function(
   if(!is.null(mvldscComparison)){
     cat("\n***Tests for ",code," ***\n")
     
-    comparisonTest <- test.meta.deltacovariance.matrix(
+    comparisonTest <- difftest.matrix(
       mValues1 = mvldsc$S,
       mStandard_errors1 = mvldsc$S.SE,
+      mStandard_errors1.std = mvldsc$S.SE.std,
       mValues2 = mvldscComparison$S,
       mStandard_errors2 = mvldscComparison$S.SE,
-      mN1 = mvldsc$cov.blocks,
-      mN2 = mvldscComparison$cov.blocks,
+      mStandard_errors2.std = mvldscComparison$S.SE.std,
       symmetric = T,
-      effectiveNumberOfTests = effectiveNumberOfTests,
-      fullyDependent = T
+      effectiveNumberOfTests = effectiveNumberOfTests
       )
     
     #Comparison plots
