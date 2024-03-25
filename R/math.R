@@ -75,7 +75,21 @@ getEffectiveNumberOfTests <- function(
   return(iEV)
 }
 
-#uses student's t test (rather than welch's); assumes ~equal variances (even though we clearly rely on them not being exactly equal)
+#m<-c(2,6,10)
+symMatrixConform <- function(m){
+  if(isSymmetric.matrix(m)) {
+    return(m)
+  } else if(is.data.frame(m)) {
+    if(nrow(m)==ncol(m)){
+      return(as.matrix(m))
+    } else stop("Non-symmetic dataframe detected")
+  } else {
+    toReturn <- matrix(data = NA,ncol = length(m), nrow = length(m))
+    diag(toReturn)<-m
+    return(toReturn)
+  }
+}
+
 #this test assumes per default that the variables are closely related/ NOT INDEPENDENT and have correlation ~ 1
 
 #These tests have to include both covariance values and their standard errors as the covariances are used for testing the difference in standard errors.
@@ -101,6 +115,7 @@ getEffectiveNumberOfTests <- function(
 #   mValueCovariances = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$V_Stand
 #                 )
 
+
 difftest.matrix <- function(
     mValues1,
     mStandard_errors1,
@@ -117,6 +132,20 @@ difftest.matrix <- function(
     symmetric = T,
     eigenSumLimit = 0.995
 ){
+  
+  #check if values are matrix - convert to matrix with values on the diagonal otherwise
+  mValues1 <- symMatrixConform(mValues1)
+  mStandard_errors1 <- symMatrixConform(mStandard_errors1)
+  if(!is.null(mStandard_errors1.std)){
+    mStandard_errors1.std <- symMatrixConform(mStandard_errors1.std)
+  }
+  
+  mValues2 <- symMatrixConform(mValues2)
+  mStandard_errors2 <- symMatrixConform(mStandard_errors2)
+  if(!is.null(mStandard_errors2.std)){
+    mStandard_errors2.std <- symMatrixConform(mStandard_errors2.std)
+  }
+  
   
   if(is.null(effectiveNumberOfTests) & !is.null(mValueCovariances)){
     effectiveNumberOfTests<-getEffectiveNumberOfTests(covarianceMatrix = mValueCovariances,symmetric = symmetric, eigenSumLimit = eigenSumLimit)
