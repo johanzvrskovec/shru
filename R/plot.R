@@ -219,11 +219,11 @@ plot.corr <- function(corr, pmat=NULL, SE=NULL, filename, addrect = NULL, is.cor
 
 # mvldsc = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw
 # folderpath.plots = p$folderpath.plots
-# code = "ldscTest"
-# titleTemplate = "LDSC TEST,"
-# titleAddition = "\nLDSC++, 1kGP3 reference, MAF > 0.01"
-# mvldscComparison = p$mvLD$covstruct.mvLDSC.1kg.jn.varblock
-# titleAdditionComparison = ",\ncomparing with LDSC, JN, variable blocks"
+# code = "1kg.vbcs"
+# titleTemplate = "LDSC++, 1kGP3 reference"
+# titleAddition = "\nVariable Block-Count Sampling, #variants blocks"
+# mvldscComparison = p$mvLD$covstruct.mvLDSC.GSEMemulation.1kg.maf0_01
+# titleAdditionComparison = " vs original LDSC (Genomic SEM emulated)"
 
 #routine to test and generate plots for Genomic SEM multivariate LDSC results
 plotAndTestBatteryForMVLDSC <- function(
@@ -347,10 +347,12 @@ plotAndTestBatteryForMVLDSC <- function(
     comparisonTest <- difftest.matrix(
       mValues1 = mvldsc$S,
       mStandard_errors1 = mvldsc$S.SE,
-      mStandard_errors1.std = mvldsc$S.SE.std,
+      df1 = mvldsc$cov.blocks,
+      #mStandard_errors1.std = mvldsc$S.SE.std,
       mValues2 = mvldscComparison$S,
       mStandard_errors2 = mvldscComparison$S.SE,
-      mStandard_errors2.std = mvldscComparison$S.SE.std,
+      #mStandard_errors2.std = mvldscComparison$S.SE.std,
+      df2 = mvldscComparison$cov.blocks,
       symmetric = T,
       effectiveNumberOfTests = effectiveNumberOfTests
       )

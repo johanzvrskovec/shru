@@ -93,13 +93,15 @@ symMatrixConform <- function(m){
 #this test assumes per default that the variables are closely related/ NOT INDEPENDENT and have correlation ~ 1
 
 #These tests have to include both covariance values and their standard errors as the covariances are used for testing the difference in standard errors.
-# 
+
 # mValues1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S
 # mStandard_errors1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S.SE
 # mStandard_errors1.std = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S.SE.std
 # mValues2 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S
 # mStandard_errors2 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S.SE
 # mStandard_errors2.std = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S.SE.std
+# df1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$cov.blocks
+# df2 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$cov.blocks
 # #mN1 <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$cov.blocks
 # #mN2 <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$cov.blocks
 # mValueCovariances <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$V_Stand
@@ -108,10 +110,12 @@ symMatrixConform <- function(m){
 # testRes <- difftest.matrix(
 #   mValues1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S,
 #   mStandard_errors1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S.SE,
-#   mStandard_errors1.std = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S.SE.std,
+#   #mStandard_errors1.std = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S.SE.std,
+#   df1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$cov.blocks,
 #   mValues2 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S,
 #   mStandard_errors2 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S.SE,
-#   mStandard_errors2.std = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S.SE.std,
+#   #mStandard_errors2.std = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S.SE.std,
+#   df2 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$cov.blocks,
 #   mValueCovariances = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$V_Stand
 #                 )
 
@@ -119,14 +123,16 @@ symMatrixConform <- function(m){
 difftest.matrix <- function(
     mValues1,
     mStandard_errors1,
-    mStandard_errors1.std=NULL,
+    #mStandard_errors1.std=NULL,
     mValues2,
     mStandard_errors2,
-    mStandard_errors2.std=NULL,
+    #mStandard_errors2.std=NULL,
+    df1 = NULL,
+    df2 = NULL,
     #mN1,
     #mN2,
     mCorrelationEstimate.values = 0.95, #assume correlation of 0.95 for more conservative test
-    mCorrelationEstimate.standard_errors=0,
+    mCorrelationEstimate.standard_errors = 0.95, #assume correlation of 0.95 for more conservative test
     effectiveNumberOfTests=NULL,
     mValueCovariances=NULL,
     symmetric = T,
@@ -189,19 +195,38 @@ difftest.matrix <- function(
   
   pTest.standard_errors<-NULL
   pTest.standard_errors.adj<-NULL
-  if(!is.null(mStandard_errors1.std) & !is.null(mStandard_errors2.std)){
+  
+  if(!is.null(mStandard_errors1) & !is.null(mStandard_errors2) & !is.null(df1)){
     
-    tVar <- abs((mStandard_errors1.std^2)-(mStandard_errors2.std^2))
-    
-    sde<-sqrt((1^2)+(1^2) - 2*mCorrelationEstimate.standard_errors*1*1)
+    if(is.null(df2)) df2<-df1
 
-    pTest.standard_errors<-2*pnorm(q = tVar, mean =  0, sd = sde,lower.tail = F)
+    var_bar <-(mStandard_errors1^2+mStandard_errors2^2)/2
     
+    tVar <- (mStandard_errors1^2)-(mStandard_errors2^2)
+    
+    vare <- var_bar^2 * (2/(df1-1) + 2/(df2-1) - 2*mCorrelationEstimate.standard_errors*sqrt(2/(df1-1))*sqrt(2/(df2-1)))
+
+    pTest.standard_errors<-2*pnorm(q = abs(tVar), mean =  0, sd = sqrt(vare),lower.tail = F)
+
     pTest.standard_errors.adj<-matrix(data = p.adjust2(pTest.standard_errors, method = "fdr", n = effectiveNumberOfTests), nrow = nrow(pTest.standard_errors), ncol = ncol(pTest.standard_errors))
     rownames(pTest.standard_errors.adj)<-rownames(pTest.standard_errors)
     colnames(pTest.standard_errors.adj)<-colnames(pTest.standard_errors)
-    
+
   }
+  
+  # if(!is.null(mStandard_errors1.std) & !is.null(mStandard_errors2.std)){
+  #   
+  #   tVar <- abs((mStandard_errors1.std^2)-(mStandard_errors2.std^2))
+  #   
+  #   sde<-sqrt((1^2)+(1^2) - 2*mCorrelationEstimate.standard_errors*1*1)
+  # 
+  #   pTest.standard_errors<-2*pnorm(q = tVar, mean =  0, sd = sde,lower.tail = F)
+  #   
+  #   pTest.standard_errors.adj<-matrix(data = p.adjust2(pTest.standard_errors, method = "fdr", n = effectiveNumberOfTests), nrow = nrow(pTest.standard_errors), ncol = ncol(pTest.standard_errors))
+  #   rownames(pTest.standard_errors.adj)<-rownames(pTest.standard_errors)
+  #   colnames(pTest.standard_errors.adj)<-colnames(pTest.standard_errors)
+  #   
+  # }
   
   return(
     list(
