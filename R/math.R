@@ -142,15 +142,15 @@ difftest.matrix <- function(
   #check if values are matrix - convert to matrix with values on the diagonal otherwise
   mValues1 <- symMatrixConform(mValues1)
   mStandard_errors1 <- symMatrixConform(mStandard_errors1)
-  if(!is.null(mStandard_errors1.std)){
-    mStandard_errors1.std <- symMatrixConform(mStandard_errors1.std)
-  }
+  # if(!is.null(mStandard_errors1.std)){
+  #   mStandard_errors1.std <- symMatrixConform(mStandard_errors1.std)
+  # }
   
   mValues2 <- symMatrixConform(mValues2)
   mStandard_errors2 <- symMatrixConform(mStandard_errors2)
-  if(!is.null(mStandard_errors2.std)){
-    mStandard_errors2.std <- symMatrixConform(mStandard_errors2.std)
-  }
+  # if(!is.null(mStandard_errors2.std)){
+  #   mStandard_errors2.std <- symMatrixConform(mStandard_errors2.std)
+  # }
   
   
   if(is.null(effectiveNumberOfTests) & !is.null(mValueCovariances)){

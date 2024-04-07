@@ -344,6 +344,7 @@ plotAndTestBatteryForMVLDSC <- function(
   if(!is.null(mvldscComparison)){
     cat("\n***Tests for ",code," ***\n")
     
+    #Our tests, per trait combination
     comparisonTest <- difftest.matrix(
       mValues1 = mvldsc$S,
       mStandard_errors1 = mvldsc$S.SE,
@@ -356,6 +357,10 @@ plotAndTestBatteryForMVLDSC <- function(
       symmetric = T,
       effectiveNumberOfTests = effectiveNumberOfTests
       )
+    
+    #Supporting non-parametric test: Paired Samples Wilcoxon signed-rank test - performed across all trait combinations
+    comparisonTest.npar.values = wilcox.test(mvldsc$S[lower.tri(mvldsc$S,diag = T)], mvldscComparison$S[lower.tri(mvldscComparison$S,diag = T)], paired = TRUE)
+    comparisonTest.npar.standard_errors = wilcox.test((mvldsc$S.SE^2)[lower.tri(mvldsc$S.SE,diag=T)], (mvldscComparison$S.SE^2)[lower.tri(mvldscComparison$S.SE,diag=T)], paired = TRUE)
     
     #Comparison plots
     dI<-mvldsc$I-mvldscComparison$I #re-compute as we need the full matrices here
@@ -379,7 +384,7 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("Differences in rG, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[abs(mean)=",round(mean(abs(dS_Stand.totest[lower.tri(dS_Stand.totest, diag = T)])),digits = 2),"]")
+      title = paste0("Differences in rG, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[abs(mean)=",round(mean(abs(dS_Stand.totest[lower.tri(dS_Stand.totest, diag = T)])),digits = 2),"] p(W.T)=",round(comparisonTest.npar.values$p.value,digits = 3))
     )
     
     # #relative, in percent
@@ -405,7 +410,7 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 1,
       newnames = newnames,
-      title = paste0("Relative (%) differences in covG, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dS_rel.totest[lower.tri(dS_rel.totest, diag = T)]),digits = 1),"]", " [mean(h2 only)=",round(mean(diag(dS_rel.totest)),digits = 1),"]")
+      title = paste0("Relative (%) differences in covG, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dS_rel.totest[lower.tri(dS_rel.totest, diag = T)]),digits = 1),"]", " [mean(h2 only)=",round(mean(diag(dS_rel.totest)),digits = 1),"] p(W.T)=",round(comparisonTest.npar.values$p.value,digits = 3))
     )
     
     # dS.SE<-mvldsc$S.SE-mvldscComparison$S.SE
@@ -447,7 +452,7 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("Differences in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dCV_cov.totest[lower.tri(dCV_cov.totest, diag = T)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.totest)),digits = 3),"]")
+      title = paste0("Differences in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dCV_cov.totest[lower.tri(dCV_cov.totest, diag = T)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.totest)),digits = 3),"] p(W.T)=",round(comparisonTest.npar.standard_errors$p.value,digits = 3))
     )
     
     #cov CV, standardised, relative
@@ -461,8 +466,9 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 2,
       newnames = newnames,
-      title = paste0("Relative (%) differences in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dCV_cov.rel.totest[lower.tri(dCV_cov.rel.totest, diag = T)]),digits = 2),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.rel.totest)),digits = 2),"] [#neg=",nUniqueNegative,"]")
+      title = paste0("Relative (%) differences in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dCV_cov.rel.totest[lower.tri(dCV_cov.rel.totest, diag = T)]),digits = 2),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.rel.totest)),digits = 2),"] [#neg=",nUniqueNegative,"] p(W.T)=",round(comparisonTest.npar.standard_errors$p.value,digits = 3))
     )
+    
     
     #p-values for the covG difference
     plot.corr(
@@ -472,7 +478,7 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("Significance level of differences in covG (FDR corrected, ",effectiveNumberOfTests," effective tests), ",titleTemplate,titleAddition,titleAdditionComparison)
+      title = paste0("Sig. level of diff. in covG (FDR corrected, ",effectiveNumberOfTests," effective tests), p(W.T)=",round(comparisonTest.npar.values$p.value,digits = 3),"\n",titleTemplate,titleAddition,titleAdditionComparison)
     )
     
     #p-values for the covG S.E. difference
@@ -483,7 +489,7 @@ plotAndTestBatteryForMVLDSC <- function(
       is.corr = F,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("Significance level of differences in covG S.E. significance (FDR corrected, ",effectiveNumberOfTests," effective tests), ",titleTemplate,titleAddition,titleAdditionComparison)
+      title = paste0("Sig. level of diff. in Var(covG) significance (FDR corrected, ",effectiveNumberOfTests," effective tests), p(W.T)=",round(comparisonTest.npar.standard_errors$p.value,digits = 3),"\n",titleTemplate,titleAddition,titleAdditionComparison)
     )
     
   }
