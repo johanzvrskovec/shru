@@ -1877,8 +1877,12 @@ ldscpp <- function(
     rownames(S.SE)<-colnames(S)
     rownames(S.SE.unsigned)<-colnames(S.unsigned)
     
-   
+    #liability scale p-values
+    cov.p.liab<-matrix(0, r, r)
+    cov.p.liab[lower.tri(cov.p.liab,diag=TRUE)]<-2 * pnorm(abs(S[lower.tri(S,diag=TRUE)] / S.SE[lower.tri(S.SE,diag=TRUE)]), lower.tail = FALSE)
+    cov.p.liab[upper.tri(cov.p.liab)]<-t(cov.p.liab)[upper.tri(cov.p.liab)]
     
+   
     ###mod addition - also compute standardised S.E's - have better chi-squared properties (Pearson's formula/test)
     #ONLY FOR THE V DIAGONAL AS OF NOW
     #V.std <- matrix(data = NA, nrow = ncol(mV), ncol=ncol(mV))
@@ -2046,9 +2050,12 @@ ldscpp <- function(
     }
     
     cResults <- list(V=V, S=S, I=I, N=N.vec, m=M.tot, S.SE=S.SE, mgc=mgc, 
-                     V_Stand=V_Stand, S_Stand=S_Stand, S_Stand.SE=S_Stand.SE, cov.p=cov.p, 
+                     V_Stand=V_Stand, S_Stand=S_Stand, S_Stand.SE=S_Stand.SE,
+                     cov.p=cov.p, cov.p.unsigned=cov.p.unsigned,
+                     cov.p.liab=cov.p.liab,
                      V.unsigned=V.unsigned, S.unsigned=S.unsigned, I.unsigned=I.unsigned, S.SE.unsigned=S.SE.unsigned, V_Stand.unsigned=V_Stand.unsigned, S_Stand.unsigned=S_Stand.unsigned, S_Stand.SE.unsigned=S_Stand.SE.unsigned, 
-                     cov.p.unsigned=cov.p.unsigned, cov.blocks=cov.blocks,
+                     
+                     cov.blocks=cov.blocks,
                      S.SE.std=S.SE.std,S.VAR.std_normal=S.VAR.std_normal,S.VAR.std_normal.p=S.VAR.std_normal.p,
                      blockValues.LDSR_beta=lV,blockValues.LDSR_beta.unsigned=lV.unsigned,
                      LD.SS=LD.SS,
