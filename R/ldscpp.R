@@ -1899,12 +1899,10 @@ ldscpp <- function(
     # median(var1[lower.tri(var1,diag = T)])
     # median(var2[lower.tri(var2,diag = T)])
     
-    
+    #one-sided only for now!!!
     cov.SE.p.liab<-matrix(0, r, r)
     cov.SE.p.liab[lower.tri(cov.p.liab,diag=TRUE)]<- pchisq(
-      q = abs(
-        ((S.SE[lower.tri(S.SE,diag=TRUE)])^2)/((cov.blocks-1)[lower.tri(cov.blocks,diag=TRUE)])-(cov.SE.p.liab.test.cDivS*S)[lower.tri(S,diag=TRUE)]
-                                              ),
+      q = ((S.SE[lower.tri(S.SE,diag=TRUE)])^2)/((cov.blocks-1)[lower.tri(cov.blocks,diag=TRUE)])-(cov.SE.p.liab.test.cDivS*S)[lower.tri(S,diag=TRUE)],
       df = (cov.blocks-1)[lower.tri(cov.blocks,diag=TRUE)], lower.tail = FALSE)
     # cov.SE.p.liab[lower.tri(cov.p.liab,diag=TRUE)]<-2*pnorm(
     #   q = abs(S.SE[lower.tri(S.SE,diag=TRUE)])^2,
