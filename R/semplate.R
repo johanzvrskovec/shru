@@ -755,6 +755,9 @@ semplate$reliability.H <- function(factorLoadingsVector, singleVariableValues=F)
 #amend Genomic SEM LDSC results with LDSC++ standard objects
 semplate$amendGsemLDSC <- function(gsemLDSC, nBlocks=200){
   
+  #test
+  #gsemLDSC<-p$mvLD$covstruct.GSEMmvLDSC.1kg
+  
   #S.E. of S
   r<-nrow(gsemLDSC$S)
   gsemLDSC$S.SE<-matrix(0, r, r)
@@ -780,6 +783,8 @@ semplate$amendGsemLDSC <- function(gsemLDSC, nBlocks=200){
   rownames(gsemLDSC$S_Stand.SE) <- colnames(gsemLDSC$S)
   
   gsemLDSC$S_Stand.SE.unsigned <- gsemLDSC$S_Stand.SE
+  
+  return(gsemLDSC)
   
 }
 

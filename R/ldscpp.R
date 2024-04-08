@@ -63,6 +63,7 @@ ldscpp <- function(
                      exportReadyMergedTraits=F, #export merged datasets as a list, for multiple runs
                      force.M = NULL, #set the M value (number of variants in the LD score library)
                      covariance_std_value_lower_limit = 0.05, #Mod addition - lower limit of genetic covariance to allow for the denominator in standardising covG S.E.
+                     cov.SE.p.liab.test.cDivS=0.000485594, #calculated variant 1 median of full LDSC++ S.SE^2
                      verbose = F #T -> print cell-wise results
                      
 ) {
@@ -127,6 +128,7 @@ ldscpp <- function(
   # exportReadyMergedTraits=F
   # force.M = NULL
   # covariance_std_value_lower_limit = 0.05
+  # cov.SE.p.liab.test.cDivS=0.000485594
   # verbose = F
 
   #small test
@@ -135,14 +137,14 @@ ldscpp <- function(
   # population.prev = p$sumstats[c("ANXI03","BODY14"),]$populationPrevalence
   # trait.names = p$sumstats[c("ANXI03","BODY14"),]$code
   # ld = p$folderpath.data.mvLDSC.ld.hm3
-  # n.blocks = 200
+  # #n.blocks = 200
   # ldsc.log = p$setup.code.date
   # preweight.alternativeCorrelationCorrection = F
   # preweight.ChiSquare = F
   # correctAttenuationBias = F
   # doubleRegressionRoutine = F
   # preweight.INFO=F
-  # resamplingMethod="jn"
+  # resamplingMethod="vbcs"
   # blocksizeCM = NA #inactivate CM window def
   # filter.info = 0.6
   # filter.maf = 0.01
@@ -1718,8 +1720,7 @@ ldscpp <- function(
         cov.unsigned[k, j] <- cov.unsigned[j, k] <- reg.tot.unsigned
         I[k, j] <- I[j, k] <- intercept
         I.unsigned[k, j] <- I.unsigned[j, k] <- intercept.unsigned
-        cov.p[k, j] <- cov.p[j, k] <- 2 * pnorm(abs(reg.tot / tot.se), lower.tail = FALSE)
-        cov.p.unsigned[k, j] <- cov.p.unsigned[j, k] <- 2 * pnorm(abs(reg.tot.unsigned / tot.se.unsigned), lower.tail = FALSE)
+        cov.p[k, j] <- cov.p[j, k] <- 2 * pnorm(abs(reg.tot / tot.se), lower.tail = FALSE) #this is the same as when computed for the liability scale
         cov.blocks[k, j] <- cov.blocks[j, k] <- n.blocksToUse
         if(verbose){
           if(any(!is.na(delete.values.unsigned))){
@@ -1877,13 +1878,46 @@ ldscpp <- function(
     rownames(S.SE)<-colnames(S)
     rownames(S.SE.unsigned)<-colnames(S.unsigned)
     
-    #liability scale p-values
+    #liability scale p-values - NEW
     cov.p.liab<-matrix(0, r, r)
     cov.p.liab[lower.tri(cov.p.liab,diag=TRUE)]<-2 * pnorm(abs(S[lower.tri(S,diag=TRUE)] / S.SE[lower.tri(S.SE,diag=TRUE)]), lower.tail = FALSE)
     cov.p.liab[upper.tri(cov.p.liab)]<-t(cov.p.liab)[upper.tri(cov.p.liab)]
+    colnames(cov.p.liab)<-colnames(S)
+    rownames(cov.p.liab)<-colnames(S)
     
-   
-    ###mod addition - also compute standardised S.E's - have better chi-squared properties (Pearson's formula/test)
+    cov.p.liab.unsigned<-matrix(0, r, r)
+    cov.p.liab.unsigned[lower.tri(cov.p.liab.unsigned,diag=TRUE)]<-2 * pnorm(abs(S.unsigned[lower.tri(S.unsigned,diag=TRUE)] / S.SE.unsigned[lower.tri(S.SE.unsigned,diag=TRUE)]), lower.tail = FALSE)
+    cov.p.liab.unsigned[upper.tri(cov.p.liab.unsigned)]<-t(cov.p.liab.unsigned)[upper.tri(cov.p.liab.unsigned)]
+    colnames(cov.p.liab.unsigned)<-colnames(S)
+    rownames(cov.p.liab.unsigned)<-colnames(S)
+    
+    #liability scale s.e./variance p-values - NEW - NOT FINISHED! - we may use the same test as for the difference in variance.
+    
+    #calculatuon of reference constants for tests (c)
+    # var1 <- abs((p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S.SE^2)/p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S)
+    # var2 <- abs((p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S.SE^2)/(p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S*p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$cov.blocks))
+    # median(var1[lower.tri(var1,diag = T)])
+    # median(var2[lower.tri(var2,diag = T)])
+    
+    
+    cov.SE.p.liab<-matrix(0, r, r)
+    cov.SE.p.liab[lower.tri(cov.p.liab,diag=TRUE)]<- pchisq(
+      q = abs(
+        ((S.SE[lower.tri(S.SE,diag=TRUE)])^2)/((cov.blocks-1)[lower.tri(cov.blocks,diag=TRUE)])-(cov.SE.p.liab.test.cDivS*S)[lower.tri(S,diag=TRUE)]
+                                              ),
+      df = (cov.blocks-1)[lower.tri(cov.blocks,diag=TRUE)], lower.tail = FALSE)
+    # cov.SE.p.liab[lower.tri(cov.p.liab,diag=TRUE)]<-2*pnorm(
+    #   q = abs(S.SE[lower.tri(S.SE,diag=TRUE)])^2,
+    #   mean = (cov.SE.p.liab.test.cDivS*S)[lower.tri(S,diag=TRUE)], #variant 1 median of full LDSC++ S.SE^2
+    #   sd = (2*(S.SE[lower.tri(S.SE,diag=TRUE)])^4)/(cov.blocks[lower.tri(cov.blocks,diag=TRUE)]-1),
+    #   lower.tail = FALSE)
+    
+    cov.SE.p.liab[upper.tri(cov.SE.p.liab)]<-t(cov.SE.p.liab)[upper.tri(cov.SE.p.liab)]
+    colnames(cov.SE.p.liab)<-colnames(S)
+    rownames(cov.SE.p.liab)<-colnames(S)
+    cov.SE.p.liab.unsigned<-cov.SE.p.liab #temporary
+    
+    ###mod addition - also compute standardised S.E's - have better chi-squared properties (Pearson's formula/test) - NOT USED!!!!
     #ONLY FOR THE V DIAGONAL AS OF NOW
     #V.std <- matrix(data = NA, nrow = ncol(mV), ncol=ncol(mV))
     cov.out.std.vec <- matrix(data = NA, nrow = 1, ncol=ncol(mV))
@@ -2051,8 +2085,9 @@ ldscpp <- function(
     
     cResults <- list(V=V, S=S, I=I, N=N.vec, m=M.tot, S.SE=S.SE, mgc=mgc, 
                      V_Stand=V_Stand, S_Stand=S_Stand, S_Stand.SE=S_Stand.SE,
-                     cov.p=cov.p, cov.p.unsigned=cov.p.unsigned,
-                     cov.p.liab=cov.p.liab,
+                     #cov.p=cov.p, #this is actually always the same as when computed on the liability scale
+                     cov.p.liab=cov.p.liab,cov.p.liab.unsigned=cov.p.liab.unsigned,
+                     cov.SE.p.liab=cov.SE.p.liab,cov.SE.p.liab.unsigned=cov.SE.p.liab.unsigned,
                      V.unsigned=V.unsigned, S.unsigned=S.unsigned, I.unsigned=I.unsigned, S.SE.unsigned=S.SE.unsigned, V_Stand.unsigned=V_Stand.unsigned, S_Stand.unsigned=S_Stand.unsigned, S_Stand.SE.unsigned=S_Stand.SE.unsigned, 
                      
                      cov.blocks=cov.blocks,

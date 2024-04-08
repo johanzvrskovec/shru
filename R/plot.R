@@ -216,14 +216,14 @@ plot.corr <- function(corr, pmat=NULL, SE=NULL, filename, addrect = NULL, is.cor
   dev.off()
   
 }
-
-# mvldsc = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw
+# 
+# mvldsc = p$mvLD$covstruct.mvLDSC.GSEMemulation.1kg.maf0_01
 # folderpath.plots = p$folderpath.plots
-# code = "1kg.vbcs"
+# code = "original.1kg.gsem"
 # titleTemplate = "LDSC++, 1kGP3 reference"
-# titleAddition = "\nVariable Block-Count Sampling, #variants blocks"
-# mvldscComparison = p$mvLD$covstruct.mvLDSC.GSEMemulation.1kg.maf0_01
-# titleAdditionComparison = " vs original LDSC (Genomic SEM emulated)"
+# titleAddition = "\n Emulated original Genomic SEM LDSC"
+# mvldscComparison = semplate$amendGsemLDSC(p$mvLD$covstruct.GSEMmvLDSC.1kg)
+# titleAdditionComparison = " vs original Genomic SEM LDSC"
 
 #routine to test and generate plots for Genomic SEM multivariate LDSC results
 plotAndTestBatteryForMVLDSC <- function(
@@ -245,13 +245,14 @@ plotAndTestBatteryForMVLDSC <- function(
   
   effectiveNumberOfTests<-shru::getEffectiveNumberOfTests(covarianceMatrix = mvldsc$V_Stand)
   
-  mvldsc$cov.p.fdr2<-matrix(NA,nrow = nrow(mvldsc$cov.p),ncol = ncol(mvldsc$cov.p))
-  mvldsc$cov.p.fdr2[lower.tri(mvldsc$cov.p,diag = T)]<-p.adjust2(mvldsc$cov.p[lower.tri(mvldsc$cov.p,diag = T)], method = "fdr",n = effectiveNumberOfTests)
+  #using explicitly liability scale p-values
+  mvldsc$cov.p.fdr2<-matrix(NA,nrow = nrow(mvldsc$cov.p.liab),ncol = ncol(mvldsc$cov.p.liab))
+  mvldsc$cov.p.fdr2[lower.tri(mvldsc$cov.p.liab,diag = T)]<-p.adjust2(mvldsc$cov.p.liab[lower.tri(mvldsc$cov.p.liab,diag = T)], method = "fdr",n = effectiveNumberOfTests)
   mvldsc$cov.p.fdr2[upper.tri(mvldsc$cov.p.fdr2,diag = F)]<-t( mvldsc$cov.p.fdr2)[upper.tri(mvldsc$cov.p.fdr2,diag = F)]
   
   if(!is.null(mvldscComparison)){
-    mvldscComparison$cov.p.fdr2<-matrix(NA,nrow = nrow(mvldscComparison$cov.p),ncol = ncol(mvldscComparison$cov.p))
-    mvldscComparison$cov.p.fdr2[lower.tri(mvldscComparison$cov.p,diag = T)]<-p.adjust2(mvldscComparison$cov.p[lower.tri(mvldscComparison$cov.p,diag = T)], method = "fdr",n = effectiveNumberOfTests)
+    mvldscComparison$cov.p.fdr2<-matrix(NA,nrow = nrow(mvldscComparison$cov.p.liab),ncol = ncol(mvldscComparison$cov.p.liab))
+    mvldscComparison$cov.p.fdr2[lower.tri(mvldscComparison$cov.p.liab,diag = T)]<-p.adjust2(mvldscComparison$cov.p.liab[lower.tri(mvldscComparison$cov.p.liab,diag = T)], method = "fdr",n = effectiveNumberOfTests)
     mvldscComparison$cov.p.fdr2[upper.tri(mvldscComparison$cov.p.fdr2,diag = F)]<-t( mvldscComparison$cov.p.fdr2)[upper.tri(mvldscComparison$cov.p.fdr2,diag = F)]
   }
   
