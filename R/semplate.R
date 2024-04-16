@@ -763,7 +763,7 @@ semplate$amendGsemLDSC <- function(gsemLDSC, nBlocks=200){
   
   #S.E. of S
   r<-nrow(gsemLDSC$S)
-  gsemLDSC$S.SE<-matrix(0, r, r)
+  gsemLDSC$S.SE<-matrix(1, r, r)
   gsemLDSC$S.SE[lower.tri(gsemLDSC$S.SE,diag=TRUE)] <-sqrt(diag(gsemLDSC$V))
   gsemLDSC$S.SE[upper.tri(gsemLDSC$S.SE)]<-t(gsemLDSC$S.SE)[upper.tri(gsemLDSC$S.SE)]
   colnames(gsemLDSC$S.SE)<-colnames(gsemLDSC$S)
@@ -771,10 +771,10 @@ semplate$amendGsemLDSC <- function(gsemLDSC, nBlocks=200){
   gsemLDSC$S.SE.unsigned<-gsemLDSC$S.SE
   
   #these end up on the liability scale!
-  gsemLDSC$cov.p.liab<-matrix(0, r, r)
+  gsemLDSC$cov.p.liab<-matrix(1, r, r)
   gsemLDSC$cov.p.liab[lower.tri(gsemLDSC$cov.p.liab,diag=TRUE)]<-2 * pnorm(abs(gsemLDSC$S[lower.tri(gsemLDSC$S,diag=TRUE)] / gsemLDSC$S.SE[lower.tri(gsemLDSC$S.SE,diag=TRUE)]), lower.tail = FALSE)
   gsemLDSC$cov.p.liab[upper.tri(gsemLDSC$cov.p.liab)]<-t(gsemLDSC$cov.p.liab)[upper.tri(gsemLDSC$cov.p.liab)]
-  #gsemLDSC$cov.p
+  gsemLDSC$cov.p.liab[is.na(gsemLDSC$cov.p.liab)]<-1 #fallback for NA
   colnames(gsemLDSC$cov.p.liab)<-colnames(gsemLDSC$S)
   rownames(gsemLDSC$cov.p.liab)<-colnames(gsemLDSC$S)
   
@@ -783,7 +783,7 @@ semplate$amendGsemLDSC <- function(gsemLDSC, nBlocks=200){
   rownames(gsemLDSC$cov.blocks)<-colnames(gsemLDSC$S)
   
   #enter SEs from diagonal of standardized V
-  gsemLDSC$S_Stand.SE<-matrix(0, r, r)
+  gsemLDSC$S_Stand.SE<-matrix(1, r, r)
   gsemLDSC$S_Stand.SE[lower.tri(gsemLDSC$S_Stand.SE,diag=TRUE)] <- gsemLDSC$S_Stand.SE[upper.tri(gsemLDSC$S_Stand.SE,diag=TRUE)] <- sqrt(diag(gsemLDSC$V_Stand))
   colnames(gsemLDSC$S_Stand.SE) <- colnames(gsemLDSC$S)
   rownames(gsemLDSC$S_Stand.SE) <- colnames(gsemLDSC$S)

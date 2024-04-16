@@ -163,13 +163,40 @@ plot.qq.custom <- function(ps, ci = 0.95) {
 
 #plot for genetic correlations and similar, in matrix form
 #requires the corrplot package - NOT INCLUDED IN SHRU
-plot.corr <- function(corr, pmat=NULL, SE=NULL, filename, addrect = NULL, is.corr = T, number.cex = 1.0, number.digits=2, newnames=NULL, title=NULL, sig.level=c(0.05)){
-  # corr = p$mvLD$S.SE.deltaimpnoimp.500
-  # pmat = p$mvLD$covstruct.mvLDSC.1kg.500$cov.p
-  # filename = file.path(p$folderpath.plots,"covse.deltaimpnoimp.500.png")
+plot.corr <- function(
+    corr, 
+    pmat=NULL, 
+    SE=NULL, 
+    filename,
+    addrect = NULL,
+    is.corr = T,
+    is.full = T,
+    tl.cex = 1.0,
+    number.cex = 1.0,
+    number.digits=2,
+    newnames=NULL,
+    title=NULL,
+    sig.level=c(0.05),
+    par.col.lim.arg=NULL
+    ){
+  # corr=corrForPlot
+  # pmat=pForPlot
+  # SE=NULL
+  # filename = file.path(p$folderpath.plots,"covG.large.png")
+  # addrect = NULL
+  # is.corr = T
+  # is.full = T
+  # tl.cex = 1.0
+  # number.cex = 1.0
+  # number.digits=2
+  # newnames=NULL
+  # title=NULL
+  # sig.level=c(0.05)
+  # par.col.lim.arg=NULL
   # is.corr = F
-  # number.digits = 4
-  # newnames = p$sumstats.sel$code.nice
+  # is.full = F
+  # newnames = p$sumstats.sel.ssimp$code.nice
+  # par.col.lim.arg = c(-0.9,0.9)
   
   
   #palette<-colorRampPalette(c(theme.color$contrastDark3,"#FFFFFF",theme.color$contrastLight3))
@@ -195,20 +222,41 @@ plot.corr <- function(corr, pmat=NULL, SE=NULL, filename, addrect = NULL, is.cor
   # }
   
   par.addCoef.col <- NULL
+  m.type<-"full"
+  if(!is.full) m.type <- "upper"
   if(!is.corr) par.addCoef.col <- 'black'
-  if(is.corr) par.col.lim <- c(-1,1)
-  if(!is.corr) par.col.lim <- c(min(corr), max(corr))
-  if(!is.corr & all(corr>=0)) par.col.lim <- c(-max(corr),max(corr))
-  if(!is.corr & all(corr<=0)) par.col.lim <- c(min(corr),-min(corr))
-  if(all(corr==0)) par.col.lim <- c(-1,1) #fallback if all corr are 0
+  if(is.null(par.col.lim.arg)){
+    if(is.corr) par.col.lim <- c(-1,1)
+    if(!is.corr) par.col.lim <- NULL #c(min(corr), max(corr))
+    #if(!is.corr & all(corr>=0)) par.col.lim <- c(-max(corr),max(corr))
+    #if(!is.corr & all(corr<=0)) par.col.lim <- c(min(corr),-min(corr))
+    if(all(corr==0)) par.col.lim <- c(-1,1) #fallback if all corr are 0
+  } else {
+    par.col.lim<-par.col.lim.arg
+    if(min(corr) < par.col.lim[1]) par.col.lim[1]<-min(corr)
+    if(max(corr) > par.col.lim[2]) par.col.lim[2]<-max(corr)
+    #if(all(corr>=0)) par.col.lim <- c(-max(par.col.lim),max(par.col.lim))
+    #if(all(corr<=0)) par.col.lim <- c(min(par.col.lim),-min(par.col.lim))
+  }
+    
+  #print(par.col.lim)
+  
+  pal<-colorRampPalette(c("#FF6666","#EEEEEE","#6666FF"))
+  if(all(corr>=0)){
+    pal<-colorRampPalette(c("#EEEEEE","#6666FF"))
+  } else if(all(corr<=0)){
+    pal<-colorRampPalette(c("#FF6666","#EEEEEE"))
+  }
   
   # if(!is.corr & all(corr>=0)) par.col.lim <- c(-round(max(corr),digits = 0),round(max(corr),digits = 0))
   # if(!is.corr & all(corr<=0)) par.col.lim <- c(round(min(corr)-1,digits = 0),-1*(round(min(corr)-1)))
   
   png(filename = filename, width = 9, height = 9, units = 'in', res = 300, family = "Helvetica")
   par(xpd=TRUE) #keep labels inside margins
-  pal<-colorRampPalette(c("#FF6666","#EEEEEE","#6666FF"))
-  corrplot(corr = corr, method = "circle", insig='blank', order = "original", p.mat = pmat, sig.level = sig.level, pch.cex = 1.5, full_col=!is.corr, na.label = "square", na.label.col = "grey30", diag=T, addrect = addrect, is.corr = is.corr, number.cex = number.cex, number.digits = number.digits, addCoef.col = par.addCoef.col, col = pal(200), col.lim = par.col.lim, mar=c(0,0,4,0), title = title)$corrPos -> p1  #COL2('RdBu')
+  
+  corrplot(corr = corr, type = m.type, method = "circle", insig='blank', order = "original", p.mat = pmat, sig.level = sig.level, pch.cex = 1.5, full_col=TRUE, na.label = "square", na.label.col = "grey30", diag=T, addrect = addrect, is.corr = is.corr, tl.cex = tl.cex, number.cex = number.cex, number.digits = number.digits, addCoef.col = par.addCoef.col, full_col=(!is.corr), col = pal(200), col.lim = par.col.lim, mar=c(0,0,4,0), title = title)$corrPos -> p1  #COL2('RdBu')
+  
+  #full_col=!is.corr
   
   #p1$corr <- ifelse(0==-p1$y + ncol(corr)-p1$x + 1, NA_real_, p1$corr)
   if(is.corr) text(p1$x, p1$y, round(p1$corr, number.digits)) #only full coeficients for correlation plots
@@ -228,23 +276,36 @@ plot.corr <- function(corr, pmat=NULL, SE=NULL, filename, addrect = NULL, is.cor
 # testOnlyTraitNameCodes=NULL
 # newnames=NULL
 
+# mvldsc = p$mvLD$covstruct.mvLDSC.GSEMemulation.1kg.maf0_01
+# folderpath.plots = p$folderpath.plots
+# code = "original.1kg.ldsc"
+# titleTemplate = "LDSC++ (Genomic SEM emulated), 1kGP3 reference"
+# titleAddition = "\nBlock Jackknife Resampling"
+# mvldscComparison =pretendLDSCcovstruct
+# titleAdditionComparison = " vs original LDSC"
+
 #routine to test and generate plots for Genomic SEM multivariate LDSC results
 plotAndTestBatteryForMVLDSC <- function(
     mvldsc,
-    code,
-    folderpath.plots,
+    mvldscComparison=NULL,
+    testOnlyTraitNameCodes=NULL,
+    doPlotting=TRUE,
+    code="covgTest",
+    folderpath.plots="",
     newnames=NULL,
     titleAddition="",
     titleAdditionComparison="",
-    titleTemplate="",
-    mvldscComparison=NULL,
-    testOnlyTraitNameCodes=NULL){
+    titleTemplate=""
+    ){
   
   traitCodes<-colnames(mvldsc$S)
   
   if(is.null(testOnlyTraitNameCodes)) testOnlyTraitNameCodes<-traitCodes
   
   cv.S_StandLimit <- 0.05 #0.05, or 0.1, 0.2 were suggested
+  
+  par.col.lim.arg.sym = c(-0.8,0.8)
+  par.col.lim.arg.cv = c(0,0.8)
   
   effectiveNumberOfTests<-shru::getEffectiveNumberOfTests(covarianceMatrix = mvldsc$V_Stand)
   
@@ -270,31 +331,37 @@ plotAndTestBatteryForMVLDSC <- function(
     rownames(mvldsc$cov.p.fdr2)<-rownames(mvldsc$S)
   }
   
-  plot.corr(
+  if(doPlotting) plot.corr(
     corr = clipValues(mvldsc$I,-3,3),
     pmat = mvldsc$cov.p.fdr2,
     filename = file.path(folderpath.plots,paste0("i.",code,".png")),
     is.corr = F,
+    is.full = F,
+    par.col.lim.arg = par.col.lim.arg.sym,
     number.digits = 3,
     newnames = newnames,
     title = paste0("LD score regression intercepts, ",titleTemplate,titleAddition)
   )
   
-  plot.corr(
+  if(doPlotting) plot.corr(
     corr = mvldsc$S,
     pmat = mvldsc$cov.p.fdr2,
     filename = file.path(folderpath.plots,paste0("covg.",code,".png")),
     is.corr = F,
+    is.full = F,
+    par.col.lim.arg = par.col.lim.arg.sym,
     number.digits = 3,
     newnames = newnames,
     title = paste0("Genetic covariances (covG), ",titleTemplate,titleAddition)
   )
   
-  plot.corr(
+  if(doPlotting) plot.corr(
     corr = mvldsc$S.SE,
     #pmat = mvldsc$cov.p.fdr2,
     filename = file.path(folderpath.plots,paste0("covgse.",code,".png")),
     is.corr = F,
+    is.full = F,
+    par.col.lim.arg = par.col.lim.arg.cv,
     number.digits = 4,
     newnames = newnames,
     title = paste0("Genetic covariances (covG) S.E., ",titleTemplate,titleAddition)
@@ -307,31 +374,37 @@ plotAndTestBatteryForMVLDSC <- function(
   S_se2 <- g_se %*% t(g_se) #this is the diagonal based genetic covariance
   S_ForCV[S_ForCV < S_se2 * cv.S_StandLimit] <- (S_se2 * cv.S_StandLimit)[S_ForCV < S_se2 * cv.S_StandLimit] #cap at min rg 0.05 to avoid extreme values
   S.CV<-(mvldsc$S.SE/S_ForCV)
-  plot.corr(
+  if(doPlotting) plot.corr(
     corr = S.CV,
     #pmat = mvldsc$cov.p.fdr2,
     filename = file.path(folderpath.plots,paste0("covgse.std.",code,".png")),
     is.corr = F,
+    is.full = F,
+    par.col.lim.arg = par.col.lim.arg.cv,
     number.digits = 4,
     newnames = newnames,
     title = paste0("Genetic covariance (covG) Coefficients of Variation (CV), ",titleTemplate,titleAddition)
   )
   
-  plot.corr(
+  if(doPlotting) plot.corr(
     corr = clipValues(mvldsc$S_Stand,-1,1),
     pmat = mvldsc$cov.p.fdr2,
     filename = file.path(folderpath.plots,paste0("rg.",code,".png")),
     is.corr = T,
+    is.full = F,
+    #par.col.lim.arg = par.col.lim.arg.sym,
     number.digits = 3,
     newnames = newnames,
     title = paste0("Genetic correlations (rG), ",titleTemplate,titleAddition)
   )
   
-  plot.corr(
+  if(doPlotting) plot.corr(
     corr = mvldsc$S_Stand.SE,
     #pmat = mvldsc$cov.p.fdr2,
     filename = file.path(folderpath.plots,paste0("rgse.",code,".png")),
     is.corr = F,
+    is.full = F,
+    par.col.lim.arg = par.col.lim.arg.cv,
     number.digits = 4,
     newnames = newnames,
     title = paste0("Genetic correlations (rG) S.E., ",titleTemplate,titleAddition)
@@ -345,6 +418,8 @@ plotAndTestBatteryForMVLDSC <- function(
     testOnlyTraitNameCodes<-colnames(mvldsc$S)
   }
   
+  
+  comparisonTest <- NULL
   if(!is.null(mvldscComparison)){
     cat("\n***Tests for ",code," ***\n")
     
@@ -369,26 +444,32 @@ plotAndTestBatteryForMVLDSC <- function(
     #Comparison plots
     dI<-mvldsc$I-mvldscComparison$I #re-compute as we need the full matrices here
     dI.totest<-dI[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
-    plot.corr(
+    if(doPlotting) plot.corr(
       corr = dI,
       #pmat = pTest.fdr2,
       filename = file.path(folderpath.plots,paste0("di.",code,".png")),
       is.corr = F,
+      is.full = F,
+      par.col.lim.arg = par.col.lim.arg.sym,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("Differences in LD score regression intercepts, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dI.totest[lower.tri(dI.totest, diag = T)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dI.totest)),digits = 3),"]")
+      title = paste0("Diff. in LD score regression intercepts, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dI.totest[lower.tri(dI.totest, diag = T)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dI.totest)),digits = 3),"]")
     )
     
+    dP<-comparisonTest$pTest.values.adj
+    dP[is.na(dP)]<-1
     dS_Stand<-clipValues(mvldsc$S_Stand,-1,1)-clipValues(mvldscComparison$S_Stand,-1,1) #re-compute as we need the full matrices here
     dS_Stand.totest<-dS_Stand[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
-    plot.corr(
+    if(doPlotting) plot.corr(
       corr = dS_Stand,
-      pmat = comparisonTest$pTest.values.adj,
+      #pmat = dP,
       filename = file.path(folderpath.plots,paste0("drg.",code,".png")),
       is.corr = F,
+      is.full = F,
+      par.col.lim.arg = par.col.lim.arg.sym,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("Differences in rG, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[abs(mean)=",round(mean(abs(dS_Stand.totest[lower.tri(dS_Stand.totest, diag = T)])),digits = 2),"] p(W.T)=",round(comparisonTest.npar.values$p.value,digits = 3))
+      title = paste0("Diff. in rG, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[abs(mean)=",round(mean(abs(dS_Stand.totest[lower.tri(dS_Stand.totest, diag = T)])),digits = 2),"] p(W.T)=",round(comparisonTest.npar.values$p.value,digits = 3))
     )
     
     # #relative, in percent
@@ -408,14 +489,16 @@ plotAndTestBatteryForMVLDSC <- function(
     dS_rel<-100*(mvldsc$S-mvldscComparison$S)/abs(mvldscComparison$S) #re-compute as we need the full matrices here
     dS_rel[is.na(dS_rel)]<-0 #in case NA
     dS_rel.totest<-dS_rel[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
-    plot.corr(
+    if(doPlotting) plot.corr(
       corr = dS_rel,
       #pmat = pTest.fdr2,
       filename = file.path(folderpath.plots,paste0("dcovg.rel.",code,".png")),
       is.corr = F,
+      is.full = F,
+      par.col.lim.arg = c(-80,80),
       number.digits = 1,
       newnames = newnames,
-      title = paste0("Relative (%) differences in covG, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dS_rel.totest[lower.tri(dS_rel.totest, diag = T)]),digits = 1),"]", " [mean(h2 only)=",round(mean(diag(dS_rel.totest)),digits = 1),"] p(W.T)=",round(comparisonTest.npar.values$p.value,digits = 3))
+      title = paste0("Rel. (%) diff. in covG, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dS_rel.totest[lower.tri(dS_rel.totest, diag = T)]),digits = 1),"]", " [mean(h2 only)=",round(mean(diag(dS_rel.totest)),digits = 1),"] p(W.T)=",round(comparisonTest.npar.values$p.value,digits = 3))
     )
     
     # dS.SE<-mvldsc$S.SE-mvldscComparison$S.SE
@@ -452,14 +535,16 @@ plotAndTestBatteryForMVLDSC <- function(
     dCV_cov <- ((mvldsc$S.SE/S_ForCV) - (mvldscComparison$S.SE/comparison_S_ForCV))
     dCV_cov.totest <- dCV_cov[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
     dCV_cov[is.na(dCV_cov)]<-0 #in case NA
-    plot.corr(
+    if(doPlotting) plot.corr(
       corr = dCV_cov,
       #pmat = covse.p.diff.fdr2,
       filename = file.path(folderpath.plots,paste0("dcovgse.std.",code,".png")),
       is.corr = F,
+      is.full = F,
+      par.col.lim.arg = par.col.lim.arg.sym,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("Differences in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dCV_cov.totest[lower.tri(dCV_cov.totest, diag = T)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.totest)),digits = 3),"] p(W.T)=",round(comparisonTest.npar.standard_errors$p.value,digits = 3))
+      title = paste0("Diff. in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dCV_cov.totest[lower.tri(dCV_cov.totest, diag = T)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.totest)),digits = 3),"] p(W.T)=",round(comparisonTest.npar.standard_errors$p.value,digits = 3))
     )
     
     #cov CV, standardised, relative
@@ -467,24 +552,28 @@ plotAndTestBatteryForMVLDSC <- function(
     dCV_cov_rel <- 100*(dCV_cov/(mvldscComparison$S.SE/comparison_S_ForCV))
     dCV_cov.rel.totest <- dCV_cov_rel[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
     dCV_cov_rel[is.na(dCV_cov_rel)]<-0 #in case NA
-    plot.corr(
+    if(doPlotting) plot.corr(
       corr = dCV_cov_rel,
       #pmat = covse.p.diff.fdr2,
       filename = file.path(folderpath.plots,paste0("dcovgse.std.rel.",code,".png")),
       is.corr = F,
+      is.full = F,
+      par.col.lim.arg = c(-80,80),
       number.digits = 2,
       newnames = newnames,
-      title = paste0("Relative (%) differences in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dCV_cov.rel.totest[lower.tri(dCV_cov.rel.totest, diag = T)]),digits = 2),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.rel.totest)),digits = 2),"] [#neg=",nUniqueNegative,"] p(W.T)=",round(comparisonTest.npar.standard_errors$p.value,digits = 3))
+      title = paste0("Rel. (%) diff. in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dCV_cov.rel.totest[lower.tri(dCV_cov.rel.totest, diag = T)]),digits = 2),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.rel.totest)),digits = 2),"] [#neg=",nUniqueNegative,"] p(W.T)=",round(comparisonTest.npar.standard_errors$p.value,digits = 3))
     )
     
    
     #p-values for the covG difference
     comparisonTest$pTest.values.adj[is.na(comparisonTest$pTest.values.adj)]<-1 #in case NA
-    plot.corr(
+    if(doPlotting) plot.corr(
       corr = comparisonTest$pTest.values.adj,
       #pmat = covse.p.diff.fdr2,
       filename = file.path(folderpath.plots,paste0("dcovg.p.",code,".png")),
       is.corr = F,
+      is.full = F,
+      par.col.lim.arg = par.col.lim.arg.cv,
       number.digits = 3,
       newnames = newnames,
       title = paste0("Sig. level of diff. in covG (FDR corrected, ",effectiveNumberOfTests," effective tests), p(W.T)=",round(comparisonTest.npar.values$p.value,digits = 3),"\n",titleTemplate,titleAddition,titleAdditionComparison)
@@ -492,11 +581,13 @@ plotAndTestBatteryForMVLDSC <- function(
     
     #p-values for the covG S.E. difference
     comparisonTest$pTest.standard_errors.adj[is.na(comparisonTest$pTest.standard_errors.adj)]<-1 #in case NA
-    plot.corr(
+    if(doPlotting) plot.corr(
       corr = comparisonTest$pTest.standard_errors.adj,
       #pmat = covse.p.diff.fdr2,
       filename = file.path(folderpath.plots,paste0("dcovgse.p.",code,".png")),
       is.corr = F,
+      is.full = F,
+      par.col.lim.arg = par.col.lim.arg.cv,
       number.digits = 3,
       newnames = newnames,
       title = paste0("Sig. level of diff. in Var(covG) significance (FDR corrected, ",effectiveNumberOfTests," effective tests), p(W.T)=",round(comparisonTest.npar.standard_errors$p.value,digits = 3),"\n",titleTemplate,titleAddition,titleAdditionComparison)
@@ -505,6 +596,12 @@ plotAndTestBatteryForMVLDSC <- function(
   }
   
   
+  return(list(
+    effectiveNumberOfTests=effectiveNumberOfTests,
+    cov.p.fdr2=mvldsc$cov.p.fdr2,
+    S.CV=S.CV,
+    comparisonTest=comparisonTest
+    ))
 }
 
 
