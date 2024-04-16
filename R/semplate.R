@@ -758,6 +758,9 @@ semplate$amendGsemLDSC <- function(gsemLDSC, nBlocks=200){
   #test
   #gsemLDSC<-p$mvLD$covstruct.GSEMmvLDSC.1kg
   
+  #fix naming
+  rownames(gsemLDSC$S)<-colnames(gsemLDSC$S)
+  
   #S.E. of S
   r<-nrow(gsemLDSC$S)
   gsemLDSC$S.SE<-matrix(0, r, r)
@@ -772,9 +775,12 @@ semplate$amendGsemLDSC <- function(gsemLDSC, nBlocks=200){
   gsemLDSC$cov.p.liab[lower.tri(gsemLDSC$cov.p.liab,diag=TRUE)]<-2 * pnorm(abs(gsemLDSC$S[lower.tri(gsemLDSC$S,diag=TRUE)] / gsemLDSC$S.SE[lower.tri(gsemLDSC$S.SE,diag=TRUE)]), lower.tail = FALSE)
   gsemLDSC$cov.p.liab[upper.tri(gsemLDSC$cov.p.liab)]<-t(gsemLDSC$cov.p.liab)[upper.tri(gsemLDSC$cov.p.liab)]
   #gsemLDSC$cov.p
+  colnames(gsemLDSC$cov.p.liab)<-colnames(gsemLDSC$S)
+  rownames(gsemLDSC$cov.p.liab)<-colnames(gsemLDSC$S)
   
   gsemLDSC$cov.blocks<-matrix(nBlocks, r, r)
-  
+  colnames(gsemLDSC$cov.blocks)<-colnames(gsemLDSC$S)
+  rownames(gsemLDSC$cov.blocks)<-colnames(gsemLDSC$S)
   
   #enter SEs from diagonal of standardized V
   gsemLDSC$S_Stand.SE<-matrix(0, r, r)

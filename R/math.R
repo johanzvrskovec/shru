@@ -94,17 +94,22 @@ symMatrixConform <- function(m){
 
 #These tests have to include both covariance values and their standard errors as the covariances are used for testing the difference in standard errors.
 
-# mValues1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S
-# mStandard_errors1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S.SE
-# mStandard_errors1.std = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S.SE.std
-# mValues2 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S
-# mStandard_errors2 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S.SE
-# mStandard_errors2.std = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$S.SE.std
-# df1 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$cov.blocks
-# df2 = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$cov.blocks
-# #mN1 <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$cov.blocks
-# #mN2 <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock$cov.blocks
-# mValueCovariances <- p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$V_Stand
+# t1<-p$mvLD$covstruct.mvLDSC.GSEMemulation.1kg.maf0_01
+# t2<-semplate$amendGsemLDSC(  p$mvLD$covstruct.GSEMmvLDSC.1kg)
+# 
+# mValues1 = t1$S
+# mStandard_errors1 = t1$S.SE
+# mValues2 = t2$S
+# mStandard_errors2 = t2$S.SE
+# df1 = t1$cov.blocks
+# df2 = t2$cov.blocks
+# mValueCovariances <- t1$V_Stand
+# mCorrelationEstimate.values = 0.95
+# mCorrelationEstimate.standard_errors = 0.95
+# effectiveNumberOfTests=NULL
+# #mValueCovariances=NULL
+# symmetric = T
+# eigenSumLimit = 0.995
 # #mCorrelationEstimate.values=1
 
 # testRes <- difftest.matrix(

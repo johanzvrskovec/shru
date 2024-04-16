@@ -222,8 +222,11 @@ plot.corr <- function(corr, pmat=NULL, SE=NULL, filename, addrect = NULL, is.cor
 # code = "original.1kg.gsem"
 # titleTemplate = "LDSC++, 1kGP3 reference"
 # titleAddition = "\n Emulated original Genomic SEM LDSC"
-# mvldscComparison = semplate$amendGsemLDSC(p$mvLD$covstruct.GSEMmvLDSC.1kg)
+# #mvldscComparison = semplate$amendGsemLDSC(p$mvLD$covstruct.GSEMmvLDSC.1kg)
+# mvldscComparison = pretendLDSCcovstruct
 # titleAdditionComparison = " vs original Genomic SEM LDSC"
+# testOnlyTraitNameCodes=NULL
+# newnames=NULL
 
 #routine to test and generate plots for Genomic SEM multivariate LDSC results
 plotAndTestBatteryForMVLDSC <- function(
@@ -403,6 +406,7 @@ plotAndTestBatteryForMVLDSC <- function(
     
     #relative, in percent
     dS_rel<-100*(mvldsc$S-mvldscComparison$S)/abs(mvldscComparison$S) #re-compute as we need the full matrices here
+    dS_rel[is.na(dS_rel)]<-0 #in case NA
     dS_rel.totest<-dS_rel[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
     plot.corr(
       corr = dS_rel,
@@ -441,11 +445,13 @@ plotAndTestBatteryForMVLDSC <- function(
     
     #cov CV, standardised
     comparison_S_ForCV<-abs(mvldscComparison$S)
+    comparison_S_ForCV[is.na(comparison_S_ForCV)]<-0 #in case NA
     comparison_g_se <- sqrt(diag(comparison_S_ForCV))
     comparison_S_se2 <- comparison_g_se %*% t(comparison_g_se)
     comparison_S_ForCV[comparison_S_ForCV < comparison_S_se2 * cv.S_StandLimit] <- (comparison_S_se2 * cv.S_StandLimit)[comparison_S_ForCV < comparison_S_se2 * cv.S_StandLimit] #cap at min rg 0.05 to avoid extreme values
     dCV_cov <- ((mvldsc$S.SE/S_ForCV) - (mvldscComparison$S.SE/comparison_S_ForCV))
     dCV_cov.totest <- dCV_cov[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
+    dCV_cov[is.na(dCV_cov)]<-0 #in case NA
     plot.corr(
       corr = dCV_cov,
       #pmat = covse.p.diff.fdr2,
@@ -460,6 +466,7 @@ plotAndTestBatteryForMVLDSC <- function(
     nUniqueNegative <- sum(dCV_cov[lower.tri(dCV_cov,diag = T)]<0,na.rm = T)
     dCV_cov_rel <- 100*(dCV_cov/(mvldscComparison$S.SE/comparison_S_ForCV))
     dCV_cov.rel.totest <- dCV_cov_rel[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
+    dCV_cov_rel[is.na(dCV_cov_rel)]<-0 #in case NA
     plot.corr(
       corr = dCV_cov_rel,
       #pmat = covse.p.diff.fdr2,
@@ -470,8 +477,9 @@ plotAndTestBatteryForMVLDSC <- function(
       title = paste0("Relative (%) differences in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dCV_cov.rel.totest[lower.tri(dCV_cov.rel.totest, diag = T)]),digits = 2),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.rel.totest)),digits = 2),"] [#neg=",nUniqueNegative,"] p(W.T)=",round(comparisonTest.npar.standard_errors$p.value,digits = 3))
     )
     
-    
+   
     #p-values for the covG difference
+    comparisonTest$pTest.values.adj[is.na(comparisonTest$pTest.values.adj)]<-1 #in case NA
     plot.corr(
       corr = comparisonTest$pTest.values.adj,
       #pmat = covse.p.diff.fdr2,
@@ -483,6 +491,7 @@ plotAndTestBatteryForMVLDSC <- function(
     )
     
     #p-values for the covG S.E. difference
+    comparisonTest$pTest.standard_errors.adj[is.na(comparisonTest$pTest.standard_errors.adj)]<-1 #in case NA
     plot.corr(
       corr = comparisonTest$pTest.standard_errors.adj,
       #pmat = covse.p.diff.fdr2,
