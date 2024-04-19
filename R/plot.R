@@ -284,7 +284,16 @@ plot.corr <- function(
 # mvldscComparison =pretendLDSCcovstruct
 # titleAdditionComparison = " vs original LDSC"
 
-#routine to test and generate plots for Genomic SEM multivariate LDSC results
+# mvldsc = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw
+# folderpath.plots = p$folderpath.plots
+# code = "1kg.vbcs"
+# titleTemplate = "LDSC++, 1kGP3 reference"
+# titleAddition = "\nVariable Block-Count Sampling, #variants blocks"
+# mvldscComparison = p$mvLD$covstruct.mvLDSC.GSEMemulation.1kg.maf0_01
+# titleAdditionComparison = " vs original LDSC (Genomic SEM emulated)"
+# newnames = newnames
+
+#routine to test and generate plots for LDSC++ or Genomic SEM multivariate LDSC results
 plotAndTestBatteryForMVLDSC <- function(
     mvldsc,
     mvldscComparison=NULL,
@@ -295,8 +304,11 @@ plotAndTestBatteryForMVLDSC <- function(
     newnames=NULL,
     titleAddition="",
     titleAdditionComparison="",
-    titleTemplate=""
+    titleTemplate="",
+    df.summary=NULL
     ){
+  
+  if(is.null(df.summary)) df.summary <- data.frame() #we can append rows to this
   
   traitCodes<-colnames(mvldsc$S)
   
@@ -343,6 +355,8 @@ plotAndTestBatteryForMVLDSC <- function(
     title = paste0("LD score regression intercepts, ",titleTemplate,titleAddition)
   )
   
+  df.summary[code,"mAbsCovG"]<- mean(abs(mvldsc$S[lower.tri(mvldsc$S, diag = T)]),na.rm=T)
+  df.summary[code,"mAbsCovG.h2"]<- mean(abs(diag(mvldsc$S)),na.rm=T)
   if(doPlotting) plot.corr(
     corr = mvldsc$S,
     pmat = mvldsc$cov.p.fdr2,
@@ -374,6 +388,8 @@ plotAndTestBatteryForMVLDSC <- function(
   S_se2 <- g_se %*% t(g_se) #this is the diagonal based genetic covariance
   S_ForCV[S_ForCV < S_se2 * cv.S_StandLimit] <- (S_se2 * cv.S_StandLimit)[S_ForCV < S_se2 * cv.S_StandLimit] #cap at min rg 0.05 to avoid extreme values
   S.CV<-(mvldsc$S.SE/S_ForCV)
+  df.summary[code,"mAbsCovGCV"]<- mean(abs(S.CV[lower.tri(S.CV, diag = T)]),na.rm=T)
+  df.summary[code,"mAbsCovGCV.h2"]<- mean(abs(diag(S.CV)),na.rm=T)
   if(doPlotting) plot.corr(
     corr = S.CV,
     #pmat = mvldsc$cov.p.fdr2,
@@ -437,6 +453,8 @@ plotAndTestBatteryForMVLDSC <- function(
       effectiveNumberOfTests = effectiveNumberOfTests
       )
     
+    
+    
     #Supporting non-parametric test: Paired Samples Wilcoxon signed-rank test - performed across all trait combinations
     comparisonTest.npar.values = wilcox.test(mvldsc$S[lower.tri(mvldsc$S,diag = T)], mvldscComparison$S[lower.tri(mvldscComparison$S,diag = T)], paired = TRUE)
     comparisonTest.npar.standard_errors = wilcox.test((mvldsc$S.SE^2)[lower.tri(mvldsc$S.SE,diag=T)], (mvldscComparison$S.SE^2)[lower.tri(mvldscComparison$S.SE,diag=T)], paired = TRUE)
@@ -444,6 +462,8 @@ plotAndTestBatteryForMVLDSC <- function(
     #Comparison plots
     dI<-mvldsc$I-mvldscComparison$I #re-compute as we need the full matrices here
     dI.totest<-dI[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
+    df.summary[code,"mDeltaI"]<- mean(dI.totest[lower.tri(dI.totest, diag = T)],na.rm=T)
+    df.summary[code,"mDeltaI.h2"]<- mean(diag(dI.totest),na.rm=T)
     if(doPlotting) plot.corr(
       corr = dI,
       #pmat = pTest.fdr2,
@@ -453,7 +473,7 @@ plotAndTestBatteryForMVLDSC <- function(
       par.col.lim.arg = par.col.lim.arg.sym,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("Diff. in LD score regression intercepts, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dI.totest[lower.tri(dI.totest, diag = T)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dI.totest)),digits = 3),"]")
+      title = paste0("Diff. in LD score regression intercepts, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(df.summary[code,"mDeltaI"],digits = 3),"]"," [mean(h2 only)=",round(df.summary[code,"mDeltaI.h2"],digits = 3),"]")
     )
     
     dP<-comparisonTest$pTest.values.adj
@@ -472,23 +492,33 @@ plotAndTestBatteryForMVLDSC <- function(
       title = paste0("Diff. in rG, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[abs(mean)=",round(mean(abs(dS_Stand.totest[lower.tri(dS_Stand.totest, diag = T)])),digits = 2),"] p(W.T)=",round(comparisonTest.npar.values$p.value,digits = 3))
     )
     
-    # #relative, in percent
-    # dS.S_Stand.SE<-100*(mvldsc$S_Stand.SE-mvldscComparison$S_Stand.SE)/abs(mvldscComparison$S_Stand.SE)
-    # dS.S_Stand.SE.totest<-dS.S_Stand.SE[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
-    # plot.corr(
-    #   corr = dS.S_Stand.SE,
-    #   #pmat = covse.p.diff.fdr2,
-    #   filename = file.path(folderpath.plots,paste0("drgse.rel.",code,".png")),
+    #diff. plain covG - only for summary tables
+    dS<-mvldsc$S-mvldscComparison$S #re-compute as we need the full matrices here
+    dS[is.na(dS)]<-0 #in case NA
+    dS.totest<-dS[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
+    df.summary[code,"mDeltaCovG"]<- mean(dS.totest[lower.tri(dS.totest, diag = T)],na.rm=T)
+    df.summary[code,"mDeltaCovG.h2"]<- mean(diag(dS.totest),na.rm=T)
+    # if(doPlotting) plot.corr(
+    #   corr = dS_rel,
+    #   #pmat = pTest.fdr2,
+    #   filename = file.path(folderpath.plots,paste0("dcovg.",code,".png")),
     #   is.corr = F,
+    #   is.full = F,
+    #   par.col.lim.arg = c(-80,80),
     #   number.digits = 1,
     #   newnames = newnames,
-    #   title = paste0("Relative (%) differences in rG S.E., ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dS.S_Stand.SE.totest[lower.tri(dS.S_Stand.SE.totest)]),digits = 1),"]"," [mean(h2 only)=",round(mean(diag(dS.S_Stand.SE.totest)),digits = 1),"]")
+    #   title = paste0("Diff. in covG, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(df.summary[code,"mDeltaCovG"],digits = 1),"]", " [mean(h2 only)=",round(df.summary[code,"mDeltaCovG.h2"],digits = 1),"] p(W.T)=",round(comparisonTest.npar.values$p.value,digits = 3))
     # )
+    
     
     #relative, in percent
     dS_rel<-100*(mvldsc$S-mvldscComparison$S)/abs(mvldscComparison$S) #re-compute as we need the full matrices here
     dS_rel[is.na(dS_rel)]<-0 #in case NA
     dS_rel.totest<-dS_rel[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
+    df.summary[code,"mRelDeltaCovG"]<- mean(dS_rel.totest[lower.tri(dS_rel.totest, diag = T)],na.rm=T)
+    df.summary[code,"mRelDeltaCovG.h2"]<- mean(diag(dS_rel.totest),na.rm=T)
+    df.summary[code,"maxRelSigDeltaCovG"] <- max(dS_rel.totest[comparisonTest$pTest.values.adj<=0.05 & is.finite(dS_rel.totest)],na.rm=T)
+    df.summary[code,"minRelSigDeltaCovG"] <- min(dS_rel.totest[comparisonTest$pTest.values.adj<=0.05 & is.finite(dS_rel.totest)],na.rm=T)
     if(doPlotting) plot.corr(
       corr = dS_rel,
       #pmat = pTest.fdr2,
@@ -498,43 +528,20 @@ plotAndTestBatteryForMVLDSC <- function(
       par.col.lim.arg = c(-80,80),
       number.digits = 1,
       newnames = newnames,
-      title = paste0("Rel. (%) diff. in covG, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dS_rel.totest[lower.tri(dS_rel.totest, diag = T)]),digits = 1),"]", " [mean(h2 only)=",round(mean(diag(dS_rel.totest)),digits = 1),"] p(W.T)=",round(comparisonTest.npar.values$p.value,digits = 3))
+      title = paste0("Rel. (%) diff. in covG, ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(df.summary[code,"mRelDeltaCovG"],digits = 1),"]", " [mean(h2 only)=",round(df.summary[code,"mRelDeltaCovG.h2"],digits = 1),"] p(W.T)=",round(comparisonTest.npar.values$p.value,digits = 3))
     )
     
-    # dS.SE<-mvldsc$S.SE-mvldscComparison$S.SE
-    # dS.SE.totest<-dS.SE[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
-    # plot.corr(
-    #   corr = dS.SE,
-    #   #pmat = covse.p.diff.fdr2,
-    #   filename = file.path(folderpath.plots,paste0("dcovgse.",code,".png")),
-    #   is.corr = F,
-    #   number.digits = 4,
-    #   newnames = newnames,
-    #   title = paste0("Differences in covG S.E., ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dS.SE.totest[lower.tri(dS.SE.totest)]),digits = 4),"]"," [mean(h2 only)=",round(mean(diag(dS.SE.totest)),digits = 4),"]")
-    # )
-    # 
-    # #relative, in percent
-    # dS.SE_rel<-100*(mvldsc$S.SE-mvldscComparison$S.SE)/abs(mvldscComparison$S.SE)
-    # dS.SE_rel.totest<-dS.SE_rel[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
-    # plot.corr(
-    #   corr = dS.SE_rel,
-    #   #pmat = covse.p.diff.fdr2,
-    #   filename = file.path(folderpath.plots,paste0("dcovgse.rel.",code,".png")),
-    #   is.corr = F,
-    #   number.digits = 1,
-    #   newnames = newnames,
-    #   title = paste0("Relative (%) differences in covG S.E., ",titleTemplate,titleAddition,titleAdditionComparison," [mean=",round(mean(dS.SE_rel.totest[lower.tri(dS.SE_rel.totest)]),digits = 1),"]", " [mean(h2 only)=",round(mean(diag(dS.SE_rel.totest)),digits = 1),"]")
-    # )
-    
-    #cov CV, standardised
+    #covG CV, standardised
     comparison_S_ForCV<-abs(mvldscComparison$S)
     comparison_S_ForCV[is.na(comparison_S_ForCV)]<-0 #in case NA
     comparison_g_se <- sqrt(diag(comparison_S_ForCV))
     comparison_S_se2 <- comparison_g_se %*% t(comparison_g_se)
     comparison_S_ForCV[comparison_S_ForCV < comparison_S_se2 * cv.S_StandLimit] <- (comparison_S_se2 * cv.S_StandLimit)[comparison_S_ForCV < comparison_S_se2 * cv.S_StandLimit] #cap at min rg 0.05 to avoid extreme values
     dCV_cov <- ((mvldsc$S.SE/S_ForCV) - (mvldscComparison$S.SE/comparison_S_ForCV))
-    dCV_cov.totest <- dCV_cov[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
     dCV_cov[is.na(dCV_cov)]<-0 #in case NA
+    dCV_cov.totest <- dCV_cov[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
+    df.summary[code,"mDeltaCovGCV"]<- mean(dCV_cov.totest[lower.tri(dCV_cov.totest, diag = T)],na.rm=T)
+    df.summary[code,"mDeltaCovGCV.h2"]<- mean(diag(dCV_cov.totest),na.rm=T)
     if(doPlotting) plot.corr(
       corr = dCV_cov,
       #pmat = covse.p.diff.fdr2,
@@ -544,14 +551,18 @@ plotAndTestBatteryForMVLDSC <- function(
       par.col.lim.arg = par.col.lim.arg.sym,
       number.digits = 3,
       newnames = newnames,
-      title = paste0("Diff. in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dCV_cov.totest[lower.tri(dCV_cov.totest, diag = T)]),digits = 3),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.totest)),digits = 3),"] p(W.T)=",round(comparisonTest.npar.standard_errors$p.value,digits = 3))
+      title = paste0("Diff. in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(df.summary[code,"mDeltaCovGCV"],digits = 3),"]"," [mean(h2 only)=",round(df.summary[code,"mDeltaCovGCV.h2"],digits = 3),"] p(W.T)=",round(comparisonTest.npar.standard_errors$p.value,digits = 3))
     )
     
     #cov CV, standardised, relative
     nUniqueNegative <- sum(dCV_cov[lower.tri(dCV_cov,diag = T)]<0,na.rm = T)
     dCV_cov_rel <- 100*(dCV_cov/(mvldscComparison$S.SE/comparison_S_ForCV))
-    dCV_cov.rel.totest <- dCV_cov_rel[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
     dCV_cov_rel[is.na(dCV_cov_rel)]<-0 #in case NA
+    dCV_cov.rel.totest <- dCV_cov_rel[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
+    df.summary[code,"mRelDeltaCovGCV"]<- mean(dCV_cov.rel.totest[lower.tri(dCV_cov.rel.totest, diag = T)],na.rm=T)
+    df.summary[code,"mRelDeltaCovGCV.h2"]<- mean(diag(dCV_cov.rel.totest),na.rm=T)
+    df.summary[code,"maxRelSigDeltaCovGCV"] <- max(dCV_cov.rel.totest[comparisonTest$pTest.standard_errors.adj<=0.05 & is.finite(dCV_cov.rel.totest)],na.rm=T)
+    df.summary[code,"minRelSigDeltaCovGCV"] <- min(dCV_cov.rel.totest[comparisonTest$pTest.standard_errors.adj<=0.05 & is.finite(dCV_cov.rel.totest)],na.rm=T)
     if(doPlotting) plot.corr(
       corr = dCV_cov_rel,
       #pmat = covse.p.diff.fdr2,
@@ -561,12 +572,13 @@ plotAndTestBatteryForMVLDSC <- function(
       par.col.lim.arg = c(-80,80),
       number.digits = 2,
       newnames = newnames,
-      title = paste0("Rel. (%) diff. in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dCV_cov.rel.totest[lower.tri(dCV_cov.rel.totest, diag = T)]),digits = 2),"]"," [mean(h2 only)=",round(mean(diag(dCV_cov.rel.totest)),digits = 2),"] [#neg=",nUniqueNegative,"] p(W.T)=",round(comparisonTest.npar.standard_errors$p.value,digits = 3))
+      title = paste0("Rel. (%) diff. in covG Coefficient of Variation (CV), ",titleTemplate,titleAddition,titleAdditionComparison,"\n[mean=",round(mean(dCV_cov.rel.totest[lower.tri(dCV_cov.rel.totest, diag = T)]),digits = 2),"]"," [mean(h2 only)=",round(df.summary[code,"mRelDeltaCovGCV.h2"],digits = 2),"] [#neg=",nUniqueNegative,"] p(W.T)=",round(comparisonTest.npar.standard_errors$p.value,digits = 3))
     )
     
    
     #p-values for the covG difference
     comparisonTest$pTest.values.adj[is.na(comparisonTest$pTest.values.adj)]<-1 #in case NA
+    nUniqueSigDeltaCovG <- sum(comparisonTest$pTest.values.adj[lower.tri(comparisonTest$pTest.values.adj,diag = T)]<0.05,na.rm = T)
     if(doPlotting) plot.corr(
       corr = comparisonTest$pTest.values.adj,
       #pmat = covse.p.diff.fdr2,
@@ -581,6 +593,7 @@ plotAndTestBatteryForMVLDSC <- function(
     
     #p-values for the covG S.E. difference
     comparisonTest$pTest.standard_errors.adj[is.na(comparisonTest$pTest.standard_errors.adj)]<-1 #in case NA
+    nUniqueSigDeltaCovGCV <- sum(comparisonTest$pTest.standard_errors.adj[lower.tri(comparisonTest$pTest.standard_errors.adj,diag = T)]<0.05,na.rm = T)
     if(doPlotting) plot.corr(
       corr = comparisonTest$pTest.standard_errors.adj,
       #pmat = covse.p.diff.fdr2,
@@ -593,6 +606,13 @@ plotAndTestBatteryForMVLDSC <- function(
       title = paste0("Sig. level of diff. in Var(covG) significance (FDR corrected, ",effectiveNumberOfTests," effective tests), p(W.T)=",round(comparisonTest.npar.standard_errors$p.value,digits = 3),"\n",titleTemplate,titleAddition,titleAdditionComparison)
     )
     
+    #additional summary
+    df.summary[code,"numNegDeltaCovGCV"]<-nUniqueNegative
+    df.summary[code,"numSigDeltaCovG"]<-nUniqueSigDeltaCovG
+    df.summary[code,"numSigDeltaCovGCV"]<-nUniqueSigDeltaCovGCV
+    df.summary[code,"pWTCovG"]<-comparisonTest.npar.values$p.value
+    df.summary[code,"pWTCovGVar"]<-comparisonTest.npar.standard_errors$p.value
+    
   }
   
   
@@ -600,7 +620,8 @@ plotAndTestBatteryForMVLDSC <- function(
     effectiveNumberOfTests=effectiveNumberOfTests,
     cov.p.fdr2=mvldsc$cov.p.fdr2,
     S.CV=S.CV,
-    comparisonTest=comparisonTest
+    comparisonTest=comparisonTest,
+    df.summary=df.summary
     ))
 }
 
