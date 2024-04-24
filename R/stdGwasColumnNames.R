@@ -24,6 +24,7 @@ stdGwasColumnNames <- function(
   c.INFO = c("INFO","IMPINFO","IMPQUALITY", "INFO.PLINK", "INFO_UKBB","INFO_UKB","MININFO")
   c.SINFO = c("SINFO")
   c.P = c("P","PVALUE","PVAL","P_VALUE","GC_PVALUE","P.2GC","P.VAL","GWAS_P","P-VALUE","P-VAL","FREQUENTIST_ADD_PVALUE","P.VALUE","P_VAL","SCAN-P","P.LMM","META.PVAL","P_RAN","P.ADD","P_BOLT_LMM","PVAL_ESTIMATE","WALD_P","P_WALD")
+  c.NL10P = c("NL10P","NEGLOG10_PVAL") # -log10 p-value, used in the Pan UKB format
   c.N = c("N","NCOMPLETESAMPLES","TOTALSAMPLESIZE","TOTALN","TOTAL_N","N_COMPLETE_SAMPLES","N_TOTAL","N_SAMPLES","N_ANALYZED","NSAMPLES","SAMPLESIZE","SAMPLE_SIZE","TOTAL_SAMPLE_SIZE","TOTALSAMPLESIZE","SAMPLE.SIZE","N_SUM","SIZE")
   c.N_CAS = c("N_CAS","NCASE","N_CASE","N_CASES","NCAS","NCA","NCASES","CASES","CASES_N","FRQ_A")
   c.N_CON = c("N_CON","NCONTROL","N_CONTROL","N_CONTROLS","NCON","NCO","N_CON","NCONTROLS","CONTROLS","CONTROLS_N","FRQ_U")
@@ -103,6 +104,9 @@ stdGwasColumnNames <- function(
       columnNames[columnNames.upper %in% danerNconS] <- "FRQ_CON"
     }
   }
+  
+  #ancestry specific FRQ_CAS - Pan UKB compatibility, TODO!!! 
+  
   
   #ancestry specific FRQ
   if(!is.na(ancestrySetting)){

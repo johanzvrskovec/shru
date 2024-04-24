@@ -19,19 +19,19 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 #tests
 
 # single test with hard coded values
-# filePaths = "/Users/jakz/project/JZ_GED_PHD_ADMIN_GENERAL/data/gwas_sumstats/raw/MDD2018_ex23andMe.gz"
-# #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/combined.hm3_1kg.snplist.vanilla.jz2020.gz"
+# filePaths = "/Users/jakz/Downloads/continuous-21001-both_sexes-irnt.tsv.bgz"
+# refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # #refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/w_hm3.snplist.flaskapp2018"
 # #refFilePath = "/users/k19049801/project/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.eur.l2.jz2024.gz" #test with new refpanel
 # #rsSynonymsFilePath = "/users/k19049801/project/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/hc1kgp3.b38.jz2024.synonyms.gz"
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = "MDDTEST"
-# outputFormat = "cojo"
+# traitNames = "panukbtest"
+# #outputFormat = "cojo"
 # #N = 18000
 # pathDirOutput = "/Users/jakz/Downloads"
 # #test = T
-# #ancestrySetting = "EUR"
+# ancestrySetting = "EUR"
 # filter.maf = 0.001
 # filter.info = 0.6
 # process=T
