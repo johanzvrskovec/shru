@@ -2243,6 +2243,7 @@ supermunge <- function(
   }
   
   #process the variant table further
+  variantTable.metaOnly<-NULL
   if(!is.null(variantTable)){
     # sum of K - not used
     #colK<-colnames(variantTable)[grep("^LDIMP\\.K\\.", ignore.case = TRUE,colnames(variantTable))]
@@ -2299,6 +2300,11 @@ supermunge <- function(
       # 
       # variantTable[,c("SINFO_META")] <- rowSums(variantTable[,..cNamesFRQ]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
       
+      variantTable[,Z_META:=BETA_META/SE_META]
+      variantTable$P_META <- 2*pnorm(q = abs(variantTable$Z_META),mean = 0, sd = 1, lower.tail = F)
+      
+      variantTable.metaOnly<-variantTable[,.(SNP,A1,A2,FRQ=FRQ_META,BETA=BETA_META,SE=SE_META,Z=Z_META,N=N_META,P=P_META)]
+      
     }
   }
   
@@ -2314,6 +2320,7 @@ supermunge <- function(
     last=as.data.frame(cSumstats),
     last.names=cSumstats.names,
     composite=as.data.frame(variantTable),
+    composite.meta=as.data.frame(variantTable.metaOnly),
     ref=as.data.frame(ref)
   )
     )
