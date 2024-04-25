@@ -1,7 +1,7 @@
 #Johan Zvrskovec, 2021 
 #Based on the fantastic work by Grotzinger, A. D. et al. Nat. Hum. Behav. 3, 513–525 (2019) and Bulik-Sullivan, B. K. et al. Nat. Genet. 47, 291–295 (2015).
 
-#these are funct8ions to export the way supermunge reads and writes tab-delimited files
+#these are functions to export the way supermunge reads and writes tab-delimited files
 readFile <- function(filePath,nThreads=5){
   return(data.table::fread(file = filePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F))
 }
@@ -48,20 +48,23 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 
 # raw <- shru::readFile(filePath = "/Users/jakz/Downloads/FG_male_1000G_density_formatted_21-03-29.txt")
 
-# #single test with hard coded values - lists
+#single test with hard coded values - lists
 # filePaths = list(
-#   chmt=file.path(p$folderpath.data,"gwas_sumstats","raw","Retro_prospective_meta_childhoodmaltreatment.txt.gz"),apd=file.path(p$folderpath.data,"gwas_sumstats","raw","All_PsychiatricDisorders_MetaAnalysis2.txt"))
+#   anxi03=file.path(folderpath.data,"gwas_sumstats","munged_1kg_orig_eur_supermunge_unfiltered","ANXI03.gz"),neur04=file.path(folderpath.data,"gwas_sumstats","munged_1kg_orig_eur_supermunge_unfiltered","NEUR04.gz"))
 # #filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
-# refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/combined.hm3_1kg.snplist.vanilla.jz2020.gz"
+# refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
 # #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = c("CHMT","APD")
+# traitNames = c("ANXI03","NEUR04")
 # #N = p$sumstats.sel["BIPO02",]$n_case_total
-# pathDirOutput = p$folderpath.data.sumstats.munged
+# pathDirOutput = folderpath.work
 # #test = T
-# filter.maf = 0.001
-# filter.info = 0.6
+# #filter.maf = 0.001
+# #filter.info = 0.6
+# metaAnalyse = T
+# writeOutput <- F
+# test <- T
 
 
 # 
@@ -132,6 +135,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # setChangeEffectDirectionOnAlleleFlip=T #set to TRUE to emulate genomic sem munge
 # produceCompositeTable=F
 # setNtoNEFF=NULL #set N to NEFF before writing output
+# metaAnalyse = F
 # unite=F
 # imputeFromLD=F
 # imputeFrameLenBp=500000 #500000 for comparison with SSIMP and ImpG
@@ -189,6 +193,7 @@ supermunge <- function(
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F, #create a dataframe with all effects and standard errors across datasets, as for Genomic SEM latent factor GWAS.
   setNtoNEFF=NULL, #list, set N to NEFF before writing output (per dataset), remove NEFF (as Genomic SEM munge)
+  metaAnalyse = F, #performs fixed effect meta analysis and outputs one result dataset
   unite=F, #bind rows of datasets into one dataset
   diff=F, #compare the resulting first dataset with the rest of the datasets pairwise and detect differences, write these to separate files - NOT IMPLEMENTED YET!
   imputeFromLD=F, #apply LDimp or not
@@ -298,7 +303,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.19.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.20.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -381,7 +386,7 @@ supermunge <- function(
   
   if(!is.null(ldDirPath) & is.null(ref)) stop("You must have a specified reference to append LD scores to!")
   
-  variantTable<-NA
+  variantTable<-NULL
   if(!is.null(ref)){
     # ref should be a data.table at this point
     
@@ -405,14 +410,13 @@ supermunge <- function(
       ref.keys<-c(ref.keys,'A2')
     }
     
-    variantTable<-NA
-    if(produceCompositeTable){
+    if(produceCompositeTable | metaAnalyse){
       #create composite variant table
-      variantTable<-ref
+      variantTable<-ref[,..ref.keys]
       variantTable <- setDT(variantTable)
       setkeyv(variantTable, cols = ref.keys)
       #check keys with key(variantTable)
-    } else variantTable<-c()
+    }
     
     
     #read and merge with ld scores from directory
@@ -2101,10 +2105,12 @@ supermunge <- function(
     cSumstats.meta<-rbind(cSumstats.meta,list("Variants after supermunge",as.character(nrow(cSumstats))))
     
     #merge with variantTable
-    if(produceCompositeTable){
+    if(produceCompositeTable | metaAnalyse){
       cat("\nProducing composite variant table.\n")
-      cNames.toJoin<-c("SNP","EFFECT","SE")
+      cNames.toJoin<-c("SNP","BETA","SE")
       if(any(colnames(cSumstats)=="FRQ")) cNames.toJoin <- c(cNames.toJoin,"FRQ")
+      if(any(colnames(cSumstats)=="N")) cNames.toJoin <- c(cNames.toJoin,"N")
+      if(any(colnames(cSumstats)=="INFO")) cNames.toJoin <- c(cNames.toJoin,"INFO")
       if(any(colnames(cSumstats)=="SINFO")) cNames.toJoin <- c(cNames.toJoin,"SINFO")
       if(any(colnames(cSumstats)=="LDIMP.K")) cNames.toJoin <- c(cNames.toJoin,"LDIMP.K")
       toJoin <- cSumstats[,..cNames.toJoin]
@@ -2115,12 +2121,18 @@ supermunge <- function(
       cName.beta <- paste0("BETA.",traitNames[iFile])
       cName.se <- paste0("SE.",traitNames[iFile])
       cName.frq <- paste0("FRQ.",traitNames[iFile])
-      cName.infolimp <- paste0("SINFO",traitNames[iFile])
-      cName.k <- paste0("K.",traitNames[iFile])
-      if(!any(colnames(toJoin)=="FRQ")) toJoin[,FRQ=NA_real_]
-      if(!any(colnames(toJoin)=="SINFO")) toJoin[,SINFO=NA_real_]
-      if(!any(colnames(toJoin)=="LDIMP.K")) toJoin[,LDIMP.K=NA_integer_]
-      variantTable[toJoin, on='SNP', c(cName.beta,cName.se,cName.frq,cName.SINFO,cName.LDIMP.K):=.(i.EFFECT,i.SE,i.FRQ,i.SINFO,i.LDIMP.K)]
+      cName.n <- paste0("N.",traitNames[iFile])
+      cName.info <- paste0("INFO.",traitNames[iFile])
+      cName.sinfo <- paste0("SINFO.",traitNames[iFile])
+      cName.ldimp.k <- paste0("LDIMP.K.",traitNames[iFile])
+      if(!any(colnames(toJoin)=="BETA")) warning(paste0("\nThere is no BETA column for ",traitNames[iFile], "while setting up a composite table."))
+      if(!any(colnames(toJoin)=="SE")) warning(paste0("\nThere is no SE column for ",traitNames[iFile], "while setting up a composite table."))
+      if(!any(colnames(toJoin)=="FRQ")) toJoin[,FRQ:=NA_real_]
+      if(!any(colnames(toJoin)=="N")) toJoin[,N:=NA_integer_]
+      if(!any(colnames(toJoin)=="INFO")) toJoin[,INFO:=NA_real_]
+      if(!any(colnames(toJoin)=="SINFO")) toJoin[,SINFO:=NA_real_]
+      if(!any(colnames(toJoin)=="LDIMP.K")) toJoin[,LDIMP.K:=NA_integer_]
+      variantTable[toJoin, on='SNP', c(cName.beta,cName.se,cName.frq,cName.n,cName.info,cName.sinfo,cName.ldimp.k):=.(i.BETA,i.SE,i.FRQ,i.N,i.INFO,i.SINFO,i.LDIMP.K)]
     }
     
     
@@ -2231,13 +2243,64 @@ supermunge <- function(
   }
   
   #process the variant table further
-  # if(!is.null(variantTable)){
-  #   # sum of K
-  #   colK<-colnames(variantTable)[grep("^K\\.", ignore.case = TRUE,colnames(variantTable))]
-  #   if(length(colK)>0) variantTable$K.SUM<-rowSums(abs(variantTable[,..colK]),na.rm = T)
-  #   colINFO.LIMP<-colnames(variantTable)[grep("^INFO\\.LIMP\\.", ignore.case = TRUE,colnames(variantTable))]
-  #   if(length(colINFO.LIMP)>0) variantTable$INFO.LIMP.SUM<-rowSums(abs(variantTable[,..colK]),na.rm = T)
-  # }
+  if(!is.null(variantTable)){
+    # sum of K - not used
+    #colK<-colnames(variantTable)[grep("^LDIMP\\.K\\.", ignore.case = TRUE,colnames(variantTable))]
+    #if(length(colK)>0) variantTable$LDIMP.K.SUM<-rowSums(abs(variantTable[,..colK]),na.rm = T)
+    #meta -analysis - re-used old naive meta-analysis code from large-scale multivariate GWAS project
+    if(metaAnalyse){
+      cat("\nPerforming fixed effect meta analysis on traits in the composite table (possibly time consuming)")
+      cNamesBETA<-colnames(variantTable)[grep("^BETA\\.", ignore.case = TRUE,colnames(variantTable))]
+      cNamesSE<-colnames(variantTable)[grep("^SE\\.", ignore.case = TRUE,colnames(variantTable))]
+      cNamesFRQ<-colnames(variantTable)[grep("^FRQ\\.", ignore.case = TRUE,colnames(variantTable))]
+      
+      cNamesN<-colnames(variantTable)[grep("^N\\.", ignore.case = TRUE,colnames(variantTable))]
+      
+      cNamesINFO<-colnames(variantTable)[grep("^INFO\\.", ignore.case = TRUE,colnames(variantTable))]
+      
+      cNamesSINFO<-colnames(variantTable)[grep("^SINFO\\.", ignore.case = TRUE,colnames(variantTable))]
+      
+      #deal with non-finite values  - treat these as NA/missing
+      ## https://stackoverflow.com/questions/8173094/how-to-check-a-data-frame-for-any-non-finite
+      is.finite.data.frame <- function(obj){
+        sapply(obj,FUN = function(x) is.finite(x))
+      }
+      #test
+      #sapply(variantTable[,..cNamesW],FUN = function(x) is.finite(x))
+      
+      #nMissing main columns
+      variantTable[,c("BETAmiss")] <- rowSums(!is.finite.data.frame(variantTable[,..cNamesBETA]),na.rm = T)
+      variantTable[,c("SEmiss")] <- rowSums(!is.finite.data.frame(variantTable[,..cNamesSE]),na.rm = T)
+      variantTable[,BETAmiss_SEmiss:=SEmiss-BETAmiss]
+      variantTable[,K.TOT:=eval(nDatasets)-BETAmiss-BETAmiss_SEmiss]
+      variantTable[,BETAmiss:=NULL][,SEmiss:=NULL][,BETAmiss_SEmiss:=NULL]
+      
+      
+      #weights
+      cNamesW<-paste0("W.",traitNames)
+      variantTable[,cNamesW]<-1/(variantTable[,..cNamesSE]^2)
+      variantTable[,c("W")] <- rowSums(abs(variantTable[,..cNamesW]),na.rm = T)
+      
+      #Meta estimates
+      variantTable[,c("BETA_META")] <- rowSums(variantTable[,..cNamesBETA]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
+      
+      variantTable[W>0,VAR_META:=1/W][,SE_META:=sqrt(VAR_META)]
+      
+      variantTable[,c("FRQ_META")] <- rowSums(variantTable[,..cNamesFRQ]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
+      
+      variantTable[,c("N_META")] <- rowSums(variantTable[,..cNamesN],na.rm = T)
+      
+      # cNamesINFO2<-paste0("INFO2.",traitNames)
+      # variantTable[,cNamesINFO2]<-ifelse(variantTable[,..cNamesINFO]>1,1,variantTable[,..cNamesINFO])
+      # variantTable[,cNamesINFO2]<-variantTable[,..cNamesINFO2]>1
+      
+      #INFO and SINFO meta analysis not done yet
+      # variantTable[,c("INFO_META")] <- rowSums(variantTable[,..cNamesINFO]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
+      # 
+      # variantTable[,c("SINFO_META")] <- rowSums(variantTable[,..cNamesFRQ]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
+      
+    }
+  }
   
   timeStop <- Sys.time()
   timeDiff <- difftime(time1=timeStop,time2=timeStart,units="sec")
