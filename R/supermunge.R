@@ -449,6 +449,7 @@ supermunge <- function(
     #for testing!
     #iFile=1
     timeStart.ds <- Sys.time()
+    cSumstats.warnings<-list()
     
     #temporary variables which has to be reset for each file/dataset
     hasN<-F
@@ -495,6 +496,11 @@ supermunge <- function(
       } else {
         cFilePath<-filePaths[[iFile]]
         cat(paste("\nFile:", cFilePath,"\n"))
+        
+        if(!file.exists(cFilePath) & metaAnalyse==T) {
+          cSumstats.warnings<-c(cSumstats.warnings,paste0("Could not find file. Skipping this dataset as we are performing a meta-analysis and there may be other valid datasets."))
+          next #we can accept (some) missing datasets in a meta-analysis of more than 2 datasets
+          }
         
         cSumstats<-fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
         #cSumstats <- read.table(cFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
@@ -543,7 +549,7 @@ supermunge <- function(
     }
     
     cSumstats.meta<-data.table(message=NA_character_,display=NA_character_)
-    cSumstats.warnings<-list()
+    
     cSumstats.nSNP.raw<-nrow(cSumstats)
     sumstats.meta[iFile,c("n_snp_raw")]<-cSumstats.nSNP.raw
     cSumstats.meta<-rbind(cSumstats.meta,list("# Input variant rows",as.character(cSumstats.nSNP.raw)))
