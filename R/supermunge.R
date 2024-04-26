@@ -2368,7 +2368,7 @@ supermunge <- function(
       variantTable[,Z_META:=BETA_META/SE_META]
       variantTable$P_META <- 2*pnorm(q = abs(variantTable$Z_META),mean = 0, sd = 1, lower.tail = F)
       
-      variantTable.metaOnly<-variantTable[K>0,.(SNP,BP,A1,A2,FRQ=FRQ_META,BETA=BETA_META,SE=SE_META,Z=Z_META,N=N_META,P=P_META,K)]
+      variantTable.metaOnly<-variantTable[K>0,.(SNP,CHR,BP,A1,A2,FRQ=FRQ_META,BETA=BETA_META,SE=SE_META,Z=Z_META,N=N_META,P=P_META,K)]
       
     }
   }
