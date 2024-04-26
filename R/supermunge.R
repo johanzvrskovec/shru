@@ -49,14 +49,15 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # raw <- shru::readFile(filePath = "/Users/jakz/Downloads/FG_male_1000G_density_formatted_21-03-29.txt")
 
 #single test with hard coded values - lists
-# filePaths = list(
-#   anxi03=file.path(folderpath.data,"gwas_sumstats","munged_1kg_orig_eur_supermunge_unfiltered","ANXI03.gz"),neur04=file.path(folderpath.data,"gwas_sumstats","munged_1kg_orig_eur_supermunge_unfiltered","NEUR04.gz"))
+# filePaths = file.path(folderpath.work,paste0(columns.selected.pheno[iTrait],".assoc.m.",c("glad","edgi","nbr"),".fastGWA"))
+# # filePaths = list(
+# #   anxi03=file.path(folderpath.data,"gwas_sumstats","munged_1kg_orig_eur_supermunge_unfiltered","ANXI03.gz"),neur04=file.path(folderpath.data,"gwas_sumstats","munged_1kg_orig_eur_supermunge_unfiltered","NEUR04.gz"))
 # #filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
 # #rsSynonymsFilePath = p$filepath.rsSynonyms.dbSNP151
 # #chainFilePath = file.path(p$folderpath.data,"alignment_chains","hg19ToHg38.over.chain.gz")
-# traitNames = c("ANXI03","NEUR04")
+# #traitNames = c("ANXI03","NEUR04")
 # #N = p$sumstats.sel["BIPO02",]$n_case_total
 # pathDirOutput = folderpath.work
 # #test = T
@@ -454,6 +455,7 @@ supermunge <- function(
     #temporary variables which has to be reset for each file/dataset
     hasN<-F
     hasNEFF<-F
+    empty<-F
     
     #set changeEffectDirectionOnAlleleFlip -this has to be reset for each file/dataset
     changeEffectDirectionOnAlleleFlip<-NULL
@@ -499,43 +501,49 @@ supermunge <- function(
         
         if(!file.exists(cFilePath) & metaAnalyse==T) {
           cSumstats.warnings<-c(cSumstats.warnings,paste0("Could not find file. Skipping this dataset as we are performing a meta-analysis and there may be other valid datasets."))
-          next #we can accept (some) missing datasets in a meta-analysis of more than 2 datasets
-          }
-        
-        cSumstats<-fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
-        #cSumstats <- read.table(cFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
-        
-        #fallback
-        if(ncol(cSumstats)<5) {
-          cat("\nFalling back on alternate file reading routine...(i.e. assuming vcf format)")
-          if(nrow(cSumstats)>1000){
-            cSumstats <- NULL
-            #cSumstats <- read.table(cFilePath,header=F, quote="\"",fill=T,na.string=c(".",NA,"NA",""),nrows = 1000, comment.char = '')
-            cSumstats <- fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F, nrows = 1000)
+          #we can accept (some) missing datasets in a meta-analysis of more than 2 datasets
+          
+          cSumstats<-ref[,.(SNP,CHR,A1,A2)]
+          cSumstats[,BETA:=NA_real_][,SE:=NA_real_][,FRQ:=NA_real_]
+          empty<-T
+          
+        } else {
+            cSumstats<-fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
+            #cSumstats <- read.table(cFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
             
-            commentStrings <- list("#CHROM")
-            for(iLine in 1:1000){
-              #iLine<-1
-              
-              if(substr(as.character(cSumstats[iLine,1]), start = 1, stop = nchar(commentStrings[1]))==commentStrings[1]) break
-            }
-            
-            #check if #CHROM was not found - use CHROM instead
-            if(iLine==1000){
-              commentStrings <- list("CHROM")
-              for(iLine in 1:1000){
-                #iLine<-1
+            #fallback
+            if(ncol(cSumstats)<5) {
+              cat("\nFalling back on alternate file reading routine...(i.e. assuming vcf format)")
+              if(nrow(cSumstats)>1000){
+                cSumstats <- NULL
+                #cSumstats <- read.table(cFilePath,header=F, quote="\"",fill=T,na.string=c(".",NA,"NA",""),nrows = 1000, comment.char = '')
+                cSumstats <- fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F, nrows = 1000)
                 
-                if(substr(as.character(cSumstats[iLine,1]), start = 1, stop = nchar(commentStrings[1]))==commentStrings[1]) break
+                commentStrings <- list("#CHROM")
+                for(iLine in 1:1000){
+                  #iLine<-1
+                  
+                  if(substr(as.character(cSumstats[iLine,1]), start = 1, stop = nchar(commentStrings[1]))==commentStrings[1]) break
+                }
+                
+                #check if #CHROM was not found - use CHROM instead
+                if(iLine==1000){
+                  commentStrings <- list("CHROM")
+                  for(iLine in 1:1000){
+                    #iLine<-1
+                    
+                    if(substr(as.character(cSumstats[iLine,1]), start = 1, stop = nchar(commentStrings[1]))==commentStrings[1]) break
+                  }
+                }
+                
+                cSumstats <- NULL
+                cSumstats <- fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F, skip = iLine)
+                
+              } else {
+                cat("\nDoes not have a fallback option that suits this file. Sorry!")
               }
             }
             
-            cSumstats <- NULL
-            cSumstats <- fread(file = cFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F, skip = iLine)
-              
-            } else {
-              cat("\nDoes not have a fallback option that suits this file. Sorry!")
-            }
           }
         
       }
@@ -894,7 +902,7 @@ supermunge <- function(
       cat("📛")
     }
     
-    if(process){
+    if(process & !empty){
       cat("\nProcessing.")
       # QC, and data management before merge with reference
       
@@ -2030,10 +2038,10 @@ supermunge <- function(
     
     
     #remove columns if they are all NA
-    if(any(colnames(cSumstats)=="EFFECT")){
+    if(any(colnames(cSumstats)=="EFFECT") & !empty){
       if(!any(is.finite(cSumstats$EFFECT))) cSumstats[,EFFECT:=NULL]
     }
-    if(any(colnames(cSumstats)=="SE")){
+    if(any(colnames(cSumstats)=="SE") & !empty){
       if(!any(is.finite(cSumstats$SE))) cSumstats[,SE:=NULL]
     }
     
@@ -2256,7 +2264,7 @@ supermunge <- function(
     #if(length(colK)>0) variantTable$LDIMP.K.SUM<-rowSums(abs(variantTable[,..colK]),na.rm = T)
     #meta -analysis - re-used old naive meta-analysis code from large-scale multivariate GWAS project
     if(metaAnalyse){
-      cat("\nPerforming fixed effect meta analysis on traits in the composite table (possibly time consuming)")
+      cat("\nPerforming fixed effect meta analysis on traits in the composite table...")
       cNamesBETA<-colnames(variantTable)[grep("^BETA\\.", ignore.case = TRUE,colnames(variantTable))]
       cNamesSE<-colnames(variantTable)[grep("^SE\\.", ignore.case = TRUE,colnames(variantTable))]
       cNamesFRQ<-colnames(variantTable)[grep("^FRQ\\.", ignore.case = TRUE,colnames(variantTable))]
@@ -2279,7 +2287,7 @@ supermunge <- function(
       variantTable[,c("BETAmiss")] <- rowSums(!is.finite.data.frame(variantTable[,..cNamesBETA]),na.rm = T)
       variantTable[,c("SEmiss")] <- rowSums(!is.finite.data.frame(variantTable[,..cNamesSE]),na.rm = T)
       variantTable[,BETAmiss_SEmiss:=SEmiss-BETAmiss]
-      variantTable[,K.TOT:=eval(nDatasets)-BETAmiss-BETAmiss_SEmiss]
+      variantTable[,K:=eval(nDatasets)-BETAmiss-BETAmiss_SEmiss]
       variantTable[,BETAmiss:=NULL][,SEmiss:=NULL][,BETAmiss_SEmiss:=NULL]
       
       
@@ -2309,7 +2317,7 @@ supermunge <- function(
       variantTable[,Z_META:=BETA_META/SE_META]
       variantTable$P_META <- 2*pnorm(q = abs(variantTable$Z_META),mean = 0, sd = 1, lower.tail = F)
       
-      variantTable.metaOnly<-variantTable[,.(SNP,A1,A2,FRQ=FRQ_META,BETA=BETA_META,SE=SE_META,Z=Z_META,N=N_META,P=P_META)]
+      variantTable.metaOnly<-variantTable[K>0,.(SNP,A1,A2,FRQ=FRQ_META,BETA=BETA_META,SE=SE_META,Z=Z_META,N=N_META,P=P_META,K)]
       
     }
   }
