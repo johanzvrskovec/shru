@@ -47,11 +47,12 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # )
 
 # raw <- shru::readFile(filePath = "/Users/jakz/Downloads/FG_male_1000G_density_formatted_21-03-29.txt")
-
-#single test with hard coded values - lists
-# filePaths = file.path(folderpath.work,paste0(columns.selected.pheno[iTrait],".assoc.m.",c("glad","edgi","nbr"),".fastGWA"))
-# # filePaths = list(
-# #   anxi03=file.path(folderpath.data,"gwas_sumstats","munged_1kg_orig_eur_supermunge_unfiltered","ANXI03.gz"),neur04=file.path(folderpath.data,"gwas_sumstats","munged_1kg_orig_eur_supermunge_unfiltered","NEUR04.gz"))
+# 
+# #single test with hard coded values - lists
+# #filePaths = file.path(folderpath.work,paste0(columns.selected.pheno[iTrait],".assoc.m.",c("glad","edgi","nbr"),".fastGWA"))
+# filePaths = list(
+#   anxi03=file.path(folderpath.data,"gwas_sumstats","munged_1kg_orig_eur_supermunge_unfiltered","ANXI03.gz"),neur04=file.path(folderpath.data,"gwas_sumstats","munged_1kg_orig_eur_supermunge_unfiltered","NEUR04.gz")
+#   )
 # #filePaths = "../data/gwas_sumstats/raw/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
 # ##refFilePath = p$filepath.SNPReference.1kg
 # refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
@@ -66,6 +67,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # metaAnalyse = T
 # writeOutput <- F
 # test <- T
+# completeRefFromData=T
 
 
 # 
@@ -136,6 +138,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # setChangeEffectDirectionOnAlleleFlip=T #set to TRUE to emulate genomic sem munge
 # produceCompositeTable=F
 # setNtoNEFF=NULL #set N to NEFF before writing output
+# completeRefFromData=F
 # metaAnalyse = F
 # unite=F
 # imputeFromLD=F
@@ -194,6 +197,7 @@ supermunge <- function(
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F, #create a dataframe with all effects and standard errors across datasets, as for Genomic SEM latent factor GWAS.
   setNtoNEFF=NULL, #list, set N to NEFF before writing output (per dataset), remove NEFF (as Genomic SEM munge)
+  completeRefFromData=F, #add non-overlapping (SNP) variants to the reference from each dataset - added in the order of datasets (safest when the datasets are all of the same origin with an expected similar set of variants). added primarily for meta-analyses where we want to keep all variants from the data rather than the overlap with a reference.
   metaAnalyse = F, #performs fixed effect meta analysis and outputs one result dataset
   unite=F, #bind rows of datasets into one dataset
   diff=F, #compare the resulting first dataset with the rest of the datasets pairwise and detect differences, write these to separate files - NOT IMPLEMENTED YET!
@@ -263,7 +267,7 @@ supermunge <- function(
     nDatasets <- length(list_df)
   } else {
     if(is.null(traitNames)){
-      traitNames<-basename(filePaths)
+      traitNames<-basename(unlist(filePaths))
     }
     
     if(!is.null(mask)){
@@ -413,7 +417,9 @@ supermunge <- function(
     
     if(produceCompositeTable | metaAnalyse){
       #create composite variant table
-      variantTable<-ref[,..ref.keys]
+      variantTable.cols<-ref.keys
+      if(any(colnames(ref)=="MAF"))  variantTable.cols<-c(variantTable.cols,"MAF")
+      variantTable<-ref[,..variantTable.cols]
       variantTable <- setDT(variantTable)
       setkeyv(variantTable, cols = ref.keys)
       #check keys with key(variantTable)
@@ -954,17 +960,56 @@ supermunge <- function(
         cSumstats.merged.snp<-ref
         colnames(cSumstats.merged.snp)<-paste0(ref.colnames$std,"_REF")
         setkeyv(cSumstats.merged.snp, cols = paste0(key(ref),"_REF"))
-        
         cSumstats.merged.snp<-cSumstats.merged.snp[!is.na(SNP_REF),]
         
         
-        SNPsNotInRef<-cSumstats$SNP[!cSumstats$SNP %in% cSumstats.merged.snp$SNP_REF]
-        # cSumstats.meta<-rbind(cSumstats.meta,list("Datset variants not in reference",as.character(length(SNPsNotInRef))))
-        if(doStatistics){
-          saveRDS(object = SNPsNotInRef,file = file.path(pathDirOutput,paste0(traitNames[iFile],".unmatched.Rds")))
-        }
-        rm(SNPsNotInRef)
+        #non-matching variants
+        #SNPsNotInRef<-cSumstats$SNP[!cSumstats$SNP %in% cSumstats.merged.snp$SNP_REF] #old
         
+        cSumstats[,MATCH_SNP:=F][,MATCH_SNPR:=F][,MATCH_POS:=F][,MATCH_ALLELE:=F]
+        cSumstats[cSumstats.merged.snp,on=c(SNP="SNP_REF"),MATCH_SNP:=T]
+        if(any(colnames(cSumstats)=="SNP") && any(colnames(ref)=="SNPR")) cSumstats[cSumstats.merged.snp,on=c(SNP='SNPR_REF' ),MATCH_SNPR:=T]
+        if(any(colnames(cSumstats)=="CHR") && any(colnames(cSumstats)=="BP") && any(colnames(ref)=="CHR") && any(colnames(ref)=="BP")) {
+          cSumstats[cSumstats.merged.snp,on=c(CHR='CHR_REF' , BP='BP_REF'),MATCH_POS:=T]
+          #cSumstats.merged.snp[,DUMMY_TRUE:=T]
+          if(any(colnames(cSumstats)=="A1") && any(colnames(cSumstats)=="A2") && any(colnames(ref)=="A1") && any(colnames(ref)=="A2")) {
+            cSumstats[cSumstats.merged.snp,on=c(A1='A1_REF', A2='A2_REF', CHR='CHR_REF',BP='BP_REF'),MATCH_ALLELE:=T]
+            cSumstats[cSumstats.merged.snp,on=c(A1='A2_REF', A2='A1_REF', CHR='CHR_REF',BP='BP_REF'),MATCH_ALLELE:=T]
+            }
+          
+          #cSumstats.merged.snp[,DUMMY_TRUE:=NULL]
+        }
+        
+       
+        cSumstats.unmatched<-cSumstats[MATCH_SNP==F & MATCH_SNPR==F & (MATCH_POS==F | MATCH_ALLELE==F),]
+        if(doStatistics){
+          saveRDS(object = cSumstats.unmatched[,.(SNP)],file = file.path(pathDirOutput,paste0(traitNames[iFile],".unmatched.Rds")))
+        }
+
+        if(completeRefFromData & nrow(cSumstats.unmatched)>0){
+          unmatched.cols<-c("SNP")
+          if(any(colnames(cSumstats)=="CHR") && any(colnames(cSumstats)=="BP") && any(colnames(ref)=="CHR") && any(colnames(ref)=="BP")) unmatched.cols<-c(unmatched.cols,"CHR","BP")
+          if(any(colnames(cSumstats)=="A1") && any(colnames(cSumstats)=="A2") && any(colnames(ref)=="A1") && any(colnames(ref)=="A2")) unmatched.cols<-c(unmatched.cols,"A1","A2")
+          if(any(colnames(cSumstats)=="FRQ") && any(colnames(ref)=="MAF")) unmatched.cols<-c(unmatched.cols,"FRQ") #This FRQ may not be representative of the whole meta-analysis sample
+          cSumstats.unmatched<-cSumstats.unmatched[,..unmatched.cols]
+          if(any(colnames(cSumstats.unmatched)=="FRQ")) cSumstats.unmatched[,MAF:=FRQ][,FRQ:=NULL]
+          ref.n<-nrow(ref)
+          ref<-rbindlist(list(ref,cSumstats.unmatched),use.names = T,fill = T) #ref
+          variantTable<-rbindlist(list(variantTable,cSumstats.unmatched),use.names = T,fill = T)
+          cSumstats.meta<-rbind(cSumstats.meta,list("Completed ref variants from dataset",as.character(nrow(ref)-ref.n)))
+          
+          setkeyv(ref, cols = ref.keys)
+          setkeyv(variantTable, cols = ref.keys)
+          #create the temporary reference again
+          cSumstats.merged.snp<-ref
+          colnames(cSumstats.merged.snp)<-paste0(ref.colnames$std,"_REF")
+          setkeyv(cSumstats.merged.snp, cols = paste0(key(ref),"_REF"))
+          cSumstats.merged.snp<-cSumstats.merged.snp[!is.na(SNP_REF),]
+        }
+        rm(cSumstats.unmatched)
+        cSumstats[,MATCH_SNP:=NULL][,MATCH_SNPR:=NULL][,MATCH_POS:=NULL][,MATCH_ALLELE:=NULL] #one option would be to keep this information and just join in the reference columns
+        
+        #join with reference on SNP
         cSumstats.merged.snp<-cSumstats.merged.snp[cSumstats, on=c(SNP_REF="SNP"), nomatch=0]
         #replace missing columns
         cSumstats.merged.snp[,SNP:=SNP_REF][,SNP_REF:=NULL]
@@ -1005,23 +1050,29 @@ supermunge <- function(
         cSumstats.merged.pos<-NULL
         if(any(colnames(cSumstats)=="CHR") && any(colnames(cSumstats)=="BP") && any(colnames(ref)=="CHR") && any(colnames(ref)=="BP") && any(colnames(cSumstats)=="A1") && any(colnames(ref)=="A1") && any(colnames(cSumstats)=="A2") && any(colnames(ref)=="A2")) {
           #Join with reference on position rather than rsID
-          cSumstats.merged.pos<-ref
-          colnames(cSumstats.merged.pos)<-paste0(ref.colnames$std,"_REF")
-          setkeyv(cSumstats.merged.pos, cols = paste0(key(ref),"_REF"))
-          cSumstats.merged.pos<-cSumstats.merged.pos[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP'), nomatch=0]
+          cSumstats.merged.pos1<-ref
+          colnames(cSumstats.merged.pos1)<-paste0(ref.colnames$std,"_REF")
+          setkeyv(cSumstats.merged.pos1, cols = paste0(key(ref),"_REF"))
+          cSumstats.merged.pos2<-cSumstats.merged.pos1
+          cSumstats.merged.pos1<-cSumstats.merged.pos1[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP', A1_REF='A1', A2_REF='A2'), nomatch=0]
+          cSumstats.merged.pos2<-cSumstats.merged.pos1[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP', A1_REF='A2', A2_REF='A1'), nomatch=0]
           
           #replace missing columns
-          cSumstats.merged.pos[,CHR:=CHR_REF]
-          cSumstats.merged.pos[,BP:=BP_REF]
+          cSumstats.merged.pos1[,CHR:=CHR_REF][,BP:=BP_REF]
+          cSumstats.merged.pos2[,CHR:=CHR_REF][,BP:=BP_REF]
+          cSumstats.merged.pos<-rbindlist(list(cSumstats.merged.pos1,cSumstats.merged.pos2), use.names=T, fill = T)
+          rm(cSumstats.merged.pos1)
+          rm(cSumstats.merged.pos2)
         }
         cat(".")
         
+        #set cSumstatst to the merged version
         if(is.null(cSumstats.merged.pos)){
           cSumstats<-cSumstats.merged.snp
         } else {
           
-          #assure proper allele configuration
-          if(any(colnames(cSumstats.merged.pos)=="A1") && any(colnames(cSumstats.merged.pos)=="A1_REF") && any(colnames(cSumstats.merged.pos)=="A2") && any(colnames(cSumstats.merged.pos)=="A2_REF")) cSumstats.merged.pos<-cSumstats.merged.pos[A1==A1_REF & A2==A2_REF,]
+          # #assure proper allele configuration
+          # if(any(colnames(cSumstats.merged.pos)=="A1") && any(colnames(cSumstats.merged.pos)=="A1_REF") && any(colnames(cSumstats.merged.pos)=="A2") && any(colnames(cSumstats.merged.pos)=="A2_REF")) cSumstats.merged.pos<-cSumstats.merged.pos[(A1==A1_REF & A2==A2_REF) | (A2==A1_REF & A1==A2_REF),] #maybe not needed anymore?
           
           #merge merged datasets
           cSumstats.merged.pos.salvaged<-cSumstats.merged.pos[!(cSumstats.merged.pos$SNP_REF %in% cSumstats.merged.snp$SNP_REF),]
@@ -2317,7 +2368,7 @@ supermunge <- function(
       variantTable[,Z_META:=BETA_META/SE_META]
       variantTable$P_META <- 2*pnorm(q = abs(variantTable$Z_META),mean = 0, sd = 1, lower.tail = F)
       
-      variantTable.metaOnly<-variantTable[K>0,.(SNP,A1,A2,FRQ=FRQ_META,BETA=BETA_META,SE=SE_META,Z=Z_META,N=N_META,P=P_META,K)]
+      variantTable.metaOnly<-variantTable[K>0,.(SNP,BP,A1,A2,FRQ=FRQ_META,BETA=BETA_META,SE=SE_META,Z=Z_META,N=N_META,P=P_META,K)]
       
     }
   }
