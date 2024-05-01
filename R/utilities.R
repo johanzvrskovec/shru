@@ -1,4 +1,4 @@
-#small numerical utilities etc
+#small numerical and string utilities etc
 
 clipValues <- function(x,min,max) {
   if(!is.null(min)) x[which(x<min)]<-min

@@ -35,6 +35,7 @@ plot.patternLoadings<-function(){
 plot.manhattan.custom<-function(
     df,
     maxNLogP=24,
+    maxP=0.07,
     pointColorValuesVector = rep(c("grey","#66CCCC"),23),
     y_limits=NULL,
     var="P", #or "BETA" or "SE"
@@ -43,9 +44,10 @@ plot.manhattan.custom<-function(
   #df<-cSumstats
   
   df<-as.data.frame(df) #in case of data.table or similar
+  if(any(colnames(df)=="P")) df<-df[!is.na(df$P),] #filter NA P
+  if(any(colnames(df)=="P") & is.finite(maxP)) df<-df[df$P<maxP,] #filter away low powered associations
+  if(any(colnames(df)=="P") & is.finite(maxNLogP)) df$P<- shru::clipValues(df$P,min = 10^(-maxNLogP), max = NULL)
   
-  df$P<- shru::clipValues(df$P,min = 10^(-maxNLogP), max = NULL)
-  df<-df[!is.na(df$P),]
   cols<-c("SNP","BP","CHR")
   if(any(colnames(df)=="P")) cols<-c(cols,"P")
   if(any(colnames(df)=="BETA")) cols<-c(cols,"BETA")
@@ -53,8 +55,6 @@ plot.manhattan.custom<-function(
   
   df<-df[,cols]
   #df$CHR<-as.integer(df$CHR)
-  
-  df<-df[df$P<0.07,]
   
   df <- df %>% 
   
@@ -132,11 +132,11 @@ plot.manhattan.custom<-function(
 
 
 #stolen from https://gist.github.com/slowkow/9041570
-plot.qq.custom <- function(ps, ci = 0.95) {
+plot.qq.custom <- function(ps, ci = 0.95, maxP=0.07) {
   #ps<-head(as.data.frame(cSumstats),n=1000000)$P
   #ps<-cSumstats$P
   n0  <- length(ps)
-  ps <- ps[ps<0.07]
+  ps <- ps[ps<maxP]
   nlogps <- (-log10(sort(ps)))
   #nlogps <- unique(round(-log10(sort(ps)),6))
   
@@ -158,7 +158,14 @@ plot.qq.custom <- function(ps, ci = 0.95) {
     ggplot2::geom_line(aes(expected, cupper), linetype = 2) +
     ggplot2::geom_line(aes(expected, clower), linetype = 2) +
     ggplot2::xlab(log10Pe) +
-    ggplot2::ylab(log10Po)
+    ggplot2::ylab(log10Po) +
+    theme_bw()
+    # theme( 
+    #   legend.position="none",
+    #   panel.border = element_blank(),
+    #   panel.grid.major.x = element_blank(),
+    #   panel.grid.minor.x = element_blank()
+    # )
 }
 
 #plot for genetic correlations and similar, in matrix form
