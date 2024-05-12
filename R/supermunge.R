@@ -2007,6 +2007,7 @@ supermunge <- function(
       
       ## https://doi.org/10.1016/j.biopsych.2022.05.029
       ## https://doi.org/10.1016/j.xgen.2022.100140
+      ## N_hat_F1<-mean(1/((2*CorrelatedFactors1[[1]]$MAF*(1-CorrelatedFactors1[[1]]$MAF))*CorrelatedFactors1[[1]]$SE^2))
       cSumstats[,NEXP:=round(1/(VSNP*(SE^2)),digits = 0)] #==(Z/EFFECT)^2)/VSNP
       cSumstats.meta <- rbind(
         cSumstats.meta,

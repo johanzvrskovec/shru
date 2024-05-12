@@ -175,13 +175,14 @@ ldscpp <- function(
   # filter.maf = 0.01
   # force.M = 7184778
   
-  # #ldscpp test of hm3 jn rblock
-  # traits = p$sumstats.sel.ssimp[c("ANXI03","NEUR04"),]$mungedpath.supermunge.hm3.unfiltered
-  # sample.prev =  p$sumstats.sel.ssimp[c("ANXI03","NEUR04"),]$samplePrevalence.balanced
-  # population.prev = p$sumstats.sel.ssimp[c("ANXI03","NEUR04"),]$populationPrevalence
-  # trait.names = p$sumstats.sel.ssimp[c("ANXI03","NEUR04"),]$code
+  #sim test
+  # traits = p$sumstats.sel.sim$mungedpath.ldsc.hm3
+  # #traits = p$sumstats.sel.sim$mungedpath.supermunge.hm3.unfiltered, #do we use the ldsc=munged or the unfiltered supermunged?
+  # sample.prev =  p$sumstats.sel.sim$samplePrevalence.balanced
+  # population.prev = p$sumstats.sel.sim$populationPrevalence
+  # trait.names = p$sumstats.sel.sim$code
   # ld = p$folderpath.data.mvLDSC.ld.hm3
-  # filepathVariantsAdditional = p$filepath.SNPReference.1kg
+  # n.blocks = 200
   # ldsc.log = p$setup.code.date
   # preweight.alternativeCorrelationCorrection = F
   # preweight.ChiSquare = F
@@ -189,49 +190,11 @@ ldscpp <- function(
   # doubleRegressionRoutine = F
   # preweight.INFO=F
   # resamplingMethod="jn"
-  # #blocksizeCM = NA, #inactivate CM window def
+  # blocksizeCM = NA #inactivate CM window def
   # filter.info = 0.6
   # filter.maf = 0.01
   # filter.zz.min = 0
-
-
   
-  ##ssimp test
-  # traits = p$sumstats.sel$imputedpath2.ssimp
-  # sample.prev =  p$sumstats.sel$samplePrevalence
-  # population.prev = p$sumstats.sel$populationPrevalence
-  # trait.names = p$sumstats.sel$code
-  # ld = p$folderpath.data.mvLDSC.ld.hm3
-  # #filepathLD = p$filepath.SNPReference.1kg
-  # resetImputedN = F #Because SSimp sets N according to imputation quality
-  # #M.mode = "real",
-  # leave.chr = list(1,2,6,7,9,11)
-  # filter.info = 0.6
-  # filter.maf = 0.01
-  # filter.sinfo = 0.1
-  # filter.sinfo.imputed = 0.95
-  # filter.simpute.fraction = 0.10 #10% to compare between the two methods
-  # filter.chisq.min = 0.01579077 #qchisq(p = 0.1,df = 1)
-  # preweight.SINFO = T
-  # filter.region.df = p$highld_b38
-  # N = p$sumstats.sel$n_total
-  # ldsc.log = p$setup.code.date
-  
-  #gwis test - no fraction filter!
-  # traits = p$sumstats.sel.gwis$mungedpath
-  # sample.prev =  p$sumstats.sel.gwis$samplePrevalence
-  # population.prev = p$sumstats.sel.gwis$populationPrevalence
-  # trait.names = p$sumstats.sel.gwis$code
-  # filepathLD = p$filepath.SNPReference.1kg
-  # filter.info = 0.6
-  # filter.maf = 0.01
-  # filter.sinfo = NA
-  # filter.sinfo.imputed = 0.95
-  # #filter.chisq.min = 0.5
-  # filter.chisq.min = 0.01579077 #qchisq(p = 0.1,df = 1)
-  # filter.region.df = p$highld_b38
-  # N = p$sumstats.sel.gwis$n_total
-  # ldsc.log = p$setup.code.date
   
   LOG <- function(..., print = TRUE) {
     msg <- paste0(...)
@@ -551,7 +514,7 @@ ldscpp <- function(
       if('SINFO' %in% names(y1)) y1$SINFO<-as.numeric(y1$SINFO)
       
       #mod addition - use NEF as N
-      if(!any(colnames(y1)=="N") & any(colnames(y1)=="NEF")) y1$N<-y1$NEF
+      if(!any(colnames(y1)=="N") & any(colnames(y1)=="NEFF")) y1$N<-y1$NEFF
       
       #mod addition - checks, use explicit new N value
       LOG("N - median, min, max: ",median(y1$N, na.rm = T),", ",min(y1$N, na.rm = T),", ", max(y1$N, na.rm = T))
@@ -914,6 +877,7 @@ ldscpp <- function(
       
       LOG("Length of unique SNPs: ",length(unique(merged$SNP)), " vs total no. SNPs: ", nrow(merged))
       
+      #remove duplicates across the SNP column - same algorithm as in supermunge(?)
       if(length(unique(merged$SNP)) < nrow(merged) & any(colnames(merged)=="FRQ")){
         LOG("Removing residual SNP id duplicates.")
         merged$order<-1:nrow(merged)
@@ -1128,7 +1092,7 @@ ldscpp <- function(
      
       
       for(k in j:length(traits)){
-        #k<-1
+        #k<-2
         
         ##### GENETIC COVARIANCE code
         
