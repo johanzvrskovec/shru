@@ -22,7 +22,11 @@
 # ldsc.log = p$setup.code.date
 
 
-
+mod.LOG <- function(..., file, print = TRUE) {
+  msg <- paste0(..., "\n")
+  if (print) cat(msg)
+  cat(msg, file = file, append = TRUE)
+}
 
 ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
                 trait.names = NULL, sep_weights = FALSE, chr = 22,
@@ -41,7 +45,7 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
     log.file <- file(paste0(log2, "_ldsc.log"),open="wt")
   }else{log.file<-file(paste0(ldsc.log, "_ldsc.log"),open="wt")}
   
-  .LOG("Multivariate ld-score regression of ", length(traits), " traits ", "(", paste(traits, collapse = " "), ")", " began at: ", begin.time, file=log.file)
+  mod.LOG("Multivariate ld-score regression of ", length(traits), " traits ", "(", paste(traits, collapse = " "), ")", " began at: ", begin.time, file=log.file)
   
   if(select == "ODD" | select == "EVEN"){
     odd<-seq(1,chr,2)
@@ -54,11 +58,11 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
   
   if(n.traits > 18){
     n.blocks<-(((n.traits+1)*(n.traits+2))/2)+1
-    .LOG("     ", file=log.file, print = FALSE)
-    .LOG("Setting the number of blocks used to perform the block jacknife used to estimate the sampling covariance matrix (V) to ", n.blocks, file=log.file)
-    .LOG("This reflects the need to estimate V using at least one more block then their are nonredundant elements in the genetic covariance matrix that includes individual SNPs.", file=log.file)
-    .LOG("If the n.blocks is > 1000 you should carefully inspect output for any strange results, such as extremely significant Q_SNP estimates.", file=log.file)
-    .LOG("     ", file=log.file, print = FALSE)
+    mod.LOG("     ", file=log.file, print = FALSE)
+    mod.LOG("Setting the number of blocks used to perform the block jacknife used to estimate the sampling covariance matrix (V) to ", n.blocks, file=log.file)
+    mod.LOG("This reflects the need to estimate V using at least one more block then their are nonredundant elements in the genetic covariance matrix that includes individual SNPs.", file=log.file)
+    mod.LOG("If the n.blocks is > 1000 you should carefully inspect output for any strange results, such as extremely significant Q_SNP estimates.", file=log.file)
+    mod.LOG("     ", file=log.file, print = FALSE)
     if(n.blocks > 1000){
       warning("The number of blocks needed to estimate V is > 1000, which may result in sampling dependencies across the blocks used to estimate standard errors and can bias results.")
     }
@@ -83,7 +87,7 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
 
 
   #########  READ LD SCORES:
-  .LOG("Reading in LD scores", file=log.file)
+  mod.LOG("Reading in LD scores", file=log.file)
 
   if(select == FALSE){
   x <- do.call("rbind", lapply(1:chr, function(i) {
@@ -198,7 +202,7 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
     y1 <- suppressMessages(na.omit(read_delim(
       chi1, delim = "\t", escape_double = FALSE, trim_ws = TRUE, progress = FALSE)))
 
-    .LOG("Read in summary statistics [", s <<- s + 1, "/", n.traits, "] from: ", chi1, file=log.file)
+    mod.LOG("Read in summary statistics [", s <<- s + 1, "/", n.traits, "] from: ", chi1, file=log.file)
 
     ## Merge files
     merged <- merge(y1[, c("SNP", "N", "Z", "A1")], w[, c("SNP", "wLD")], by = "SNP", sort = FALSE)
@@ -208,11 +212,11 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
     
     #mod addition to make it similar to ldsc++
     #remove duplicates across the SNP column - same algorithm as in supermunge(?)
-    .LOG("Length of unique SNPs: ",length(unique(merged$SNP)), " vs total no. SNPs: ", nrow(merged), file=log.file)
+    mod.LOG("Length of unique SNPs: ",length(unique(merged$SNP)), " vs total no. SNPs: ", nrow(merged), file=log.file)
     setDT(merged)
     setkeyv(merged, cols = c("SNP"))
     if(length(unique(merged$SNP)) < nrow(merged)){
-      .LOG("Removing residual SNP id duplicates.",file=log.file)
+      mod.LOG("Removing residual SNP id duplicates.",file=log.file)
       merged$order<-1:nrow(merged)
       if(any(colnames(merged)=="L2") & any(colnames(merged)=="FRQ")){
         merged<-merged[order(-FRQ,-L2),]
@@ -227,7 +231,7 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
       merged<-merged[m.unique, on=c("order"), nomatch=0][,order:=NULL]
     }
 
-    .LOG("Out of ", nrow(y1), " SNPs, ", nrow(merged), " remain after merging with LD-score files", file=log.file)
+    mod.LOG("Out of ", nrow(y1), " SNPs, ", nrow(merged), " remain after merging with LD-score files", file=log.file)
 
     ## REMOVE SNPS with excess chi-square:
 
@@ -237,7 +241,7 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
     rm <- (merged$Z^2 > chisq.max)
     merged <- merged[!rm, ]
 
-    .LOG("Removing ", sum(rm), " SNPs with Chi^2 > ", chisq.max, "; ", nrow(merged), " remain", file=log.file)
+    mod.LOG("Removing ", sum(rm), " SNPs with Chi^2 > ", chisq.max, "; ", nrow(merged), " remain", file=log.file)
 
     merged
   })
@@ -258,8 +262,8 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
 
       if(j == k){
 
-        .LOG("     ", "     ", file=log.file, print = FALSE)
-        .LOG("Estimating heritability [", s, "/", n.V, "] for: ", chi1, file=log.file)
+        mod.LOG("     ", "     ", file=log.file, print = FALSE)
+        mod.LOG("Estimating heritability [", s, "/", n.V, "] for: ", chi1, file=log.file)
 
         samp.prev <- sample.prev[j]
         pop.prev <- population.prev[j]
@@ -353,10 +357,10 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
         if(is.na(pop.prev)==F & is.na(samp.prev)==F){
           conversion.factor <- (pop.prev^2*(1-pop.prev)^2)/(samp.prev*(1-samp.prev)* dnorm(qnorm(1-pop.prev))^2)
           Liab.S[j] <- conversion.factor
-          .LOG("     ", file=log.file, print = FALSE)
-          .LOG("Please note that the results initially printed to the screen and log file reflect the NON-liability h2 and cov_g. However, a liability conversion is being used for trait ",
+          mod.LOG("     ", file=log.file, print = FALSE)
+          mod.LOG("Please note that the results initially printed to the screen and log file reflect the NON-liability h2 and cov_g. However, a liability conversion is being used for trait ",
               chi1, " when creating the genetic covariance matrix used as input for Genomic SEM and liability scale results are printed at the end of the log file.", file=log.file)
-          .LOG("     ", file=log.file, print = FALSE)
+          mod.LOG("     ", file=log.file, print = FALSE)
         }
 
         cov[j,j] <- reg.tot
@@ -367,13 +371,13 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
         ratio <- (intercept - 1) / (mean.Chi - 1)
         ratio.se <- intercept.se / (mean.Chi - 1)
 
-        .LOG("Heritability Results for trait: ", chi1, file=log.file)
-        .LOG("Mean Chi^2 across remaining SNPs: ", round(mean.Chi, 4), file=log.file)
-        .LOG("Lambda GC: ", round(lambda.gc, 4), file=log.file)
-        .LOG("Intercept: ", round(intercept, 4), " (", round(intercept.se, 4), ")", file=log.file)
-        .LOG("Ratio: ", round(ratio, 4), " (", round(ratio.se, 4), ")", file=log.file)
-        .LOG("Total Observed Scale h2: ", round(reg.tot, 4), " (", round(tot.se, 4), ")", file=log.file)
-        .LOG("h2 Z: ", format(reg.tot / tot.se, digits = 3), file=log.file)
+        mod.LOG("Heritability Results for trait: ", chi1, file=log.file)
+        mod.LOG("Mean Chi^2 across remaining SNPs: ", round(mean.Chi, 4), file=log.file)
+        mod.LOG("Lambda GC: ", round(lambda.gc, 4), file=log.file)
+        mod.LOG("Intercept: ", round(intercept, 4), " (", round(intercept.se, 4), ")", file=log.file)
+        mod.LOG("Ratio: ", round(ratio, 4), " (", round(ratio.se, 4), ")", file=log.file)
+        mod.LOG("Total Observed Scale h2: ", round(reg.tot, 4), " (", round(tot.se, 4), ")", file=log.file)
+        mod.LOG("h2 Z: ", format(reg.tot / tot.se, digits = 3), file=log.file)
       }
 
 
@@ -381,10 +385,10 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
 
       if(j != k){
 
-        .LOG("     ", file=log.file, print = FALSE)
+        mod.LOG("     ", file=log.file, print = FALSE)
 
         chi2 <- traits[k]
-        .LOG("Calculating genetic covariance [", s, "/", n.V, "] for traits: ", chi1, " and ", chi2, file=log.file)
+        mod.LOG("Calculating genetic covariance [", s, "/", n.V, "] for traits: ", chi1, " and ", chi2, file=log.file)
 
         # Reuse the data read in for heritability
         y2 <- all_y[[k]]
@@ -396,7 +400,7 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
         merged <- na.omit(y)
         n.snps <- nrow(merged)
 
-        .LOG(n.snps, " SNPs remain after merging ", chi1, " and ", chi2, " summary statistics", file=log.file)
+        mod.LOG(n.snps, " SNPs remain after merging ", chi1, " and ", chi2, " summary statistics", file=log.file)
 
         ## ADD INTERCEPT:
         merged$intercept <- 1
@@ -495,12 +499,12 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
         cov[k, j] <- cov[j, k] <- reg.tot
         I[k, j] <- I[j, k] <- intercept
 
-        .LOG("Results for genetic covariance between: ", chi1, " and ", chi2, file=log.file)
-        .LOG("Mean Z*Z: ", round(mean(merged$ZZ), 4), file=log.file)
-        .LOG("Cross trait Intercept: ", round(intercept, 4), " (", round(intercept.se, 4), ")", file=log.file)
-        .LOG("Total Observed Scale Genetic Covariance (g_cov): ", round(reg.tot, 4), " (", round(tot.se, 4), ")", file=log.file)
-        .LOG("g_cov Z: ", format(reg.tot / tot.se, digits = 3), file=log.file)
-        .LOG("g_cov P-value: ", format(2 * pnorm(abs(reg.tot / tot.se), lower.tail = FALSE), digits = 5), file=log.file)
+        mod.LOG("Results for genetic covariance between: ", chi1, " and ", chi2, file=log.file)
+        mod.LOG("Mean Z*Z: ", round(mean(merged$ZZ), 4), file=log.file)
+        mod.LOG("Cross trait Intercept: ", round(intercept, 4), " (", round(intercept.se, 4), ")", file=log.file)
+        mod.LOG("Total Observed Scale Genetic Covariance (g_cov): ", round(reg.tot, 4), " (", round(tot.se, 4), ")", file=log.file)
+        mod.LOG("g_cov Z: ", format(reg.tot / tot.se, digits = 3), file=log.file)
+        mod.LOG("g_cov P-value: ", format(2 * pnorm(abs(reg.tot / tot.se), lower.tail = FALSE), digits = 5), file=log.file)
       }
 
       ### Total count
@@ -533,8 +537,8 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
     SE<-matrix(0, r, r)
     SE[lower.tri(SE,diag=TRUE)] <-sqrt(diag(V))
 
-    .LOG(c("     ", "     "), file=log.file, print = FALSE)
-    .LOG("Liability Scale Results", file=log.file)
+    mod.LOG(c("     ", "     "), file=log.file, print = FALSE)
+    mod.LOG("Liability Scale Results", file=log.file)
 
     for(j in 1:n.traits){
       if(is.null(trait.names)){
@@ -542,18 +546,18 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
       }else{chi1 <- trait.names[j]}
       for(k in j:length(traits)){
         if(j == k){
-          .LOG("     ", file=log.file, print = FALSE)
-          .LOG("Liability scale results for: ", chi1, file=log.file)
-          .LOG("Total Liability Scale h2: ", round(S[j, j], 4), " (", round(SE[j, j], 4), ")", file=log.file)
+          mod.LOG("     ", file=log.file, print = FALSE)
+          mod.LOG("Liability scale results for: ", chi1, file=log.file)
+          mod.LOG("Total Liability Scale h2: ", round(S[j, j], 4), " (", round(SE[j, j], 4), ")", file=log.file)
         }
 
         if(j != k){
           if(is.null(trait.names)){
             chi2<-traits[k]
           }else{chi2 <- trait.names[k]}
-          .LOG("Total Liability Scale Genetic Covariance between ", chi1, " and ",
+          mod.LOG("Total Liability Scale Genetic Covariance between ", chi1, " and ",
               chi2, ": ", round(S[k, j], 4), " (", round(SE[k, j], 4), ")", file=log.file)
-          .LOG("     ", file=log.file, print = FALSE)
+          mod.LOG("     ", file=log.file, print = FALSE)
         }
       }
     }
@@ -582,8 +586,8 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
     SE_Stand[lower.tri(SE_Stand,diag=TRUE)] <-sqrt(diag(V_Stand))
 
 
-    .LOG(c("     ", "     "), file=log.file, print = FALSE)
-    .LOG("Genetic Correlation Results", file=log.file)
+    mod.LOG(c("     ", "     "), file=log.file, print = FALSE)
+    mod.LOG("Genetic Correlation Results", file=log.file)
 
     for(j in 1:n.traits){
       if(is.null(trait.names)){
@@ -594,16 +598,16 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
           if(is.null(trait.names)){
             chi2<-traits[k]
           }else{chi2 <- trait.names[k]}
-          .LOG("Genetic Correlation between ", chi1, " and ", chi2, ": ",
+          mod.LOG("Genetic Correlation between ", chi1, " and ", chi2, ": ",
               round(S_Stand[k, j], 4), " (", round(SE_Stand[k, j], 4), ")", file=log.file)
-          .LOG("     ", file=log.file, print = FALSE)
+          mod.LOG("     ", file=log.file, print = FALSE)
         }
       }
     }
   }else{
     warning("Your genetic covariance matrix includes traits estimated to have a negative heritability.")
-    .LOG("Your genetic covariance matrix includes traits estimated to have a negative heritability.", file=log.file, print = FALSE)
-    .LOG("Genetic correlation results could not be computed due to negative heritability estimates.", file=log.file)
+    mod.LOG("Your genetic covariance matrix includes traits estimated to have a negative heritability.", file=log.file, print = FALSE)
+    mod.LOG("Genetic correlation results could not be computed due to negative heritability estimates.", file=log.file)
   }
 
   end.time <- Sys.time()
@@ -612,10 +616,10 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
   mins <- floor(floor(total.time)/60)
   secs <- floor(total.time-mins*60)
 
-  .LOG("     ", file=log.file, print = FALSE)
-  .LOG("LDSC finished running at ", end.time, file=log.file)
-  .LOG("Running LDSC for all files took ", mins, " minutes and ", secs, " seconds", file=log.file)
-  .LOG("     ", file=log.file, print = FALSE)
+  mod.LOG("     ", file=log.file, print = FALSE)
+  mod.LOG("LDSC finished running at ", end.time, file=log.file)
+  mod.LOG("Running LDSC for all files took ", mins, " minutes and ", secs, " seconds", file=log.file)
+  mod.LOG("     ", file=log.file, print = FALSE)
 
   flush(log.file)
   close(log.file)
