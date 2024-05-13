@@ -24,7 +24,7 @@
 
 
 
-ldsc.orig <- function(traits, sample.prev, population.prev, ld, wld,
+ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
                 trait.names = NULL, sep_weights = FALSE, chr = 22,
                 n.blocks = 200, ldsc.log = NULL, stand = FALSE,select=FALSE,chisq.max = NA) {
   
