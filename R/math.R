@@ -1,7 +1,23 @@
 #This is a tweaked version of the p.adjust function from the stats package, to which all the credit belongs. The change involves being able to use n which is not fixed to the length of the p vector to allow for setting this based on a PCA analysis for example.
 # https://stackoverflow.com/questions/30108510/p-adjust-with-n-than-number-of-tests
-p.adjust2 <- function (p, method = p.adjust.methods, n = length(p)) 
+
+p.adjust2 <- function (p.mat, method = p.adjust.methods, n = NULL, isSymmetric=F) 
 {
+  
+  #p.mat <- corrsForTable.p
+  #method = "fdr"
+  #n = NULL
+  #isSymmetric=F
+  
+  #+++JZ: this is an added part for dealing with matrices and symmetry
+  if(is.matrix(p.mat) & isSymmetric==T){
+    p<-p.mat[lower.tri(x = p.mat,diag = T)]
+    if(is.null(n)) n<- length(p)
+  } else if(is.null(n)){
+    p<-p.mat
+    n<-length(p.mat)
+  }
+  
   method <- match.arg(method)
   if (method == "fdr") 
     method <- "BH"
@@ -10,7 +26,7 @@ p.adjust2 <- function (p, method = p.adjust.methods, n = length(p))
   p0 <- setNames(p, nm)
   if (all(nna <- !is.na(p))) 
     nna <- TRUE
-  else p <- p[nna]
+  else p <- p[nna] #+++JZ: this is making the list effectively shorter in case of NA's
   lp <- length(p)
   #stopifnot(n >= lp) #+++JZ: Now we can run with n < lp !!!! Thank you Stack Overflow!
   if (n <= 1) 
@@ -58,7 +74,23 @@ p.adjust2 <- function (p, method = p.adjust.methods, n = length(p))
   
   p0 <- ifelse(p0 < p, p, p0) #+++JZ: Added this to avoid any p0 < p when using small n
   
-  p0
+  #+++JZ: this is an added part for dealing with matrices and symmetry
+  if(is.matrix(p.mat)){
+    if(isSymmetric==T){
+      p0.mat <- matrix(NA,nrow = nrow(p.mat),ncol = ncol(p.mat))
+      p0.mat[lower.tri(p0.mat,diag = T)]<-p0
+      p0.mat[upper.tri(p0.mat,diag = F)]<-t(p0.mat)[upper.tri(p0.mat,diag = F)]
+    } else {
+      p0.mat <- matrix(p0,nrow = nrow(p.mat),ncol = ncol(p.mat))
+    }
+    colnames(p0.mat)<-colnames(p.mat)
+    rownames(p0.mat)<-rownames(p.mat)
+    
+    p0.mat
+    
+  } else {
+    p0
+  }
 }
 
 getEffectiveNumberOfTests <- function(
@@ -194,7 +226,7 @@ difftest.matrix <- function(
                        lower.tail = F
                      )
     
-  pTest.values.adj<-matrix(data = p.adjust2(pTest.values, method = "fdr", n = effectiveNumberOfTests), nrow = nrow(pTest.values), ncol = ncol(pTest.values))
+  pTest.values.adj<-p.adjust2(pTest.values, method = "fdr", n = effectiveNumberOfTests, isSymmetric = symmetric)
   rownames(pTest.values.adj)<-rownames(pTest.values)
   colnames(pTest.values.adj)<-colnames(pTest.values)
   
@@ -213,7 +245,7 @@ difftest.matrix <- function(
 
     pTest.standard_errors<-2*pnorm(q = abs(tVar), mean =  0, sd = sqrt(vare),lower.tail = F)
 
-    pTest.standard_errors.adj<-matrix(data = p.adjust2(pTest.standard_errors, method = "fdr", n = effectiveNumberOfTests), nrow = nrow(pTest.standard_errors), ncol = ncol(pTest.standard_errors))
+    pTest.standard_errors.adj<- p.adjust2(pTest.standard_errors, method = "fdr", n = effectiveNumberOfTests, isSymmetric = symmetric)
     rownames(pTest.standard_errors.adj)<-rownames(pTest.standard_errors)
     colnames(pTest.standard_errors.adj)<-colnames(pTest.standard_errors)
 
