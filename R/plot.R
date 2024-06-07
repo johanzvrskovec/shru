@@ -39,7 +39,8 @@ plot.manhattan.custom<-function(
     pointColorValuesVector = rep(c("grey","#66CCCC"),23),
     y_limits=NULL,
     var="P", #or "BETA" or "SE"
-    theme.color=list(contrastLight1="#66CCCC",contrastLight2="#FFCC66",contrastDark1="#2D2D2D",contrastDark2="#CC99CC")
+    theme.color=list(contrastLight1="#66CCCC",contrastLight2="#FFCC66",contrastDark1="#2D2D2D",contrastDark2="#CC99CC"),
+    title=NULL
     ){
   #df<-cSumstats
   
@@ -126,13 +127,21 @@ plot.manhattan.custom<-function(
     ylab(expression(paste("-log"[10], plain(P))))
   }
   
+  if(!is.null(title)){
+    plot<- plot + 
+      ggtitle(title)
+  }
 
   return(plot)
 }
 
 
 #stolen from https://gist.github.com/slowkow/9041570
-plot.qq.custom <- function(ps, ci = 0.95, maxP=0.07) {
+plot.qq.custom <- function(ps,
+                           ci = 0.95,
+                           maxP=0.07,
+                           title=NULL
+                           ) {
   #ps<-head(as.data.frame(cSumstats),n=1000000)$P
   #ps<-cSumstats$P
   n0  <- length(ps)
@@ -150,7 +159,7 @@ plot.qq.custom <- function(ps, ci = 0.95, maxP=0.07) {
   )
   log10Pe <- expression(paste("Expected -log"[10], plain(P)))
   log10Po <- expression(paste("Observed -log"[10], plain(P)))
-  ggplot2::ggplot(df) +
+  plot <- ggplot2::ggplot(df) +
     ggplot2::geom_point(aes(expected, observed),
                         #shape = 1,
                         size = 1.1, alpha=0.8) +
@@ -166,6 +175,13 @@ plot.qq.custom <- function(ps, ci = 0.95, maxP=0.07) {
     #   panel.grid.major.x = element_blank(),
     #   panel.grid.minor.x = element_blank()
     # )
+  
+  if(!is.null(title)){
+    plot<- plot + 
+      ggtitle(title)
+  }
+  
+  return(plot)
 }
 
 #plot for genetic correlations and similar, in matrix form
