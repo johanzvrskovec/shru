@@ -1,5 +1,6 @@
 #This is a tweaked version of the p.adjust function from the stats package, to which all the credit belongs. The change involves being able to use n which is not fixed to the length of the p vector to allow for setting this based on a PCA analysis for example.
 # https://stackoverflow.com/questions/30108510/p-adjust-with-n-than-number-of-tests
+# theory: https://stats.libretexts.org/Bookshelves/Applied_Statistics/Biological_Statistics_(McDonald)/06%3A_Multiple_Tests/6.01%3A_Multiple_Comparisons#:~:text=Sometimes%20you%20will%20see%20a,rank%20of%20the%20smallest%20P
 
 p.adjust2 <- function (p.mat, method = p.adjust.methods, n = NULL, isSymmetric=F) 
 {

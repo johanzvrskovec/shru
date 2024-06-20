@@ -18,6 +18,10 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 
 #tests
 
+# filePaths = "~/Downloads/GCST90301964.tsv"
+# refFilePath = "/Users/jakz/project/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
+# traitNames = c("gluc")
+
 # single test with hard coded values
 # filePaths = "/Users/jakz/Downloads/continuous-21001-both_sexes-irnt.tsv.bgz"
 # refFilePath = "/Users/jakz/Documents/local_db/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
@@ -308,7 +312,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.20.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.22.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1053,16 +1057,25 @@ supermunge <- function(
           cSumstats.merged.pos1<-ref
           colnames(cSumstats.merged.pos1)<-paste0(ref.colnames$std,"_REF")
           setkeyv(cSumstats.merged.pos1, cols = paste0(key(ref),"_REF"))
+          cSumstats.merged.pos1.inverted<-cSumstats.merged.pos1
           cSumstats.merged.pos2<-cSumstats.merged.pos1
-          cSumstats.merged.pos1<-cSumstats.merged.pos1[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP', A1_REF='A1', A2_REF='A2'), nomatch=0]
-          cSumstats.merged.pos2<-cSumstats.merged.pos1[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP', A1_REF='A2', A2_REF='A1'), nomatch=0]
+          cSumstats.merged.pos2.inverted<-cSumstats.merged.pos1
+          
+          cSumstats.merged.pos1<-cSumstats.merged.pos1[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP', A1_REF='A1'), nomatch=0]
+          cSumstats.merged.pos1.inverted<-cSumstats.merged.pos1.inverted[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP', A2_REF='A1'), nomatch=0]
+          cSumstats.merged.pos2<-cSumstats.merged.pos2[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP', A2_REF='A2'), nomatch=0]
+          cSumstats.merged.pos2.inverted<-cSumstats.merged.pos2.inverted[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP', A1_REF='A2'), nomatch=0]
           
           #replace missing columns
-          cSumstats.merged.pos1[,CHR:=CHR_REF][,BP:=BP_REF]
-          cSumstats.merged.pos2[,CHR:=CHR_REF][,BP:=BP_REF]
-          cSumstats.merged.pos<-rbindlist(list(cSumstats.merged.pos1,cSumstats.merged.pos2), use.names=T, fill = T)
+          cSumstats.merged.pos1[,CHR:=CHR_REF][,BP:=BP_REF][,A1:=A1_REF]
+          cSumstats.merged.pos1.inverted[,CHR:=CHR_REF][,BP:=BP_REF][,A1:=A2_REF]
+          cSumstats.merged.pos2[,CHR:=CHR_REF][,BP:=BP_REF][,A2:=A2_REF]
+          cSumstats.merged.pos2.inverted[,CHR:=CHR_REF][,BP:=BP_REF][,A2:=A1_REF]
+          cSumstats.merged.pos<-rbindlist(list(cSumstats.merged.pos1,cSumstats.merged.pos1.inverted,cSumstats.merged.pos2,cSumstats.merged.pos2.inverted), use.names=T, fill = T)
           rm(cSumstats.merged.pos1)
+          rm(cSumstats.merged.pos1.inverted)
           rm(cSumstats.merged.pos2)
+          rm(cSumstats.merged.pos2.inverted)
         }
         cat(".")
         
