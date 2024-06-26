@@ -287,6 +287,8 @@ ldscpp <- function(
   Liab.S.unsigned <- rep(1, n.traits)
   I <- matrix(NA,nrow=n.traits,ncol=n.traits)
   I.unsigned <- matrix(NA,nrow=n.traits,ncol=n.traits)
+  I.SE <- matrix(NA,nrow=n.traits,ncol=n.traits)
+  I.SE.unsigned <- matrix(NA,nrow=n.traits,ncol=n.traits)
   #mod addition - dataset statistics
   impstats <- as.data.frame(matrix(data = NA,nrow = 0,ncol = 0))
   #cellstats matrices
@@ -1684,6 +1686,8 @@ ldscpp <- function(
         cov.unsigned[k, j] <- cov.unsigned[j, k] <- reg.tot.unsigned
         I[k, j] <- I[j, k] <- intercept
         I.unsigned[k, j] <- I.unsigned[j, k] <- intercept.unsigned
+        I.SE[k, j] <- I.SE[j, k] <- intercept.se
+        I.SE.unsigned[k, j] <- I.SE.unsigned[j, k] <- intercept.se.unsigned
         cov.p[k, j] <- cov.p[j, k] <- 2 * pnorm(abs(reg.tot / tot.se), lower.tail = FALSE) #this is the same as when computed for the liability scale
         cov.blocks[k, j] <- cov.blocks[j, k] <- n.blocksToUse
         if(verbose){
@@ -1765,10 +1769,14 @@ ldscpp <- function(
     rownames(S.unsigned)<-colnames(S.unsigned)
     
     #more names
-    colnames(I)<-colnames(I)
-    rownames(I)<-rownames(I)
-    colnames(I.unsigned)<-colnames(I.unsigned)
-    rownames(I.unsigned)<-rownames(I.unsigned)
+    colnames(I)<-colnames(S)
+    rownames(I)<-rownames(S)
+    colnames(I.unsigned)<-colnames(S)
+    rownames(I.unsigned)<-rownames(S)
+    colnames(I.SE)<-colnames(S)
+    rownames(I.SE)<-rownames(S)
+    colnames(I.SE.unsigned)<-colnames(S)
+    rownames(I.SE.unsigned)<-rownames(S)
     colnames(cov.p)<-colnames(S)
     rownames(cov.p)<-rownames(S)
     colnames(cov.p.unsigned)<-colnames(S)
@@ -2048,6 +2056,7 @@ ldscpp <- function(
     cResults <- list(V=V, S=S, I=I, N=N.vec, m=M.tot, S.SE=S.SE, mgc=mgc, 
                      V_Stand=V_Stand, S_Stand=S_Stand, S_Stand.SE=S_Stand.SE,
                      #cov.p=cov.p, #this is actually always the same as when computed on the liability scale
+                     I.SE=I.SE,I.SE.unsigned=I.SE.unsigned,
                      cov.p.liab=cov.p.liab,cov.p.liab.unsigned=cov.p.liab.unsigned,
                      cov.SE.p.liab=cov.SE.p.liab,cov.SE.p.liab.unsigned=cov.SE.p.liab.unsigned,
                      V.unsigned=V.unsigned, S.unsigned=S.unsigned, I.unsigned=I.unsigned, S.SE.unsigned=S.SE.unsigned, V_Stand.unsigned=V_Stand.unsigned, S_Stand.unsigned=S_Stand.unsigned, S_Stand.SE.unsigned=S_Stand.SE.unsigned, 
