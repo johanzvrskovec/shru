@@ -450,6 +450,7 @@ ldscpp <- function(
     x.colnames <- shru::stdGwasColumnNames(columnNames = colnames(x),missingEssentialColumnsStop = NULL, ancestrySetting = referenceAncestrySetting, warnings=F) #needs the shru-package
     x.copy <- x
     colnames(x.copy) <- x.colnames$std
+    M.tot<-0
     if(!is.null(force.M)){
       M.tot <- force.M
       LOG("Total M (forced from argument): ",M.tot)
@@ -461,10 +462,12 @@ ldscpp <- function(
       M.tot <- sum(m)
       rm(m)
       LOG("Total M (read from ld score files): ",M.tot)
-    } else if(any(colnames(x.copy)=="FRQ")) {
+    }
+    if(any(colnames(x.copy)=="FRQ") & M.tot==0) {
       M.tot<-nrow(x.copy[FRQ>0.05,]) #may be pushed downward from 0.05 as we have larger samples now compared to when original ldsc was published?
       LOG("Total M (from LD reference, MAF>0.05): ",M.tot," using ancestry setting: ",referenceAncestrySetting)
-    } else {
+    }
+    if(M.tot==0){
       stop("Please provide a value for the (total) M!")
     }
     rm(x.copy)
