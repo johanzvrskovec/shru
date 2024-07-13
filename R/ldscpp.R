@@ -464,7 +464,7 @@ ldscpp <- function(
       LOG("Total M (read from ld score files): ",M.tot)
     }
     if(any(colnames(x.copy)=="FRQ") & M.tot==0) {
-      M.tot<-nrow(x.copy[FRQ>0.05,]) #may be pushed downward from 0.05 as we have larger samples now compared to when original ldsc was published?
+      M.tot<-nrow(x.copy[FRQ>0.05 & FRQ<0.995,]) #may be pushed downward from 0.05 as we have larger samples now compared to when original ldsc was published?
       LOG("Total M (from LD reference, MAF>0.05): ",M.tot," using ancestry setting: ",referenceAncestrySetting)
     }
     if(M.tot==0){
