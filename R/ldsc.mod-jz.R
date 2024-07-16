@@ -2,6 +2,7 @@
 #ldsc.mod is a modified copy of the multivariate ldsc function in GenomicSEM: https://github.com/GenomicSEM/GenomicSEM
 #Modified by Johan Zvrskovec
 # THE ONLY DIFFERENCE HERE IS THE WAY LDSC READS LD SCORES - SHOULD OTHERWISE BE IDENTICAL TO GSEM LDSC AS OF THE TIME OF SYNC WITH THE MAIN REPO Fri Aug 18 13:45:00 2023, commit 5f5bc83c929058fc9c95e2c17e0f55c4454c368f
+#modified to allow negative heritabilities also.
 
 ##modification of trycatch that allows the results of a failed run to still be saved
 .tryCatch.W.E_shru <- function(expr) {
@@ -542,51 +543,51 @@ ldsc.mod <- function(traits, sample.prev, population.prev, ld, wld,
   }
 
 
-  if(all(diag(S) > 0)){
-
-    ##calculate standardized results to print genetic correlations to log and screen
-    ratio <- tcrossprod(1 / sqrt(diag(S)))
-    S_Stand <- S * ratio
-
-    #calculate the ratio of the rescaled and original S matrices
-    scaleO <- gdata::lowerTriangle(ratio, diag = TRUE)
-
-    ## MAke sure that if ratio in NaN (devision by zero) we put the zero back in
-    # -> not possible because of 'all(diag(S) > 0)'
-    # scaleO[is.nan(scaleO)] <- 0
-
-    #rescale the sampling correlation matrix by the appropriate diagonals
-    V_Stand <- V * tcrossprod(scaleO)
-
-    #enter SEs from diagonal of standardized V
-    r<-nrow(S)
-    SE_Stand<-matrix(0, r, r)
-    SE_Stand[lower.tri(SE_Stand,diag=TRUE)] <-sqrt(diag(V_Stand))
-
-
-    .LOG_shru(c("     ", "     "), file=log.file, print = FALSE)
-    .LOG_shru("Genetic Correlation Results", file=log.file)
-
-    for(j in 1:n.traits){
-      if(is.null(trait.names)){
-        chi1<-traits[j]
-      }else{chi1 <- trait.names[j]}
-      for(k in j:length(traits)){
-        if(j != k){
-          if(is.null(trait.names)){
-            chi2<-traits[k]
-          }else{chi2 <- trait.names[k]}
-          .LOG_shru("Genetic Correlation between ", chi1, " and ", chi2, ": ",
-              round(S_Stand[k, j], 4), " (", round(SE_Stand[k, j], 4), ")", file=log.file)
-          .LOG_shru("     ", file=log.file, print = FALSE)
-        }
-      }
-    }
-  }else{
+  if(!all(diag(S) > 0)) {
     warning("Your genetic covariance matrix includes traits estimated to have a negative heritability.")
     .LOG_shru("Your genetic covariance matrix includes traits estimated to have a negative heritability.", file=log.file, print = FALSE)
-    .LOG_shru("Genetic correlation results could not be computed due to negative heritability estimates.", file=log.file)
+    #.LOG_shru("Genetic correlation results could not be computed due to negative heritability estimates.", file=log.file)
   }
+
+  ##calculate standardized results to print genetic correlations to log and screen
+  ratio <- tcrossprod(1 / sqrt(diag(S)))
+  S_Stand <- S * ratio
+
+  #calculate the ratio of the rescaled and original S matrices
+  scaleO <- gdata::lowerTriangle(ratio, diag = TRUE)
+
+  ## MAke sure that if ratio in NaN (devision by zero) we put the zero back in
+  # -> not possible because of 'all(diag(S) > 0)'
+  # scaleO[is.nan(scaleO)] <- 0
+
+  #rescale the sampling correlation matrix by the appropriate diagonals
+  V_Stand <- V * tcrossprod(scaleO)
+
+  #enter SEs from diagonal of standardized V
+  r<-nrow(S)
+  SE_Stand<-matrix(0, r, r)
+  SE_Stand[lower.tri(SE_Stand,diag=TRUE)] <-sqrt(diag(V_Stand))
+
+
+  .LOG_shru(c("     ", "     "), file=log.file, print = FALSE)
+  .LOG_shru("Genetic Correlation Results", file=log.file)
+
+  for(j in 1:n.traits){
+    if(is.null(trait.names)){
+      chi1<-traits[j]
+    }else{chi1 <- trait.names[j]}
+    for(k in j:length(traits)){
+      if(j != k){
+        if(is.null(trait.names)){
+          chi2<-traits[k]
+        }else{chi2 <- trait.names[k]}
+        .LOG_shru("Genetic Correlation between ", chi1, " and ", chi2, ": ",
+            round(S_Stand[k, j], 4), " (", round(SE_Stand[k, j], 4), ")", file=log.file)
+        .LOG_shru("     ", file=log.file, print = FALSE)
+      }
+    }
+  }
+
 
   end.time <- Sys.time()
 
