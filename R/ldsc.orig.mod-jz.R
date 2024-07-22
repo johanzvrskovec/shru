@@ -224,12 +224,59 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
       chi1, delim = "\t", escape_double = FALSE, trim_ws = TRUE, progress = FALSE)))
 
     mod.LOG("Read in summary statistics [", s <<- s + 1, "/", n.traits, "] from: ", chi1, file=log.file)
-
+    
+    ##mod addition, check existence of FRQ, otherwise, use MAF
+    if(!any(colnames(y1)=="FRQ") & any(colnames(y1)=="MAF")) y1$FRQ<-y1$MAF
+    if(!any(colnames(y1)=="NEFF") & any(colnames(y1)=="NEF")) y1[,NEFF:=NEF][,NEF:=NULL]
+    #mod addition - use NEF as N
+    if(!any(colnames(y1)=="N") & any(colnames(y1)=="NEFF")) y1$N<-y1$NEFF
+    
+    ##mod addition
+    ## REMOVE SNPs INFO >1, <0 etc.
+    if("INFO" %in% names(y1)){
+      #>1
+      nrm<-nrow(y1[INFO>1.0, ])
+      if(nrm>0){
+        y1[INFO>1.0, INFO:=1.0]
+        LOG("WARNING: Setting ", nrm, " SNPs with INFO >1 to 1")
+      }
+      #<0
+      nrm<-nrow(y1[INFO<0, ])
+      if(nrm>0){
+        y1[INFO<0, INFO:=0]
+        LOG("WARNING: Setting ", nrm, " SNPs with INFO <0 to 0")
+      }
+      LOG(paste0("INFO deciles:",
+                 paste(round(quantile(y1$INFO,c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0), na.rm=T),3), collapse =" ")
+      ))
+    }
+    
+    ##mod addition
+    ## REMOVE SNPs MAF<filter.maf and INFO<filter.info
+    if(!is.na(filter.maf)){
+      if("FRQ" %in% names(y1)){
+        rm <- (!is.na(y1$FRQ) & ((y1$FRQ<filter.maf & y1$FRQ<0.5) | (1-y1$FRQ)<filter.maf))
+        y1 <- y1[!rm, ]
+        LOG("Removing ", sum(rm), " SNPs with MAF <", filter.maf, "; ", nrow(y1), " remain")
+      } else {
+        LOG("Warning: The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
+      }
+    }
+    ##mod addition
+    if(!is.na(filter.info)){
+      if("INFO" %in% names(y1)){
+        rm <- (!is.na(y1$INFO) & y1$INFO<filter.info)
+        y1 <- y1[!rm, ]
+        LOG("Removing ", sum(rm), " SNPs with INFO <", filter.info, "; ", nrow(y1), " remain")
+      } else {
+        LOG("Warning: The dataset does not contain an INFO column to apply the specified filter on.")
+      }
+    }
+    
     ## Merge files
     merged <- merge(y1[, c("SNP", "N", "Z", "A1")], w[, c("SNP", "wLD")], by = "SNP", sort = FALSE)
     merged <- merge(merged, x, by = "SNP", sort = FALSE)
     merged <- merged[with(merged, order(CHR, BP)), ]
-    
     
     #mod addition to make it similar to ldsc++
     #remove duplicates across the SNP column - same algorithm as in supermunge(?)
