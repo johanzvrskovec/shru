@@ -42,7 +42,10 @@ mod.LOG <- function(..., file, print = TRUE) {
 
 ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
                 trait.names = NULL, sep_weights = FALSE, chr = 22,
-                n.blocks = 200, ldsc.log = NULL, stand = FALSE,select=FALSE,chisq.max = NA) {
+                n.blocks = 200, ldsc.log = NULL, stand = FALSE,select=FALSE,chisq.max = NA,
+                filter.info = NA, #mod addition
+                filter.maf = NA #mod addition
+                ) {
   
   time <- proc.time()
   
