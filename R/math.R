@@ -2,6 +2,11 @@
 # https://stackoverflow.com/questions/30108510/p-adjust-with-n-than-number-of-tests
 # theory: https://stats.libretexts.org/Bookshelves/Applied_Statistics/Biological_Statistics_(McDonald)/06%3A_Multiple_Tests/6.01%3A_Multiple_Comparisons#:~:text=Sometimes%20you%20will%20see%20a,rank%20of%20the%20smallest%20P
 
+# p.mat<-mvldsc$cov.p.liab[lower.tri(mvldsc$cov.p.liab,diag = T)]
+# method = "fdr"
+# n = effectiveNumberOfTests
+# isSymmetric=F
+
 p.adjust2 <- function (p.mat, method = p.adjust.methods, n = NULL, isSymmetric=F) 
 {
   
@@ -17,6 +22,8 @@ p.adjust2 <- function (p.mat, method = p.adjust.methods, n = NULL, isSymmetric=F
   } else if(is.null(n)){
     p<-p.mat
     n<-length(p.mat)
+  } else {
+    p<-p.mat
   }
   
   method <- match.arg(method)

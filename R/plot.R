@@ -287,34 +287,27 @@ plot.corr <- function(
   dev.off()
   
 }
-# 
-# mvldsc = p$mvLD$covstruct.mvLDSC.GSEMemulation.1kg.maf0_01
-# folderpath.plots = p$folderpath.plots
-# code = "original.1kg.gsem"
-# titleTemplate = "LDSC++, 1kGP3 reference"
-# titleAddition = "\n Emulated original Genomic SEM LDSC"
-# #mvldscComparison = semplate$amendGsemLDSC(p$mvLD$covstruct.GSEMmvLDSC.1kg)
-# mvldscComparison = pretendLDSCcovstruct
-# titleAdditionComparison = " vs original Genomic SEM LDSC"
-# testOnlyTraitNameCodes=NULL
-# newnames=NULL
 
-# mvldsc = p$mvLD$covstruct.mvLDSC.GSEMemulation.1kg.maf0_01
-# folderpath.plots = p$folderpath.plots
-# code = "original.1kg.ldsc"
-# titleTemplate = "LDSC++ (Genomic SEM emulated), 1kGP3 reference"
-# titleAddition = "\nBlock Jackknife Resampling"
-# mvldscComparison =pretendLDSCcovstruct
-# titleAdditionComparison = " vs original LDSC"
-
+# #TESTS
 # mvldsc = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw
 # folderpath.plots = p$folderpath.plots
 # code = "1kg.vbcs"
-# titleTemplate = "LDSC++, 1kGP3 reference"
-# titleAddition = "\nVariable Block-Count Sampling, #variants blocks"
-# mvldscComparison = p$mvLD$covstruct.mvLDSC.GSEMemulation.1kg.maf0_01
-# titleAdditionComparison = " vs original LDSC (Genomic SEM emulated)"
-# newnames = newnames
+# #titleTemplate = "LDSC++, 1kGP3 reference"
+# #titleAddition = "\nVariable Block-Count Sampling, #variants blocks"
+# #mvldscComparison = p$mvLD$covstruct.mvLDSC.GSEMemulation.1kg.maf0_01
+# #titleAdditionComparison = " vs original LDSC (Genomic SEM emulated)"
+# #newnames = newnames
+
+# mvldscComparison=NULL
+# testOnlyTraitNameCodes=NULL
+# doPlotting=TRUE
+# code="covgTest"
+# folderpath.plots=""
+# newnames=NULL
+# titleAddition=""
+# titleAdditionComparison=""
+# titleTemplate=""
+# df.summary=NULL
 
 #routine to test and generate plots for LDSC++ or Genomic SEM multivariate LDSC results
 plotAndTestBatteryForMVLDSC <- function(

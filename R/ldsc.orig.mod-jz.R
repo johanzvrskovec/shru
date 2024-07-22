@@ -1,5 +1,7 @@
-#modified Genomic SEM ldsc as of 2024.04.25 4079f40a0c64f0473365b80cc4d949511c7c78f0
-
+#Based on the amazing work by Grotzinger, A. D. et al. Nat. Hum. Behav. 3, 513–525 (2019) and Bulik-Sullivan, B. K. et al. Nat. Genet. 47, 291–295 (2015).
+#ldsc.mod is a modified copy of the multivariate ldsc function in GenomicSEM: https://github.com/GenomicSEM/GenomicSEM
+#Modified Genomic SEM ldsc as of 2024.04.25 4079f40a0c64f0473365b80cc4d949511c7c78f0
+#by Johan Zvrskovec 2024
 
 #defaults
 # trait.names = NULL
@@ -21,6 +23,16 @@
 # n.blocks = 200
 # ldsc.log = p$setup.code.date
 
+##modification of trycatch that allows the results of a failed run to still be saved - is this used somewhere still?
+mod.tryCatch.W.E <- function(expr) {
+  W <- NULL
+  w.handler <- function(w){ # warning handler
+    W <<- w
+    invokeRestart("muffleWarning")
+  }
+  list(value = withCallingHandlers(tryCatch(expr, error = function(e) e),
+                                   warning = w.handler), warning = W)
+}
 
 mod.LOG <- function(..., file, print = TRUE) {
   msg <- paste0(..., "\n")
@@ -90,11 +102,16 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
   mod.LOG("Reading in LD scores", file=log.file)
 
   if(select == FALSE){
-  x <- do.call("rbind", lapply(1:chr, function(i) {
-    suppressMessages(read_delim(
-      file.path(ld, paste0(i, ".l2.ldscore.gz")),
-      delim = "\t", escape_double = FALSE, trim_ws = TRUE, progress = FALSE))
-  }))
+    #mod change - read all ld scores in folder - allow for ld-score file across all chromosomes, do not use data.table format
+    x <- do.call("rbind", lapply(list.files(path = ld, pattern = "\\.l2\\.ldscore\\.gz$"), function(i) {
+      suppressMessages(fread(file = file.path(ld, i), na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, showProgress = F, data.table=F))
+    }))
+    
+  # x <- do.call("rbind", lapply(1:chr, function(i) {
+  #   suppressMessages(read_delim(
+  #     file.path(ld, paste0(i, ".l2.ldscore.gz")),
+  #     delim = "\t", escape_double = FALSE, trim_ws = TRUE, progress = FALSE))
+  # }))
   }
 
   if(select == "ODD"){
@@ -166,9 +183,13 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
   ### READ M
 
   if(select == FALSE){
-  m <- do.call("rbind", lapply(1:chr, function(i) {
-    suppressMessages(read_csv(file.path(ld, paste0(i, ".l2.M_5_50")), col_names = FALSE))
-  }))
+    #mod change - read all m-files in folder, do not use data.table format
+    m <- do.call("rbind", lapply(list.files(path = ld, pattern = "\\.l2\\.M_5_50$"), function(i) {
+      suppressMessages(fread(file = file.path(ld, i), na.strings =c(".",NA,"NA",""), encoding = "UTF-8", fill = T, blank.lines.skip = T, showProgress = F, nThread = 3, header = F, data.table=F))
+    }))
+  # m <- do.call("rbind", lapply(1:chr, function(i) {
+  #   suppressMessages(read_csv(file.path(ld, paste0(i, ".l2.M_5_50")), col_names = FALSE))
+  # }))
   }
 
   if(select == "EVEN"){
@@ -630,3 +651,6 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
     list(V=V,S=S,I=I,N=N.vec,m=m)
   }
 }
+
+# consolidating ldsc.mod and ldsc.orig.mod to refer to the same code (ldsc.orig.mod)
+ldsc.mod <- ldsc.orig.mod
