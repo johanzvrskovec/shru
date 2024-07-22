@@ -34,18 +34,14 @@ mod.tryCatch.W.E <- function(expr) {
                                    warning = w.handler), warning = W)
 }
 
-mod.LOG <- function(..., file, print = TRUE) {
-  msg <- paste0(..., "\n")
-  if (print) cat(msg)
-  cat(msg, file = file, append = TRUE)
-}
-
 ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
                 trait.names = NULL, sep_weights = FALSE, chr = 22,
                 n.blocks = 200, ldsc.log = NULL, stand = FALSE,select=FALSE,chisq.max = NA,
                 filter.info = NA, #mod addition
                 filter.maf = NA #mod addition
                 ) {
+  
+ 
   
   time <- proc.time()
   
@@ -59,6 +55,12 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
     }
     log.file <- file(paste0(log2, "_ldsc.log"),open="wt")
   }else{log.file<-file(paste0(ldsc.log, "_ldsc.log"),open="wt")}
+  
+  mod.LOG <- function(..., print = TRUE) {
+    msg <- paste0(...)
+    if (print) print(msg)
+    cat(msg, file = log.file, sep = "\n", append = TRUE)
+  }
   
   mod.LOG("Multivariate ld-score regression of ", length(traits), " traits ", "(", paste(traits, collapse = " "), ")", " began at: ", begin.time, file=log.file)
   
