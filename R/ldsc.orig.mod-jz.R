@@ -1,5 +1,5 @@
 #Based on the amazing work by Grotzinger, A. D. et al. Nat. Hum. Behav. 3, 513–525 (2019) and Bulik-Sullivan, B. K. et al. Nat. Genet. 47, 291–295 (2015).
-#ldsc.mod is a modified copy of the multivariate ldsc function in GenomicSEM: https://github.com/GenomicSEM/GenomicSEM
+#ldsc.orig.mod is a modified copy of the multivariate ldsc function in GenomicSEM: https://github.com/GenomicSEM/GenomicSEM
 #Modified Genomic SEM ldsc as of 2024.04.25 4079f40a0c64f0473365b80cc4d949511c7c78f0
 #by Johan Zvrskovec 2024
 
@@ -238,15 +238,15 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
       nrm<-nrow(y1[INFO>1.0, ])
       if(nrm>0){
         y1[INFO>1.0, INFO:=1.0]
-        LOG("WARNING: Setting ", nrm, " SNPs with INFO >1 to 1")
+        mod.LOG("WARNING: Setting ", nrm, " SNPs with INFO >1 to 1")
       }
       #<0
       nrm<-nrow(y1[INFO<0, ])
       if(nrm>0){
         y1[INFO<0, INFO:=0]
-        LOG("WARNING: Setting ", nrm, " SNPs with INFO <0 to 0")
+        mod.LOG("WARNING: Setting ", nrm, " SNPs with INFO <0 to 0")
       }
-      LOG(paste0("INFO deciles:",
+      mod.LOG(paste0("INFO deciles:",
                  paste(round(quantile(y1$INFO,c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0), na.rm=T),3), collapse =" ")
       ))
     }
@@ -257,9 +257,9 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
       if("FRQ" %in% names(y1)){
         rm <- (!is.na(y1$FRQ) & ((y1$FRQ<filter.maf & y1$FRQ<0.5) | (1-y1$FRQ)<filter.maf))
         y1 <- y1[!rm, ]
-        LOG("Removing ", sum(rm), " SNPs with MAF <", filter.maf, "; ", nrow(y1), " remain")
+        mod.LOG("Removing ", sum(rm), " SNPs with MAF <", filter.maf, "; ", nrow(y1), " remain")
       } else {
-        LOG("Warning: The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
+        mod.LOG("Warning: The dataset does not contain a FRQ or MAF column to apply the specified filter on.")
       }
     }
     ##mod addition
@@ -267,9 +267,9 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
       if("INFO" %in% names(y1)){
         rm <- (!is.na(y1$INFO) & y1$INFO<filter.info)
         y1 <- y1[!rm, ]
-        LOG("Removing ", sum(rm), " SNPs with INFO <", filter.info, "; ", nrow(y1), " remain")
+        mod.LOG("Removing ", sum(rm), " SNPs with INFO <", filter.info, "; ", nrow(y1), " remain")
       } else {
-        LOG("Warning: The dataset does not contain an INFO column to apply the specified filter on.")
+        mod.LOG("Warning: The dataset does not contain an INFO column to apply the specified filter on.")
       }
     }
     
