@@ -38,7 +38,8 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
                 trait.names = NULL, sep_weights = FALSE, chr = 22,
                 n.blocks = 200, ldsc.log = NULL, stand = FALSE,select=FALSE,chisq.max = NA,
                 filter.info = NA, #mod addition
-                filter.maf = NA #mod addition
+                filter.maf = NA, #mod addition,
+                force.M = NULL #mod addition, set the M value (number of variants in the LD score library)
                 ) {
   
  
@@ -56,10 +57,10 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
     log.file <- file(paste0(log2, "_ldsc.log"),open="wt")
   }else{log.file<-file(paste0(ldsc.log, "_ldsc.log"),open="wt")}
   
-  mod.LOG <- function(..., print = TRUE) {
+  mod.LOG <- function(..., file = log.file, print = TRUE) {
     msg <- paste0(...)
     if (print) print(msg)
-    cat(msg, file = log.file, sep = "\n", append = TRUE)
+    cat(msg, file = file, sep = "\n", append = TRUE)
   }
   
   mod.LOG("Multivariate ld-score regression of ", length(traits), " traits ", "(", paste(traits, collapse = " "), ")", " began at: ", begin.time, file=log.file)
@@ -213,6 +214,11 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
     m <- do.call("rbind", lapply(select, function(i) {
       suppressMessages(read_csv(file.path(ld, paste0(i, ".l2.M_5_50")), col_names = FALSE))
     }))
+  }
+  
+  #mod addition - force value of m/M.tot
+  if(!is.na(force.M)){
+    m<-force.M
   }
 
   M.tot <- sum(m)
