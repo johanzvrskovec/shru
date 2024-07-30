@@ -40,7 +40,7 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
                 filter.info = NA, #mod addition
                 filter.maf = NA, #mod addition,
                 force.M = NULL, #mod addition, set the M value (number of variants in the LD score library)
-                do.filter.unique.SNP = T #mod addition, toggle SNP name filtering
+                do.filter.unique.SNP = F #mod addition, toggle SNP name filtering
                 ) {
   
  
