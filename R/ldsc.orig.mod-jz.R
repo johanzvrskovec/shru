@@ -39,7 +39,8 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
                 n.blocks = 200, ldsc.log = NULL, stand = FALSE,select=FALSE,chisq.max = NA,
                 filter.info = NA, #mod addition
                 filter.maf = NA, #mod addition,
-                force.M = NULL #mod addition, set the M value (number of variants in the LD score library)
+                force.M = NULL, #mod addition, set the M value (number of variants in the LD score library)
+                do.filter.unique.SNP = T #mod addition, toggle SNP name filtering
                 ) {
   
  
@@ -291,23 +292,25 @@ ldsc.orig.mod <- function(traits, sample.prev, population.prev, ld, wld,
     
     #mod addition to make it similar to ldsc++
     #remove duplicates across the SNP column - same algorithm as in supermunge(?)
-    mod.LOG("Length of unique SNPs: ",length(unique(merged$SNP)), " vs total no. SNPs: ", nrow(merged), file=log.file)
-    setDT(merged)
-    setkeyv(merged, cols = c("SNP"))
-    if(length(unique(merged$SNP)) < nrow(merged)){
-      mod.LOG("Removing residual SNP id duplicates.",file=log.file)
-      merged$order<-1:nrow(merged)
-      if(any(colnames(merged)=="L2") & any(colnames(merged)=="FRQ")){
-        merged<-merged[order(-FRQ,-L2),]
-      } else if(any(colnames(merged)=="FRQ")){
-        merged<-merged[order(-FRQ),]
-      } else if(any(colnames(merged)=="L2")){
-        merged<-merged[order(-L2),]
+    if(do.filter.unique.SNP==TRUE){
+      mod.LOG("Length of unique SNPs: ",length(unique(merged$SNP)), " vs total no. SNPs: ", nrow(merged), file=log.file)
+      setDT(merged)
+      setkeyv(merged, cols = c("SNP"))
+      if(length(unique(merged$SNP)) < nrow(merged)){
+        mod.LOG("Removing residual SNP id duplicates.",file=log.file)
+        merged$order<-1:nrow(merged)
+        if(any(colnames(merged)=="L2") & any(colnames(merged)=="FRQ")){
+          merged<-merged[order(-FRQ,-L2),]
+        } else if(any(colnames(merged)=="FRQ")){
+          merged<-merged[order(-FRQ),]
+        } else if(any(colnames(merged)=="L2")){
+          merged<-merged[order(-L2),]
+        }
+        m.unique<-merged[, .(SNP = head(SNP,1),order = head(order,1)), by = c("SNP")]
+        setkeyv(m.unique, cols = c("order"))
+        setkeyv(merged, cols = c("order"))
+        merged<-merged[m.unique, on=c("order"), nomatch=0][,order:=NULL]
       }
-      m.unique<-merged[, .(SNP = head(SNP,1),order = head(order,1)), by = c("SNP")]
-      setkeyv(m.unique, cols = c("order"))
-      setkeyv(merged, cols = c("order"))
-      merged<-merged[m.unique, on=c("order"), nomatch=0][,order:=NULL]
     }
 
     mod.LOG("Out of ", nrow(y1), " SNPs, ", nrow(merged), " remain after merging with LD-score files", file=log.file)

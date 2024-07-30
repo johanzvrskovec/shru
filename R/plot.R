@@ -289,14 +289,15 @@ plot.corr <- function(
 }
 
 # #TESTS
-# mvldsc = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw
+# mvldsc = pretendGCTAcovstruct
 # folderpath.plots = p$folderpath.plots
-# code = "1kg.vbcs"
-# #titleTemplate = "LDSC++, 1kGP3 reference"
-# #titleAddition = "\nVariable Block-Count Sampling, #variants blocks"
-# #mvldscComparison = p$mvLD$covstruct.mvLDSC.GSEMemulation.1kg.maf0_01
-# #titleAdditionComparison = " vs original LDSC (Genomic SEM emulated)"
-# #newnames = newnames
+# code = "gladp.gcta.reml"
+# titleTemplate = "GCTA REML, GLAD+ reference"
+# titleAddition = ""
+#mvldscComparison =semplate$amendGsemLDSC(  p$mvLD$covstruct.GSEMmvLDSC.gladp.sim)
+#titleAdditionComparison = " vs original Genomic SEM LDSC"
+#df.summary=batRes$df.summary
+#newnames = newnames
 
 # mvldscComparison=NULL
 # testOnlyTraitNameCodes=NULL
