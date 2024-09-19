@@ -69,7 +69,7 @@ ldscpp <- function(
 ) {
   
   
-  #defaults - for testing
+  # #defaults - for testing
   # ld = NULL
   # wld = NULL
   # filepathLD = NULL
@@ -131,13 +131,13 @@ ldscpp <- function(
   # cov.SE.p.liab.test.cDivS=0.000485594
   # verbose = F
 
-  #small test
-  # traits = p$sumstats[c("ANXI03","BODY14"),]$mungedpath.supermunge.1kg.orig.unfiltered
-  # sample.prev =  p$sumstats[c("ANXI03","BODY14"),]$samplePrevalence
-  # population.prev = p$sumstats[c("ANXI03","BODY14"),]$populationPrevalence
-  # trait.names = p$sumstats[c("ANXI03","BODY14"),]$code
-  # ld = p$folderpath.data.mvLDSC.ld.hm3
+  # #small test
+  # traits = p$sumstats[c("SMRV01","SMRV02"),]$mungedpath.supermunge.1kg.orig.unfiltered
+  # sample.prev =  p$sumstats[c("SMRV01","SMRV02"),]$samplePrevalence
+  # population.prev = p$sumstats[c("SMRV01","SMRV02"),]$populationPrevalence
+  # trait.names = p$sumstats[c("SMRV01","SMRV02"),]$code
   # #n.blocks = 200
+  # ld = p$folderpath.data.mvLDSC.ld.GLADp
   # ldsc.log = p$setup.code.date
   # preweight.alternativeCorrelationCorrection = F
   # preweight.ChiSquare = F

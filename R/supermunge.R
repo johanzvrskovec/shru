@@ -312,7 +312,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.22.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 0.24.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1273,7 +1273,10 @@ supermunge <- function(
         # Fix A1 and A2 to reflect the reference alleles
         cSumstats[,A1:=A1_REF]
         cSumstats[,A2:=A2_REF]
-        if(any(colnames(cSumstats)=="FRQ_REF")) cSumstats[,FRQ:=FRQ_REF]
+        if(any(colnames(cSumstats)=="FRQ_REF")) {
+          cSumstats[,FRQ:=FRQ_REF]
+          cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Forced to reference FRQ/MAF"))
+        }
       } else if(any(colnames(cSumstats)=="cond.invertedAlleleOrder")) { ## Invert alleles  -FRQ is dealt with below
         cSumstats[,A1:=ifelse(cond.invertedAlleleOrder, A2_ORIG, A1)]
         cSumstats[,A2:=ifelse(cond.invertedAlleleOrder, A1_ORIG, A2)]
@@ -1312,13 +1315,8 @@ supermunge <- function(
               #cSumstats$FRQ<-alleleFRQ
               cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Fitted (flipped) according to reference allele order"))
               sumstats.meta[iFile,c("FRQ.flipped")]<-T
-            } else {
-              cond.invertedMAF<-cSumstats$FRQ > .5
-              cSumstats$FRQ<-ifelse(cond.invertedMAF,1-cSumstats$FRQ,cSumstats$FRQ)
-              cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Forced to reference FRQ/MAF"))
-              sumstats.meta[iFile,c("FRQ.flipped")]<-F
-            
-          }
+          } #JZ: Removed the faulty fallback routine to infer FRQ from MAF
+          
           ### Compute MAF
           cond.invertedMAF<-cSumstats$FRQ > .5
           cSumstats$MAF<-ifelse(cond.invertedMAF,1-cSumstats$FRQ,cSumstats$FRQ)
