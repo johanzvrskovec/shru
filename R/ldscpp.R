@@ -21,7 +21,7 @@ ldscpp <- function(
                      chr = 23,
                      n.blocks = NA,
                      blocksizeM = 20000,
-                     blocksizeCM = 10,
+                     blocksizeCM = NA, #we have tested with 10 
                      minBlocksizeCM = NA, #5 as a good setting if anything
                      minBlocksizeM = 5000, #from ~ LDSC common blocksize at 200 blocks and HM3 reference
                      ldsc.log = NULL,
@@ -85,7 +85,7 @@ ldscpp <- function(
   # chr = 23
   # n.blocks = NA
   # blocksizeM = 20000
-  # blocksizeCM = 10
+  # blocksizeCM = NA
   # minBlocksizeCM = NA
   # minBlocksizeM = 5000
   # ldsc.log = NULL
