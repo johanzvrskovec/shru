@@ -29,7 +29,7 @@ ldscpp <- function(
                      GC=NULL, #vector with correction denominators
                      filter.chisq.max = NA,
                      filter.chisq.min = NA, #0.01579077, #qchisq(p = 0.1,df = 1)
-                     filter.zz.min = 0.01579077, #qchisq(p = 0.1,df = 1)
+                     filter.zz.min = NA, #0.01579077, #qchisq(p = 0.1,df = 1) #this is not recommended anymore
                      filter.info = NA, #this is the common more than (mt) filter, .6, #better to use the INFO -weighting below
                      filter.info.lt = NA, #this is a less than (lt) filter for producing results stratified by INFO. genotyped variants are considered to have INFO=1, and will be filered away with this filter !=NA.
                      filter.simpute.fraction = NA,
@@ -93,7 +93,7 @@ ldscpp <- function(
   # GC=NULL #vector with correction denominators
   # filter.chisq.max = NA
   # filter.chisq.min = NA
-  # filter.zz.min = 0.01579077
+  # filter.zz.min = NA #0.01579077
   # filter.info = NA
   # filter.info.lt = NA
   # filter.simpute.fraction = NA
