@@ -312,7 +312,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.0.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.1.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1187,6 +1187,14 @@ supermunge <- function(
             cSumstats.meta<-rbind(cSumstats.meta,list("FRQ still missing/non-finite, attempting to infer from reference fallback FRQ",as.character(nrow(cSumstats[!is.finite(FRQ),]))))
             cSumstats[!is.finite(FRQ),FRQ:=as.numeric(FRQFB_REF)]
           }
+        }
+        
+        
+        #Set INFO from reference
+        if(!any(colnames(cSumstats)=="INFO") & any(colnames(cSumstats)=="INFO_REF")){
+          cSumstats.meta<-rbind(cSumstats.meta,list("INFO","Missing. Set from reference."))
+          cSumstats[,INFO:=as.numeric(INFO_REF)]
+          cSumstats.warnings<-c(cSumstats.warnings,"Inferred all INFO from reference!")
         }
         
       }
