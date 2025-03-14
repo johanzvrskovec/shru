@@ -192,6 +192,10 @@ plot.corr <- function(
     SE=NULL, 
     filename,
     addrect = NULL,
+    width = 9,
+    height = 9,
+    units = 'in',
+    res = 100, #fairly low quality
     is.corr = T,
     is.full = T,
     tl.cex = 1.0,
@@ -274,8 +278,10 @@ plot.corr <- function(
   # if(!is.corr & all(corr>=0)) par.col.lim <- c(-round(max(corr),digits = 0),round(max(corr),digits = 0))
   # if(!is.corr & all(corr<=0)) par.col.lim <- c(round(min(corr)-1,digits = 0),-1*(round(min(corr)-1)))
   
-  png(filename = filename, width = 9, height = 9, units = 'in', res = 300, family = "Helvetica")
+  png(filename = filename, width = width, height = height, units = units, res = res, family = "Helvetica")
+  #res = 300
   par(xpd=TRUE) #keep labels inside margins
+  
   
   corrplot(corr = corr, type = m.type, method = "circle", insig='blank', order = "original", p.mat = pmat, sig.level = sig.level, pch.cex = 1.5, full_col=TRUE, na.label = "square", na.label.col = "grey30", diag=T, addrect = addrect, is.corr = is.corr, tl.cex = tl.cex, number.cex = number.cex, number.digits = number.digits, addCoef.col = par.addCoef.col, full_col=(!is.corr), col = pal(200), col.lim = par.col.lim, mar=c(0,0,4,0), title = title)$corrPos -> p1  #COL2('RdBu')
   
@@ -298,6 +304,14 @@ plot.corr <- function(
 #titleAdditionComparison = " vs original Genomic SEM LDSC"
 #df.summary=batRes$df.summary
 #newnames = newnames
+
+# mvldsc = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw.gladp
+# folderpath.plots = p$folderpath.plots
+# code = "ldscpp.gladp"
+# titleTemplate = "LDSC++ GLAD+ reference"
+# titleAddition = "\nVBCS, varblock, winfo, altcw"
+# mvldscComparison = p$mvLD$covstruct.mvLDSC.GSEMemulation.1kg.maf0_01.gladp
+# titleAdditionComparison = " vs LDSC++ (Genomic SEM emulated) 200 blocks"
 
 # mvldscComparison=NULL
 # testOnlyTraitNameCodes=NULL
