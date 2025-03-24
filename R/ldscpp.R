@@ -130,6 +130,16 @@ ldscpp <- function(
   # covariance_std_value_lower_limit = 0.05
   # cov.SE.p.liab.test.cDivS=0.000485594
   # verbose = F
+  
+  #test for dr dev
+  # traits = gwas.meta.sel$filePath
+  # sample.prev = gwas.meta.sel$samplePrevalence
+  # population.prev = gwas.meta.sel$populationPrevalence
+  # ld = ld_path
+  # trait.names = gwas.meta.sel$code
+  # filter.info = 0.6
+  # filter.maf = 0.01
+  # resamplingMethod = "vbcs"
 
   # #small test
   # traits = p$sumstats[c("SMRV01","SMRV02"),]$mungedpath.supermunge.1kg.orig.unfiltered
@@ -196,11 +206,15 @@ ldscpp <- function(
   # filter.zz.min = 0
   
   
+  
+  
   LOG <- function(..., print = TRUE) {
     msg <- paste0(...)
     if (print) print(msg)
     cat(msg, file = log.file, sep = "\n", append = TRUE)
   }
+  
+  LOG("\n\n\nLDSC++\t\tSHRU package version 1.2.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   
   time <- proc.time()
   
@@ -1223,50 +1237,52 @@ ldscpp <- function(
         tot.agg <- (M.tot*(mean(merged$chi1)-1))/mean(merged$L2*merged$N)
         tot.agg <- max(tot.agg,0)
         tot.agg <- min(tot.agg,1)
-        merged$ld <- pmax(merged$L2, 1)
-        merged$w.ld <- pmax(merged$wLD, 1)
-        merged$c <- tot.agg*merged$N/M.tot
-        merged$het.w <- 1/(2*(1+(merged$c*merged$ld))^2)
         if(preweight.alternativeCorrelationCorrection){
           LOG("Using alternate correlation correction")
-          merged$oc.w <- (1/(1+merged$w.ld)) #mod change - added 1+ to the denominator as this corresponds more to the original LDSC how it is described in the publication (i.e. the l(S) weight is actually 1 + the ld-score), and makes more sense to change the weight from 1 to less in proportion to the ld-score, rather than also upweighting the variant in case of LD-score<1.
+          merged$ld <- pmax(merged$L2, 0)
+          merged$w.ld <- pmax(merged$wLD, 0)
+          merged$oc.w <- (1/(1+merged$w.ld)) #mod change - added 1+ to the denominator as this corresponds more to the original LDSC how it is described in the publication (i.e. the l(S) weight is actually 1 + the ld-score), and makes more sense to change the weight from 1 to less in proportion to the ld-score, rather than also upweighting the variant in case of LD-score<1. HOWEVER!, the ld scores used are restricted to a minimum of 1, so not clear if needed anymore, or if the pmax limit should be set to 0 in combination with this weighting correction.
         } else {
+          merged$ld <- pmax(merged$L2, 1)
+          merged$w.ld <- pmax(merged$wLD, 1)
           merged$oc.w <- 1/merged$w.ld
         }
+        merged$c <- tot.agg*merged$N/M.tot
+        merged$het.w <- 1/(2*(1+(merged$c*merged$ld))^2)
+        
         merged[,chiSquare.w:=1]
         if(preweight.ChiSquare) merged[,chiSquare.w:=abs(Z)^2]
         merged[,gimp.w:=1]
         if(any(colnames(merged)=="INFO") & preweight.INFO) merged[is.finite(INFO),gimp.w:=INFO]
         merged[,imp.w:=1]
         if(any(colnames(merged)=="SINFO") & preweight.SINFO) merged[is.finite(SINFO),imp.w:=SINFO]
-        merged$w <- sqrt(merged$het.w*merged$oc.w*merged$chiSquare.w*merged$gimp.w*merged$imp.w) #TEST3!!!!
-        #merged$w <- sqrt(merged$het.w*merged$imp.w) #TEST!!!!
-        #merged$w <- sqrt(merged$het.w*merged$oc.w*merged$imp.w) #mod change
+        merged$w <- sqrt(merged$het.w*merged$oc.w*merged$chiSquare.w*merged$gimp.w*merged$imp.w)
         # merged$w <- merged$het.w*merged$oc.w
         # merged$initial.w <- sqrt(merged$w)
         
         tot.agg2 <- (M.tot*(mean(merged$chi2)-1))/mean(merged$L2*merged$i.N)
         tot.agg2 <- max(tot.agg2,0)
         tot.agg2 <- min(tot.agg2,1)
-        merged$ld2 <- pmax(merged$i.L2, 1)
-        merged$w.ld2 <- pmax(merged$wLD, 1)
-        merged$c2 <- tot.agg2*merged$i.N/M.tot
-        merged$het.w2 <- 1/(2*(1+(merged$c2*merged$ld2))^2)
         if(preweight.alternativeCorrelationCorrection){
           #LOG("Using alternate correlation correction")
+          merged$ld2 <- pmax(merged$i.L2, 0)
+          merged$w.ld2 <- pmax(merged$wLD, 0)
           merged$oc.w2 <- (1/(1+merged$w.ld2)) #mod change - see above
         } else {
+          merged$ld2 <- pmax(merged$i.L2, 1)
+          merged$w.ld2 <- pmax(merged$wLD, 1)
           merged$oc.w2 <- 1/merged$w.ld2
         }
+        merged$c2 <- tot.agg2*merged$i.N/M.tot
+        merged$het.w2 <- 1/(2*(1+(merged$c2*merged$ld2))^2)
+        
         merged[,chiSquare.w2:=1]
         if(preweight.ChiSquare) merged[,chiSquare.w2:=abs(i.Z)^2]
         merged[,gimp.w2:=1]
         if(any(colnames(merged)=="i.INFO") & preweight.INFO) merged[is.finite(i.INFO),gimp.w2:=i.INFO]
         merged[,imp.w2:=1]
         if(any(colnames(merged)=="i.SINFO") & preweight.SINFO) merged[is.finite(i.SINFO),imp.w2:=i.SINFO]
-        merged$w2 <- sqrt(merged$het.w2*merged$oc.w2*merged$chiSquare.w2*merged$gimp.w2*merged$imp.w2) #TEST3!!!
-        #merged$w2 <- sqrt(merged$het.w2*merged$imp.w2) #TEST!!!
-        #merged$w2 <- sqrt(merged$het.w2*merged$oc.w2*merged$imp.w2) #mod change
+        merged$w2 <- sqrt(merged$het.w2*merged$oc.w2*merged$chiSquare.w2*merged$gimp.w2*merged$imp.w2)
         # merged$w2 <- merged$het.w2*merged$oc.w2
         # merged$initial.w2 <- sqrt(merged$w2)
         
