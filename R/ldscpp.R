@@ -214,8 +214,6 @@ ldscpp <- function(
     cat(msg, file = log.file, sep = "\n", append = TRUE)
   }
   
-  LOG("\n\n\nLDSC++\t\tSHRU package version 1.2.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
-  
   time <- proc.time()
   
   begin.time <- Sys.time()
@@ -246,6 +244,8 @@ ldscpp <- function(
     }
     log.file <- file(paste0(log2, "_ldsc.log"),open="wt")
   }else{log.file<-file(paste0(ldsc.log, "_ldsc.log"),open="wt")}
+  
+  LOG("\n\n\nLDSC++\t\tSHRU package version 1.2.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   
   LOG("Multivariate ld-score regression of ", length(traits), " traits ",
       "(", paste(traits, collapse = " "), ")", " began at: ", begin.time)
