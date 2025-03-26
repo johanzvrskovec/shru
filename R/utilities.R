@@ -21,3 +21,8 @@ padStringLeft <- function(s,padding,targetLength){
   if(pl>0) {paste0(c(rep(padding,pl),s),collapse = "")} else {s}
 }
 
+replaceNa <- function(x,repl=0,includeNaN=TRUE){
+  x[is.na(x)|(includeNaN&is.nan(x))]<-repl
+  return(x)
+}
+
