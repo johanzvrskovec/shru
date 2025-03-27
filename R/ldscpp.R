@@ -141,6 +141,16 @@ ldscpp <- function(
   # filter.maf = 0.01
   # resamplingMethod = "vbcs"
   # doubleRegressionRoutine = T
+  
+  # traits = gwas.meta.sel$filePath
+  # sample.prev = gwas.meta.sel$samplePrevalence
+  # population.prev = gwas.meta.sel$populationPrevalence
+  # ld = file.path(folderpath.data,"ld_scores","w_ld.GLAD_EDGI_NBR.keep.b38.gcta")
+  # trait.names = gwas.meta.sel$code
+  # #no info filter!
+  # filter.maf = 0.01
+  # resamplingMethod = "vbcs"
+  # doubleRegressionRoutine = T
 
   # #small test
   # traits = p$sumstats[c("SMRV01","SMRV02"),]$mungedpath.supermunge.1kg.orig.unfiltered
@@ -1679,7 +1689,7 @@ ldscpp <- function(
               xty.delete <- xty.block.values.pos[i,]
               xtx.delete <- xtx.block.values.pos[delete.from[i]:delete.to[i],]
               cDelete.values.pos <- try(solve(xtx.delete, xty.delete, tol=1e-30))
-              if(inherits(cDelete.values.neg,"try-error")){
+              if(inherits(cDelete.values.pos,"try-error")){
                 warning(paste0("Error when solving positive block ",i))
               } else {
                 # #unsigned first since we re-use delete.values for the final results
