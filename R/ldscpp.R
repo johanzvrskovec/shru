@@ -138,7 +138,6 @@ ldscpp <- function(
   # population.prev = gwas.meta.sel$populationPrevalence
   # ld = ld_path
   # trait.names = gwas.meta.sel$code
-  # filter.info = 0.6
   # filter.maf = 0.01
   # resamplingMethod = "vbcs"
   # doubleRegressionRoutine = T
@@ -1350,9 +1349,12 @@ ldscpp <- function(
           chrs <- unique(merged$CHR)
           xty.block.values <- c()
           xtx.block.values <- c()
+          xty.block.values.pos <- xty.block.values
+          xtx.block.values.pos <- xtx.block.values
           xty.block.values.neg <- xty.block.values
           xtx.block.values.neg <- xtx.block.values
           LDvsChiCorrelation.block.values<-c()
+          LDvsChiCorrelation.block.values.pos<-c()
           LDvsChiCorrelation.block.values.neg<-c()
           LD.block.SS<-c()
           nVars.block<-c()
@@ -1389,20 +1391,21 @@ ldscpp <- function(
                   mPos[iBlock]<-sum(mChi>0)
                   mNeg[iBlock]<-sum(mChi<0)
                   #if(sum(mChi>0)>1){
-                  xty.block.values[iBlock] <- list(as.data.frame(t(t(mLD[which(mChi>0),]) %*% mChi[which(mChi>0),])))
-                  xtx.block.values[iBlock] <- list(as.data.frame(t(t(mLD[which(mChi>0),]) %*% mLD[which(mChi>0),])))
-                  LDvsChiCorrelation.block.values[iBlock]<-cor(x = mLD[which(mChi>0),1],y = mChi[which(mChi>0)])
+                  xty.block.values.pos[iBlock] <- list(as.data.frame(t(t(mLD[which(mChi>0),]) %*% mChi[which(mChi>0),])))
+                  xtx.block.values.pos[iBlock] <- list(as.data.frame(t(t(mLD[which(mChi>0),]) %*% mLD[which(mChi>0),])))
+                  LDvsChiCorrelation.block.values.pos[iBlock]<-cor(x = mLD[which(mChi>0),1],y = mChi[which(mChi>0)])
                   #}
                   if(mNeg[iBlock]>1){
                     xty.block.values.neg[iBlock] <- list(as.data.frame(t(t(mLD[which(mChi<0),]) %*% mChi[which(mChi<0),])))
                     xtx.block.values.neg[iBlock] <- list(as.data.frame(t(t(mLD[which(mChi<0),]) %*% mLD[which(mChi<0),])))
                     LDvsChiCorrelation.block.values.neg[iBlock]<-cor(x = mLD[which(mChi<0),1],y = mChi[which(mChi<0)])
                   }
-                } else {
+                } 
+                #else { #run this always for testing
                   xty.block.values[iBlock] <- list(as.data.frame(t(t(mLD) %*% mChi)))
                   xtx.block.values[iBlock] <- list(as.data.frame(t(t(mLD) %*% mLD)))
                   LDvsChiCorrelation.block.values[iBlock]<-cor(x = mLD,y = mChi)
-                }
+                #}
                 LD.block.SS[iBlock]<-sum((merged.block$m.LD - mean(merged.block$m.LD, na.rm=T))^2, na.rm = T)
                 nVars.block[iBlock]<-nrow(merged.block)
               
@@ -1428,6 +1431,8 @@ ldscpp <- function(
           
           xty.block.values <- as.matrix(rbindlist(xty.block.values))
           xtx.block.values <- as.matrix(rbindlist(xtx.block.values))
+          xty.block.values.pos <- as.matrix(rbindlist(xty.block.values.pos))
+          xtx.block.values.pos <- as.matrix(rbindlist(xtx.block.values.pos))
           xty.block.values.neg <- as.matrix(rbindlist(xty.block.values.neg))
           xtx.block.values.neg <- as.matrix(rbindlist(xtx.block.values.neg))
           
@@ -1663,13 +1668,32 @@ ldscpp <- function(
             #i<-141
             xty.delete <- xty.block.values[i,]
             xtx.delete <- xtx.block.values[delete.from[i]:delete.to[i],]
-            cDelete.values<-try(solve(xtx.delete, xty.delete, tol=1e-30)) #solves for positive sign blocks only if doubleRegressionRoutine=T
+            cDelete.values<-try(solve(xtx.delete, xty.delete, tol=1e-30))
             if(inherits(cDelete.values,"try-error")){
-              warning(paste0("Error when solving positive block ",i))
+              warning(paste0("Error when solving general block ",i))
             } else {
               delete.values[i,] <- cDelete.values
             }
-            if(doubleRegressionRoutine & all(!is.na(xty.block.values.neg[i,])) & all(!is.na(xtx.block.values[delete.from[i]:delete.to[i],]))){
+            
+            if(doubleRegressionRoutine & all(!is.na(xty.block.values.pos[i,])) & all(!is.na(xtx.block.values.pos[delete.from[i]:delete.to[i],]))){
+              xty.delete <- xty.block.values.pos[i,]
+              xtx.delete <- xtx.block.values.pos[delete.from[i]:delete.to[i],]
+              cDelete.values.pos <- try(solve(xtx.delete, xty.delete, tol=1e-30))
+              if(inherits(cDelete.values.neg,"try-error")){
+                warning(paste0("Error when solving positive block ",i))
+              } else {
+                # #unsigned first since we re-use delete.values for the final results
+                # delete.values.unsigned[i,1]<-(mPos[i] * delete.values[i,1] + mNeg[i] * (-1) * cDelete.values.neg[1])/(mPos[i]+mNeg[i])
+                # delete.values.unsigned[i,2]<-(mPos[i] * delete.values[i,2] + mNeg[i] * (-1) * cDelete.values.neg[2])/(mPos[i]+mNeg[i])
+                # delete.values.pos[i,1] <- (mPos[i] * delete.values[i,1] + mNeg[i] * cDelete.values.neg[1])/(mPos[i]+mNeg[i])
+                # delete.values.pos[i,2] <- (mPos[i] * delete.values[i,2] + mNeg[i] * cDelete.values.neg[2])/(mPos[i]+mNeg[i])
+                delete.values.pos[i,] <- cDelete.values.pos
+              }
+              #LDvsChiCorrelation.block.values[i] <- (mPos[i] * LDvsChiCorrelation.block.values[i] + mNeg[i] * (-1) * LDvsChiCorrelation.block.values.neg[i])/(mPos[i]+mNeg[i])
+              
+            }
+            
+            if(doubleRegressionRoutine & all(!is.na(xty.block.values.neg[i,])) & all(!is.na(xtx.block.values.neg[delete.from[i]:delete.to[i],]))){
               xty.delete <- xty.block.values.neg[i,]
               xtx.delete <- xtx.block.values.neg[delete.from[i]:delete.to[i],]
               cDelete.values.neg <- try(solve(xtx.delete, xty.delete, tol=1e-30))
@@ -1677,12 +1701,13 @@ ldscpp <- function(
                 warning(paste0("Error when solving negative block ",i))
               } else {
                 #unsigned first since we re-use delete.values for the final results
-                delete.values.unsigned[i,1]<-(mPos[i] * delete.values[i,1] + mNeg[i] * (-1) * cDelete.values.neg[1])/(mPos[i]+mNeg[i])
-                delete.values.unsigned[i,2]<-(mPos[i] * delete.values[i,2] + mNeg[i] * (-1) * cDelete.values.neg[2])/(mPos[i]+mNeg[i])
-                delete.values[i,1] <- (mPos[i] * delete.values[i,1] + mNeg[i] * cDelete.values.neg[1])/(mPos[i]+mNeg[i])
-                delete.values[i,2] <- (mPos[i] * delete.values[i,2] + mNeg[i] * cDelete.values.neg[2])/(mPos[i]+mNeg[i])
+                # delete.values.unsigned[i,1]<-(mPos[i] * delete.values[i,1] + mNeg[i] * (-1) * cDelete.values.neg[1])/(mPos[i]+mNeg[i])
+                # delete.values.unsigned[i,2]<-(mPos[i] * delete.values[i,2] + mNeg[i] * (-1) * cDelete.values.neg[2])/(mPos[i]+mNeg[i])
+                # delete.values[i,1] <- (mPos[i] * delete.values[i,1] + mNeg[i] * cDelete.values.neg[1])/(mPos[i]+mNeg[i])
+                # delete.values[i,2] <- (mPos[i] * delete.values[i,2] + mNeg[i] * cDelete.values.neg[2])/(mPos[i]+mNeg[i])
+                delete.values.neg[i,] <- cDelete.values.neg
               }
-              LDvsChiCorrelation.block.values[i] <- (mPos[i] * LDvsChiCorrelation.block.values[i] + mNeg[i] * (-1) * LDvsChiCorrelation.block.values.neg[i])/(mPos[i]+mNeg[i])
+              #LDvsChiCorrelation.block.values[i] <- (mPos[i] * LDvsChiCorrelation.block.values[i] + mNeg[i] * (-1) * LDvsChiCorrelation.block.values.neg[i])/(mPos[i]+mNeg[i])
               
             }
            
@@ -1760,7 +1785,30 @@ ldscpp <- function(
           
           N.vec[1, s] <- N.bar
           
-          #standard
+          #pos
+          jackknife.cov.pos <- cov(delete.values.pos)/n.blocksToUse #Should be n.blocks -1 ? #should be n.blocksToUse^2 ??? we do not correct this
+          jackknife.se.pos <- sqrt(diag(jackknife.cov.pos))
+          intercept.se.pos <- jackknife.se.pos[length(jackknife.se.pos)]
+          coef.cov.pos <- jackknife.cov.pos[1:n.annot,1:n.annot]/(N.bar^2)
+          cat.cov.pos <- coef.cov.pos*(M.tot %*% t(M.tot))
+          tot.cov.pos <- sum(cat.cov.pos)
+          tot.se.pos <- sqrt(tot.cov.pos)
+          lV.pos[s]<-list(delete.values.pos[,1])
+          
+          #neg
+          jackknife.cov.neg <- cov(delete.values.neg)/n.blocksToUse #Should be n.blocks -1 ? #should be n.blocksToUse^2 ??? we do not correct this
+          jackknife.se.neg <- sqrt(diag(jackknife.cov.neg))
+          intercept.se.neg <- jackknife.se.neg[length(jackknife.se.neg)]
+          coef.cov.neg <- jackknife.cov.neg[1:n.annot,1:n.annot]/(N.bar^2)
+          cat.cov.neg <- coef.cov.neg*(M.tot %*% t(M.tot))
+          tot.cov.neg <- sum(cat.cov.neg)
+          tot.se.neg <- sqrt(tot.cov.neg)
+          lV.neg[s]<-ifelse(
+            j == k,
+            list(delete.values.pos[,1]),
+            list(delete.values.neg[,1])) #set diagonal elements to equal the results from the positive regressions
+          
+          #old
           jackknife.cov <- cov(delete.values)/n.blocksToUse #Should be n.blocks -1 ?
           jackknife.se <- sqrt(diag(jackknife.cov))
           intercept.se <- jackknife.se[length(jackknife.se)]
@@ -1772,43 +1820,72 @@ ldscpp <- function(
           
   
           #TODO -fix so it works with n.annot
+          reg.pos <- t(as.matrix(data.frame(v1=mean(delete.values.pos[is.finite(delete.values.pos[,1]),1]),v2=mean(delete.values.pos[is.finite(delete.values.pos[,2]),2]))))
+          reg.neg <- t(as.matrix(data.frame(v1=mean(delete.values.neg[is.finite(delete.values.neg[,1]),1]),v2=mean(delete.values.neg[is.finite(delete.values.neg[,2]),2]))))
           reg <- t(as.matrix(data.frame(v1=mean(delete.values[is.finite(delete.values[,1]),1]),v2=mean(delete.values[is.finite(delete.values[,2]),2]))))
-          #reg <- t(as.matrix(data.frame(v1=median(delete.values[is.finite(delete.values[,1]),1]),v2=median(delete.values[is.finite(delete.values[,2]),2]))))
+          #reg <- t(as.matrix(data.frame(v1=median(delete.values[is.finite(delete.values[,1]),1]),v2=median(delete.values[is.finite(delete.values[,2]),2])))) #test with median
           
           #convert coeficients to heritability
           intercept <- reg[[2]]
-          coefs <- reg[[1]]/N.bar
-          reg.tot <- coefs*M.tot #replaced m with M.tot, they should be the same
+          intercept.pos <- reg.pos[[2]]
+          intercept.neg <- reg.neg[[2]]
+          
+          #coefs <- reg[[1]]/N.bar
+          reg.tot <- (reg[[1]]/N.bar)*M.tot #replaced m with M.tot, they should be the same
+          reg.tot.pos <- (reg.pos[[1]]/N.bar)*M.tot
+          reg.tot.neg <- (reg.neg[[1]]/N.bar)*M.tot
           
           
-          #unsigned - defaults to signed results
-          reg.tot.unsigned<-reg.tot
-          intercept.unsigned<-intercept
-          tot.se.unsigned<-tot.se
-          intercept.se.unsigned<-intercept.se
-          lV.unsigned[s]<-lV[s]
-          if(any(!is.na(delete.values.unsigned))){
-            jackknife.cov.unsigned <- cov(delete.values.unsigned)/n.blocksToUse #Original
-            jackknife.se.unsigned <- sqrt(diag(jackknife.cov.unsigned))
-            intercept.se.unsigned <- jackknife.se.unsigned[length(jackknife.se.unsigned)]
-            coef.cov.unsigned <- jackknife.cov.unsigned[1:n.annot,1:n.annot]/(N.bar^2)
-            cat.cov.unsigned <- coef.cov.unsigned*(M.tot %*% t(M.tot))
-            tot.cov.unsigned <- sum(cat.cov.unsigned)
-            tot.se.unsigned <- sqrt(tot.cov.unsigned)
-            lV.unsigned[s]<-list(delete.values.unsigned[,1])
-            
-            
-            #TODO -fix so it works with n.annot
-            reg.unsigned <- t(as.matrix(data.frame(v1=mean(delete.values.unsigned[is.finite(delete.values.unsigned[,1]),1]),v2=mean(delete.values.unsigned[is.finite(delete.values.unsigned[,2]),2]))))
-            
-            #convert coeficients to heritability
-            intercept <- reg[[2]]
-            intercept.unsigned <- reg.unsigned[[2]]
-            coefs <- reg[[1]]/N.bar
-            coefs.unsigned <- reg.unsigned[[1]]/N.bar
-            reg.tot <- coefs*M.tot #replaced m with M.tot, they should be the same
-            reg.tot.unsigned <- coefs.unsigned*M.tot
+          #signed consensus
+          intercept.signed <- (mPosTotAvg*replaceNa(intercept.pos)+mNegTotAvg*replaceNa(intercept.neg))/(mPosTotAvg+mNegTotAvg)
+          intercept.se.signed <- (mPosTotAvg*replaceNa(intercept.se.pos)+mNegTotAvg*replaceNa(intercept.se.neg))/(mPosTotAvg+mNegTotAvg) #do we want to do statistical inference here rather than weighted average? do we know the correlations between the variables?
+          reg.tot.signed <- (mPosTotAvg*replaceNa(reg.tot.pos)+mNegTotAvg*replaceNa(reg.tot.neg))/(mPosTotAvg+mNegTotAvg)
+          tot.se.signed <- (mPosTotAvg*replaceNa(tot.se.pos)+mNegTotAvg*replaceNa(tot.se.neg))/(mPosTotAvg+mNegTotAvg)
+          if(hasNegativeResultsCheck){
+            lV.signed[s]<-list(
+              ((mPosTotAvg*delete.values.pos+mNegTotAvg*delete.values.neg)/(mPosTotAvg+mNegTotAvg))[,1]
+            )
+          } else {
+            lV.signed[s]<-list(delete.values.pos[,1]) #we assume there to always be some positive results
           }
+          
+          #unsigned consensus
+          intercept.unsigned <- (mPosTotAvg*abs(replaceNa(intercept.pos))+mNegTotAvg*abs(replaceNa(intercept.neg)))/(mPosTotAvg+mNegTotAvg)
+          intercept.se.unsigned <- (mPosTotAvg*replaceNa(intercept.se.pos)+mNegTotAvg*replaceNa(intercept.se.neg))/(mPosTotAvg+mNegTotAvg) #should equal the signed se
+          reg.tot.unsigned <- (mPosTotAvg*abs(replaceNa(reg.tot.pos))+mNegTotAvg*abs(replaceNa(reg.tot.neg)))/(mPosTotAvg+mNegTotAvg)
+          tot.se.unsigned <- (mPosTotAvg*replaceNa(tot.se.pos)+mNegTotAvg*replaceNa(tot.se.neg))/(mPosTotAvg+mNegTotAvg) #should equal the signed se
+          if(hasNegativeResultsCheck){
+            lV.unsigned[s]<-list(
+              ((mPosTotAvg*abs(delete.values.pos)+mNegTotAvg*abs(delete.values.neg))/(mPosTotAvg+mNegTotAvg))[,1]
+            )
+          } else {
+            lV.unsigned[s]<-list(delete.values.pos[,1]) #we assume there to always be some positive results
+          }
+          
+          
+          #old
+          # if(any(!is.na(delete.values.unsigned))){
+          #   jackknife.cov.unsigned <- cov(delete.values.unsigned)/n.blocksToUse #Original
+          #   jackknife.se.unsigned <- sqrt(diag(jackknife.cov.unsigned))
+          #   intercept.se.unsigned <- jackknife.se.unsigned[length(jackknife.se.unsigned)]
+          #   coef.cov.unsigned <- jackknife.cov.unsigned[1:n.annot,1:n.annot]/(N.bar^2)
+          #   cat.cov.unsigned <- coef.cov.unsigned*(M.tot %*% t(M.tot))
+          #   tot.cov.unsigned <- sum(cat.cov.unsigned)
+          #   tot.se.unsigned <- sqrt(tot.cov.unsigned)
+          #   lV.unsigned[s]<-list(delete.values.unsigned[,1])
+          #   
+          #   
+          #   #TODO -fix so it works with n.annot
+          #   reg.unsigned <- t(as.matrix(data.frame(v1=mean(delete.values.unsigned[is.finite(delete.values.unsigned[,1]),1]),v2=mean(delete.values.unsigned[is.finite(delete.values.unsigned[,2]),2]))))
+          #   
+          #   #convert coeficients to heritability
+          #   intercept <- reg[[2]]
+          #   intercept.unsigned <- reg.unsigned[[2]]
+          #   coefs <- reg[[1]]/N.bar
+          #   coefs.unsigned <- reg.unsigned[[1]]/N.bar
+          #   reg.tot <- coefs*M.tot #replaced m with M.tot, they should be the same
+          #   reg.tot.unsigned <- coefs.unsigned*M.tot
+          # }
   
         }
         
@@ -1850,10 +1927,10 @@ ldscpp <- function(
             
             LOG("Results following")
             LOG("Mean abs(Z*Z): ", round(mean(abs(merged$ZZ)), 4), ", Median abs(Z*Z): ", round(median(abs(merged$ZZ)), 4))
-            LOG("Cross trait Intercept, sign/unsign: ", round(intercept.signed, 4), " (", round(intercept.se.signed, 4), ") / ",round(intercept.unsigned, 4), " (", round(intercept.se.unsigned, 4), ")")
-            LOG("Total Observed Scale Genetic Covariance (g_cov), sign/unsign: ", round(reg.tot.signed, 4), " (", round(tot.se, 4), ") / ", round(reg.tot.unsigned, 4), " (", round(tot.se.unsigned, 4), ")")
-            LOG("g_cov Z, sign/unsign: ", round(reg.tot.signed / tot.se.signed,3), " / ", round(reg.tot.unsigned / tot.se.unsigned,3))
-            LOG("g_cov P-value, sign/unsign: ", round(cov.p[k, j], 6), " / ", round(cov.p.unsigned[k, j], 6))
+            LOG("Cross trait Intercept, aligned/opposing: ", round(intercept.pos, 4), " (", round(intercept.se.pos, 4), ") / ",round(intercept.neg, 4), " (", round(intercept.se.neg, 4), ")")
+            LOG("Total Observed Scale Genetic Covariance (g_cov), aligned/opposing: ", round(reg.tot.pos, 4), " (", round(tot.se.pos, 4), ") / ", round(reg.tot.neg, 4), " (", round(tot.se.neg, 4), ")")
+            LOG("g_cov Z, aligned/opposing: ", round(reg.tot.pos / tot.se.pos,3), " / ", round(reg.tot.neg / tot.se.neg,3))
+            LOG("g_cov P-value, aligned/opposing: ", round(cov.pos.p[k, j], 6), " / ", round(cov.neg.p[k, j], 6))
             
           } else {
             
@@ -2225,7 +2302,7 @@ ldscpp <- function(
               chi2<-traits[k]
             }else{chi2 <- trait.names[k]}
             
-            LOG("Total Liability Scale covG for ", chi1, " and ",chi2,", sign/unsign: ", round(S.signed[k, j], 3), " (", round(S.signed.SE[k, j], 4), ")"," [", round(S.signed.SE[k, j]/S.signed[k, j], 3),"]"," / ", round(S.unsigned[k, j], 3), " (", round(S.unsigned.SE[k, j], 4), ")"," [", round(S.unsigned.SE[k, j]/S.unsigned[k, j], 3),"]")
+            LOG("Total Liability Scale covG for ", chi1, " and ",chi2,", aligned/opposing/consensus(signed): ", round(S.pos[k, j], 3), " (", round(S.pos.SE[k, j], 4), ")"," [", round(S.pos.SE[k, j]/S.pos[k, j], 3),"]"," / ", round(S.neg[k, j], 3), " (", round(S.neg.SE[k, j], 4), ")"," [", round(S.neg.SE[k, j]/S.neg[k, j], 3),"]"," / ", round(S.signed[k, j], 3), " (", round(S.signed.SE[k, j], 4), ")"," [", round(S.signed.SE[k, j]/S.signed[k, j], 3),"]")
             
             LOG("     ", print = FALSE)
           }
@@ -2247,12 +2324,10 @@ ldscpp <- function(
               
             LOG("Genetic Correlation between ", chi1, " and ", chi2)
             
-            LOG("Signed/unsigned: ",
-                  round(S.signed_Stand[k, j], 4), " (", round(S.signed_Stand.SE[k, j], 4), ") / ",round(S.unsigned_Stand[k, j], 4), " (", round(S.unsigned_Stand.SE[k, j], 4), ")")
-            LOG("Aligned/opposing: ",
-                round(S.pos_Stand[k, j], 4), " (", round(S.pos_Stand.SE[k, j], 4), ") / ",round(S.neg_Stand[k, j], 4), " (", round(S.neg_Stand.SE[k, j], 4), ")")
-              
-            
+            # LOG("Signed/unsigned: ",
+            #       round(S.signed_Stand[k, j], 4), " (", round(S.signed_Stand.SE[k, j], 4), ") / ",round(S.unsigned_Stand[k, j], 4), " (", round(S.unsigned_Stand.SE[k, j], 4), ")")
+            LOG("Aligned/opposing/consensus(signed): ",
+                round(S.pos_Stand[k, j], 4), " (", round(S.pos_Stand.SE[k, j], 4), ") / ",round(S.neg_Stand[k, j], 4), " (", round(S.neg_Stand.SE[k, j], 4), ") / ",round(S.signed_Stand[k, j], 4), " (", round(S.signed_Stand.SE[k, j], 4), ")")
             LOG("     ", print = FALSE)
           }
         }
