@@ -2382,11 +2382,8 @@ ldscpp <- function(
               chi2<-traits[k]
             }else{chi2 <- trait.names[k]}
             
-            if(any(!is.na(delete.values.unsigned))){
-              LOG("Total Liability Scale covG for ", chi1, " and ",chi2,": ", round(S[k, j], 3), " (", round(S.SE[k, j], 4), ")"," [", round(S.SE[k, j]/S[k, j], 3),"]"," / ", round(S.unsigned[k, j], 3), " (", round(SE.unsigned[k, j], 4), ")"," [", round(S.SE.unsigned[k, j]/S.unsigned[k, j], 3),"]",)
-            } else {
-              LOG("Total Liability Scale covG for ", chi1, " and ",chi2,": ", round(S[k, j], 3), " (", round(S.SE[k, j], 4), ")"," [", round(S.SE[k, j]/S[k, j], 3),"]")
-            } #round(sign(S.VAR.std_normal[k, j])*sqrt(abs(S.VAR.std_normal[k, j])), 3)
+            LOG("Total Liability Scale covG for ", chi1, " and ",chi2,": ", round(S[k, j], 3), " (", round(S.SE[k, j], 4), ")"," [", round(S.SE[k, j]/S[k, j], 3),"]")
+           #round(sign(S.VAR.std_normal[k, j])*sqrt(abs(S.VAR.std_normal[k, j])), 3)
             LOG("     ", print = FALSE)
           }
         }
@@ -2405,17 +2402,11 @@ ldscpp <- function(
               chi2<-traits[k]
             }else{chi2 <- trait.names[k]}
             
-            if(any(!is.na(delete.values.unsigned))){
+            
               
-              LOG("Genetic Correlation between ", chi1, " and ", chi2, ", sign/unsign: ",
-                  round(S_Stand[k, j], 4), " (", round(S_Stand.SE[k, j], 4), ") / ",round(S_Stand.unsigned[k, j], 4), " (", round(S_Stand.SE.unsigned[k, j], 4), ")")
+            LOG("Genetic Correlation between ", chi1, " and ", chi2, ": ",
+                round(S_Stand[k, j], 4), " (", round(S_Stand.SE[k, j], 4), ")")
               
-            } else {
-              
-              LOG("Genetic Correlation between ", chi1, " and ", chi2, ": ",
-                  round(S_Stand[k, j], 4), " (", round(S_Stand.SE[k, j], 4), ")")
-              
-            }
             LOG("     ", print = FALSE)
           }
         }
