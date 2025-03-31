@@ -1522,6 +1522,7 @@ ldscpp <- function(
         } #end of block values construction
         
         hasPositiveResultsCheck<-hasNegativeResultsCheck<-F #init
+        mPosTotAvg<-mNegTotAvg<-0
         if(doubleRegressionRoutine){
           
           mPosTotAvg<-mean(mPos,na.rm = T)
@@ -1574,13 +1575,18 @@ ldscpp <- function(
           }
           #}
           
-          reg.pos<-matrix(NA,1,nrow(xty.pos))
-          reg.neg<-matrix(NA,1,nrow(xty.neg))
           if(doubleRegressionRoutine){
+            reg.pos<-reg.neg<-matrix(NA,1,nrow(xty.pos))
             if(hasPositiveResultsCheck) reg.pos <- solve(xtx.pos, xty.pos)
             if(hasNegativeResultsCheck) reg.neg <- solve(xtx.neg, xty.neg)
           }
           reg <- solve(xtx, xty)
+          
+          #fallback for non-dr runs
+          reg.pos<-reg.neg<-matrix(NA,1,nrow(xty)) 
+          xty.delete.pos<-xty.delete.neg<-matrix(NA,nrow(xty.delete),ncol(xty.delete))
+          xtx.delete.pos<-xtx.delete.neg<-matrix(NA,nrow(xtx.delete),ncol(xtx.delete))
+          delete.values.pos<-delete.values.neg<-matrix(NA,nrow(delete.values),ncol(delete.values))
           
           #convert coeficients to heritability
           intercept <- reg[2]
@@ -1769,6 +1775,9 @@ ldscpp <- function(
             #delete.values[,1] <- delete.values[,1] * overallAttenuationCorrectionFactor
             #TODO - correct the intercept to correspond to the new slope - is this needed?
           }
+          
+          #fallback for non-dr runs
+          delete.values.pos<-delete.values.neg<-matrix(NA,nrow(delete.values),ncol(delete.values))
           
           LOG("Correlation bias correction factor (mean) =",round(overallAttenuationCorrectionFactor,digits = 3))
           # #TEST!!! restore Chi2 weighting
