@@ -1448,6 +1448,9 @@ ldscpp <- function(
           
           n.blocksToUse <- nrow(xty.block.values)
           
+          #fallback for later checks
+          if(nrow(xty.block.values.pos)<1) xty.block.values.pos <- matrix(data=NA,nrow=n.blocksToUse,ncol =(n.annot+1))
+          if(nrow(xtx.block.values.pos)<1) xtx.block.values.pos <- matrix(data=NA,nrow =((n.annot+1)* n.blocksToUse),ncol =(n.annot+1))
           if(nrow(xty.block.values.neg)<1) xty.block.values.neg <- matrix(data=NA,nrow=n.blocksToUse,ncol =(n.annot+1))
           if(nrow(xtx.block.values.neg)<1) xtx.block.values.neg <- matrix(data=NA,nrow =((n.annot+1)* n.blocksToUse),ncol =(n.annot+1))
           
