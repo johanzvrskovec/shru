@@ -295,23 +295,19 @@ plot.corr <- function(
 }
 
 # #TESTS
+# mvldsc = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.altcw.sim
+# folderpath.plots = p$folderpath.plots
+# code = "sim.vbcs.v.altcw_gcta.reml"
+# titleTemplate = "Simulated traits"
+# titleAddition = "\nVariable Block-Count Sampling, #variants blocks"
+# mvldscComparison = pretendGCTAcovstruct
+# titleAdditionComparison = " vs GCTA REML"
+
 # mvldsc = pretendGCTAcovstruct
 # folderpath.plots = p$folderpath.plots
 # code = "gladp.gcta.reml"
 # titleTemplate = "GCTA REML, GLAD+ reference"
 # titleAddition = ""
-#mvldscComparison =semplate$amendGsemLDSC(  p$mvLD$covstruct.GSEMmvLDSC.gladp.sim)
-#titleAdditionComparison = " vs original Genomic SEM LDSC"
-#df.summary=batRes$df.summary
-#newnames = newnames
-
-# mvldsc = p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw.gladp
-# folderpath.plots = p$folderpath.plots
-# code = "ldscpp.gladp"
-# titleTemplate = "LDSC++ GLAD+ reference"
-# titleAddition = "\nVBCS, varblock, winfo, altcw"
-# mvldscComparison = p$mvLD$covstruct.mvLDSC.GSEMemulation.1kg.maf0_01.gladp
-# titleAdditionComparison = " vs LDSC++ (Genomic SEM emulated) 200 blocks"
 
 # mvldscComparison=NULL
 # testOnlyTraitNameCodes=NULL
@@ -388,8 +384,10 @@ plotAndTestBatteryForMVLDSC <- function(
   
   df.summary[code,"mAbsCovG"]<- mean(abs(mvldsc$S[lower.tri(mvldsc$S, diag = T)]),na.rm=T)
   df.summary[code,"mAbsCovG.h2"]<- mean(abs(diag(mvldsc$S)),na.rm=T)
+  mForPlot<-mvldsc$S
+  mForPlot[is.na(mForPlot)]<-0
   if(doPlotting) plot.corr(
-    corr = mvldsc$S,
+    corr = mForPlot,
     pmat = mvldsc$cov.p.fdr2,
     filename = file.path(folderpath.plots,paste0("covg.",code,".png")),
     is.corr = F,
@@ -400,8 +398,10 @@ plotAndTestBatteryForMVLDSC <- function(
     title = paste0("Genetic covariances (covG), ",titleTemplate,titleAddition)
   )
   
+  mForPlot<-mvldsc$S.SE
+  mForPlot[is.na(mForPlot)]<-0
   if(doPlotting) plot.corr(
-    corr = mvldsc$S.SE,
+    corr = mForPlot,
     #pmat = mvldsc$cov.p.fdr2,
     filename = file.path(folderpath.plots,paste0("covgse.",code,".png")),
     is.corr = F,
@@ -415,12 +415,14 @@ plotAndTestBatteryForMVLDSC <- function(
   #use covG but apply rG limit settings - turns out brings same results as using the rG straight away
   #TODO - add to ldscpp
   S_ForCV<-abs(mvldsc$S)
+  S_ForCV[is.na(S_ForCV)]<-0
   g_se <- sqrt(diag(S_ForCV))
   S_se2 <- g_se %*% t(g_se) #this is the diagonal based genetic covariance
   S_ForCV[S_ForCV < S_se2 * cv.S_StandLimit] <- (S_se2 * cv.S_StandLimit)[S_ForCV < S_se2 * cv.S_StandLimit] #cap at min rg 0.05 to avoid extreme values
   S.CV<-(mvldsc$S.SE/S_ForCV)
   df.summary[code,"mAbsCovGCV"]<- mean(abs(S.CV[lower.tri(S.CV, diag = T)]),na.rm=T)
   df.summary[code,"mAbsCovGCV.h2"]<- mean(abs(diag(S.CV)),na.rm=T)
+  S.CV[is.na(S.CV)]<-0
   if(doPlotting) plot.corr(
     corr = S.CV,
     #pmat = mvldsc$cov.p.fdr2,
@@ -433,8 +435,10 @@ plotAndTestBatteryForMVLDSC <- function(
     title = paste0("Genetic covariance (covG) Coefficients of Variation (CV), ",titleTemplate,titleAddition)
   )
   
+  mForPlot<-clipValues(mvldsc$S_Stand,-1,1)
+  mForPlot[is.na(mForPlot)]<-0
   if(doPlotting) plot.corr(
-    corr = clipValues(mvldsc$S_Stand,-1,1),
+    corr = mForPlot,
     pmat = mvldsc$cov.p.fdr2,
     filename = file.path(folderpath.plots,paste0("rg.",code,".png")),
     is.corr = T,
@@ -445,8 +449,10 @@ plotAndTestBatteryForMVLDSC <- function(
     title = paste0("Genetic correlations (rG), ",titleTemplate,titleAddition)
   )
   
+  mForPlot<-clipValues(mvldsc$S_Stand.SE,-1,1)
+  mForPlot[is.na(mForPlot)]<-0
   if(doPlotting) plot.corr(
-    corr = mvldsc$S_Stand.SE,
+    corr = mForPlot,
     #pmat = mvldsc$cov.p.fdr2,
     filename = file.path(folderpath.plots,paste0("rgse.",code,".png")),
     is.corr = F,
@@ -510,7 +516,9 @@ plotAndTestBatteryForMVLDSC <- function(
     dP<-comparisonTest$pTest.values.adj
     dP[is.na(dP)]<-1
     dS_Stand<-clipValues(mvldsc$S_Stand,-1,1)-clipValues(mvldscComparison$S_Stand,-1,1) #re-compute as we need the full matrices here
+    dS_Stand[is.na(dS_Stand)]<-0
     dS_Stand.totest<-dS_Stand[testOnlyTraitNameCodes,testOnlyTraitNameCodes]
+    dS_Stand.totest[is.na(dS_Stand.totest)]<-0
     if(doPlotting) plot.corr(
       corr = dS_Stand,
       #pmat = dP,
