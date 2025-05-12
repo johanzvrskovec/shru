@@ -216,7 +216,7 @@ ldscpp <- function(
   # filter.maf = 0.01
   # filter.zz.min = 0
   
-  cat("\n\n\nLDSC++\t\tSHRU package version 1.3.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nLDSC++\t\tSHRU package version 1.4.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   #this is not written in the log btw
   
   LOG <- function(..., print = TRUE) {
@@ -503,7 +503,7 @@ ldscpp <- function(
       LOG("Total M (read from ld score files): ",M.tot)
     }
     if(any(colnames(x.copy)=="FRQ") & M.tot==0) {
-      M.tot<-nrow(x.copy[FRQ>0.05 & FRQ<0.995,]) #may be pushed downward from 0.05 as we have larger samples now compared to when original ldsc was published?
+      M.tot<-nrow(x.copy[FRQ>0.05 & FRQ<0.95,]) #may be pushed downward from 0.05 as we have larger samples now compared to when original ldsc was published?
       LOG("Total M (from LD reference, MAF>0.05): ",M.tot," using ancestry setting: ",referenceAncestrySetting)
     }
     if(M.tot==0){
@@ -2180,7 +2180,7 @@ ldscpp <- function(
     
     #liability scale s.e./variance p-values - NEW - NOT FINISHED! - we may use the same test as for the difference in variance.
     
-    #calculatuon of reference constants for tests (c)
+    #calculation of reference constants for tests (c)
     # var1 <- abs((p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S.SE^2)/p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S)
     # var2 <- abs((p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S.SE^2)/(p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$S*p$mvLD$covstruct.mvLDSC.1kg.vbcs.varblock.winfo.altcw$cov.blocks))
     # median(var1[lower.tri(var1,diag = T)])
@@ -2191,11 +2191,6 @@ ldscpp <- function(
     cov.SE.p.liab[lower.tri(cov.p.liab,diag=TRUE)]<- pchisq(
       q = ((S.SE[lower.tri(S.SE,diag=TRUE)])^2)/((cov.blocks-1)[lower.tri(cov.blocks,diag=TRUE)])-(cov.SE.p.liab.test.cDivS*S)[lower.tri(S,diag=TRUE)],
       df = (cov.blocks-1)[lower.tri(cov.blocks,diag=TRUE)], lower.tail = FALSE)
-    # cov.SE.p.liab[lower.tri(cov.p.liab,diag=TRUE)]<-2*pnorm(
-    #   q = abs(S.SE[lower.tri(S.SE,diag=TRUE)])^2,
-    #   mean = (cov.SE.p.liab.test.cDivS*S)[lower.tri(S,diag=TRUE)], #variant 1 median of full LDSC++ S.SE^2
-    #   sd = (2*(S.SE[lower.tri(S.SE,diag=TRUE)])^4)/(cov.blocks[lower.tri(cov.blocks,diag=TRUE)]-1),
-    #   lower.tail = FALSE)
     
     cov.SE.p.liab[upper.tri(cov.SE.p.liab)]<-t(cov.SE.p.liab)[upper.tri(cov.SE.p.liab)]
     colnames(cov.SE.p.liab)<-colnames(S)

@@ -134,6 +134,20 @@ symMatrixConform <- function(m){
 
 #These tests have to include both covariance values and their standard errors as the covariances are used for testing the difference in standard errors.
 
+# #Run examnple
+# comparisonTest <- difftest.matrix(
+#   mValues1 = mvldsc$S, #estimate matrix 1
+#   mStandard_errors1 = mvldsc$S.SE, #standard error matrix 1
+#   df1 = mvldsc$cov.blocks, #degrees of freedom matrix 1 (the number of samples)
+#   mValues2 = mvldscComparison$S, #estimate matrix 2
+#   mStandard_errors2 = mvldscComparison$S.SE, #standard error matrix 2
+#   df2 = mvldscComparison$cov.blocks, #degrees of freedom matrix 2 (the number of samples)
+#   symmetric = T, #are the matrices symmetric? (usually yes if they are cov/corr matrices)
+#   mValueCovariances=mvldsc$V_Stand #calculate effective number of tests from a sampling covariance matrix
+#   #OR
+#   #effectiveNumberOfTests = effectiveNumberOfTests #force an effective number of tests for multiple testing correction
+#   )
+
 # t1<-p$mvLD$covstruct.mvLDSC.GSEMemulation.1kg.maf0_01
 # t2<-semplate$amendGsemLDSC(  p$mvLD$covstruct.GSEMmvLDSC.1kg)
 # 
@@ -224,7 +238,7 @@ difftest.matrix <- function(
   #test covariance difference
   mTest.values<-abs(mValues1-mValues2)
   
-  sde<-sqrt((mStandard_errors1^2)+(mStandard_errors2^2) - 2*mCorrelationEstimate.values*mStandard_errors1*mStandard_errors2)
+  sde<-sqrt((mStandard_errors1^2)+(mStandard_errors2^2) - 2*mCorrelationEstimate.values*mStandard_errors1*mStandard_errors2) #confirmed to correspond to the formula from the supplement
   
   #the test is double sided overall though, so 2*p!!!!!!!
   
@@ -244,12 +258,14 @@ difftest.matrix <- function(
   if(!is.null(mStandard_errors1) & !is.null(mStandard_errors2) & !is.null(df1)){
     
     if(is.null(df2)) df2<-df1
-
-    var_bar <-(mStandard_errors1^2+mStandard_errors2^2)/2
+    #this has now been corrected to correspond to the derived formula from the supplement
     
     tVar <- (mStandard_errors1^2)-(mStandard_errors2^2)
-    
-    vare <- var_bar^2 * (2/(df1-1) + 2/(df2-1) - 2*mCorrelationEstimate.standard_errors*sqrt(2/(df1-1))*sqrt(2/(df2-1)))
+    vare <- df1*(mStandard_errors1^2) + df2*(mStandard_errors2^2) - 2*sqrt(2*df1*(mStandard_errors1^2))*sqrt(2*df2*(mStandard_errors2^2))*mCorrelationEstimate.standard_errors #this is simplified and approximates df-1~df to avoid weird behaviour at large df
+
+    #old
+    # var_bar <-(mStandard_errors1^2+mStandard_errors2^2)/2
+    # vare <- var_bar^2 * (2/(df1-1) + 2/(df2-1) - 2*mCorrelationEstimate.standard_errors*sqrt(2/(df1-1))*sqrt(2/(df2-1)))
 
     pTest.standard_errors<-2*pnorm(q = abs(tVar), mean =  0, sd = sqrt(vare),lower.tail = F)
 
