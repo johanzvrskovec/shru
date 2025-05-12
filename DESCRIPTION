@@ -1,7 +1,7 @@
 Package: shru
 Type: Package
 Title: SHared R Utilities for behavioural genomics and beyond
-Version: 1.3.0
+Version: 1.3.1
 Author: Johan Zvrskovec
 Maintainer: Johan Zvrskovec <johan.zvrskovec@kcl.ac.uk>
 Description: SHared R Utilities for behavioural genomics and beyond. Home of supermunge and LDSC++. Includes the previous semplate package utilities for generating path diagrams from fitted SEM model results. More coming later.

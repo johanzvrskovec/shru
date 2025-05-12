@@ -216,7 +216,7 @@ ldscpp <- function(
   # filter.maf = 0.01
   # filter.zz.min = 0
   
-  cat("\n\n\nLDSC++\t\tSHRU package version 1.3.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nLDSC++\t\tSHRU package version 1.3.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   #this is not written in the log btw
   
   LOG <- function(..., print = TRUE) {
@@ -503,7 +503,7 @@ ldscpp <- function(
       LOG("Total M (read from ld score files): ",M.tot)
     }
     if(any(colnames(x.copy)=="FRQ") & M.tot==0) {
-      M.tot<-nrow(x.copy[FRQ>0.05 & FRQ<0.995,]) #may be pushed downward from 0.05 as we have larger samples now compared to when original ldsc was published?
+      M.tot<-nrow(x.copy[FRQ>0.05 & FRQ<0.95,]) #may be pushed downward from 0.05 as we have larger samples now compared to when original ldsc was published?
       LOG("Total M (from LD reference, MAF>0.05): ",M.tot," using ancestry setting: ",referenceAncestrySetting)
     }
     if(M.tot==0){
