@@ -216,7 +216,7 @@ ldscpp <- function(
   # filter.maf = 0.01
   # filter.zz.min = 0
   
-  cat("\n\n\nLDSC++\t\tSHRU package version 1.4.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nLDSC++\t\tSHRU package version 1.3.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   #this is not written in the log btw
   
   LOG <- function(..., print = TRUE) {
