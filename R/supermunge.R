@@ -312,7 +312,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.1.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.3.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -594,18 +594,23 @@ supermunge <- function(
     iDup<-grep(pattern = "^X*SNP$",colnames(cSumstats))
     cSumstats.n <- nrow(cSumstats)
     if(length(iDup)>1){
-      iDupPrefIndex<-iDup[1]
+      iDupPrefIndex<-1
+      dupPrefIndex<-iDup[iDupPrefIndex]
+      prefSNPFrq <- sum(grepl(pattern = "^rs.+",ignore.case = T, x= head(cSumstats[,..dupPrefIndex],n=cSumstats.n/4)[[1]]) )/(cSumstats.n/4)  #check the first 25% of the variants
       #find the preferred column
       for(iDupIndex in 1:length(iDup)){
         #iDupIndex<-2
-        if(sum(grepl(pattern = "^rs.+",ignore.case = T, x= head(cSumstats[,..iDupIndex]$SNP,n=cSumstats.n/4)))>0.5*cSumstats.n/4){ #check the first 25% of the variants
+        cDupIndex<-iDup[iDupIndex]
+        cSNPFrq <- sum(grepl(pattern = "^rs.+",ignore.case = T, x= head(cSumstats[,..cDupIndex],n=cSumstats.n/4)[[1]]) )/(cSumstats.n/4)  #check the first 25% of the variants
+        if(cSNPFrq>prefSNPFrq){
           iDupPrefIndex<-iDupIndex
-          break
+          prefSNPFrq<-cSNPFrq
+          #break
         }
       }
       iDup<-iDup[iDup != iDupPrefIndex]
       colnames(cSumstats)[iDup]<-"XSNP"
-      colnames(cSumstats)[iDupPrefIndex]<-"SNP"
+      colnames(cSumstats)[iDup[iDupPrefIndex]]<-"SNP"
     }
     
     

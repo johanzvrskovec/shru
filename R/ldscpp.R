@@ -479,9 +479,37 @@ ldscpp <- function(
       x.additional <- suppressMessages(fread(file = filepathVariantsAdditional, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, showProgress = F, nThread = nThreads, data.table=T))
       setkeyv(x, cols = c("SNP"))
       setkeyv(x.additional, cols = c("SNP"))
-      x[x.additional,on=c('SNP'), c("CHR","BP","MAF","CM"):=list(i.CHR,i.BP,i.MAF,i.CM)]
+      
+      n.additional.matches <- nrow(x[x.additional,on=c('SNP')])
+      
+      if(any(colnames(x.additional)=="CHR")){
+        x[x.additional,on=c('SNP'), c("CHR"):=list(i.CHR)]
+        cat("Updated LD scores with CHR from additional variants by SNP")
+      }
+      
+      if(any(colnames(x.additional)=="BP")){
+        x[x.additional,on=c('SNP'), c("BP"):=list(i.BP)]
+        cat("Updated LD scores with BP from additional variants by SNP")
+      }
+      
+      if(any(colnames(x.additional)=="MAF")){
+        x[x.additional,on=c('SNP'), c("MAF"):=list(i.MAF)]
+        cat("Updated LD scores with MAF from additional variants by SNP")
+      }
+      
+      if(any(colnames(x.additional)=="CM")){
+        x[x.additional,on=c('SNP'), c("CM"):=list(i.CM)]
+        cat("Updated LD scores with CM from additional variants by SNP")
+      }
+      
+      if(any(colnames(x.additional)=="INFO")){
+        x[x.additional,on=c('SNP'), c("INFO"):=list(i.INFO)]
+        cat("Updated LD scores with INFO from additional variants by SNP")
+      }
+      
+      #x[x.additional,on=c('SNP'), c("CHR","BP","MAF","CM"):=list(i.CHR,i.BP,i.MAF,i.CM)] #old composite update
       #merged<-merge(x = x, y = x.additional, by = "SNP", all.x = T)
-      cat("Updated LD scores with CHR,BP,MAF,CM from specified file by SNP:",nrow(x[is.finite(MAF),]),",",nrow(x[is.finite(CM),]),"/",nrow(x))
+      cat("Total additional variant matches: ",n.additional.matches)
       rm(x.additional)
     }
     
