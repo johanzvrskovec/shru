@@ -1305,6 +1305,7 @@ ldscpp <- function(
         
         #### MAKE WEIGHTS:
         
+        merged$N<-as.numeric(merged$N) #to avoid the weird error of N becoming character type before the later computations
         tot.agg <- (M.tot*(mean(merged$chi1)-1))/mean(merged$L2*merged$N)
         tot.agg <- max(tot.agg,0)
         tot.agg <- min(tot.agg,1)
@@ -1331,6 +1332,7 @@ ldscpp <- function(
         # merged$w <- merged$het.w*merged$oc.w
         # merged$initial.w <- sqrt(merged$w)
         
+        merged$i.N<-as.numeric(merged$i.N) #to avoid the weird error of N becoming character type before the later computations
         tot.agg2 <- (M.tot*(mean(merged$chi2)-1))/mean(merged$L2*merged$i.N)
         tot.agg2 <- max(tot.agg2,0)
         tot.agg2 <- min(tot.agg2,1)
