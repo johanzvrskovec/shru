@@ -132,6 +132,12 @@ ldscpp <- function(
   # cov.SE.p.liab.test.cDivS=0.000485594
   # verbose = F
   
+  
+  # #dependencies
+  # library(R.utils)
+  # library(data.table)
+  # library(readr)
+  
   #test for dr dev
   # traits = gwas.meta.sel$filePath
   # sample.prev = gwas.meta.sel$samplePrevalence
@@ -142,15 +148,20 @@ ldscpp <- function(
   # resamplingMethod = "vbcs"
   # doubleRegressionRoutine = T
   
-  # traits = gwas.meta.sel$filePath
-  # sample.prev = gwas.meta.sel$samplePrevalence
-  # population.prev = gwas.meta.sel$populationPrevalence
-  # ld = file.path(folderpath.data,"ld_scores","w_ld.GLAD_EDGI_NBR.keep.b38.gcta")
-  # trait.names = gwas.meta.sel$code
-  # #no info filter!
+  # #test for INT gwas
+  # traits = datasetsMeta.sel$files.supermunged
+  # sample.prev = datasetsMeta.sel$samplePrev
+  # population.prev = datasetsMeta.sel$populationPrev
+  # filepathLD = "/scratch/prj/gwas_sumstats/variant_lists/1kgp3.bX.eur.l2.jz2023.gz"
+  # #ld = "/scratch/prj/gwas_sumstats/ld_scores/1KG_Phase3.WG.CLEANED.EUR_MAF001.1cm.250blocks.ordered"
+  # trait.names = datasetsMeta.sel$traitNames
+  # n.blocks = 200
+  # preweight.alternativeCorrelationCorrection = F
+  # preweight.INFO = F
+  # preweight.SINFO = F
+  # resamplingMethod="jn"
   # filter.maf = 0.01
-  # resamplingMethod = "vbcs"
-  # doubleRegressionRoutine = T
+  # filter.info = 0.9
 
   # #small test
   # traits = p$sumstats[c("SMRV01","SMRV02"),]$mungedpath.supermunge.1kg.orig.unfiltered
@@ -216,7 +227,7 @@ ldscpp <- function(
   # filter.maf = 0.01
   # filter.zz.min = 0
   
-  cat("\n\n\nLDSC++\t\tSHRU package version 1.3.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nLDSC++\t\tSHRU package version 1.3.3\n") #UPDATE DISPLAYED VERSION HERE!!!!
   #this is not written in the log btw
   
   LOG <- function(..., print = TRUE) {
@@ -580,10 +591,12 @@ ldscpp <- function(
       if(any(colnames(y1)=="A2")) y1$A2<-toupper(as.character(y1$A2))
       y1$Z<-as.numeric(y1$Z)
       #mod addition - use FRQ - frequency of A1 rather than MAF. use MAF as FRQ in case there is no FRQ.
-      if('FRQ' %in% names(y1)) y1$FRQ<-as.numeric(y1$FRQ)
-      if('MAF' %in% names(y1)) y1$MAF<-as.numeric(y1$MAF)
-      if('INFO' %in% names(y1)) y1$INFO<-as.numeric(y1$INFO)
-      if('SINFO' %in% names(y1)) y1$SINFO<-as.numeric(y1$SINFO)
+      if(any(colnames(y1)=="FRQ")) y1$FRQ<-as.numeric(y1$FRQ)
+      if(any(colnames(y1)=="MAF")) y1$MAF<-as.numeric(y1$MAF)
+      if(any(colnames(y1)=="INFO")) y1$INFO<-as.numeric(y1$INFO)
+      if(any(colnames(y1)=="SINFO")) y1$SINFO<-as.numeric(y1$SINFO)
+      if(any(colnames(y1)=="N")) y1$N<-as.numeric(y1$N)
+      if(any(colnames(y1)=="NEFF")) y1$N<-as.numeric(y1$NEFF)
       
       #mod addition - use NEF as N
       if(!any(colnames(y1)=="N") & any(colnames(y1)=="NEFF")) y1$N<-y1$NEFF
