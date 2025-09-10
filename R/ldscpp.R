@@ -14,6 +14,7 @@ ldscpp <- function(
                      df_ld = NULL, #ldscores as a ready dataframe
                      filepathVariantsAdditional = NULL,
                      readyMergedTraits = NULL,
+                     filepathLoci = NULL, #loci in the LAVA locfile format; tsv with LOC,CHR,START,STOP
                      referenceAncestrySetting = "MIX",
                      ancestrySetting=NULL, #ancestry setting, list with entries for each dataset
                      trait.names = NULL,
@@ -78,6 +79,7 @@ ldscpp <- function(
   # df_ld = NULL
   # filepathVariantsAdditional = NULL
   # readyMergedTraits = NULL
+  # filepathLoci = NULL
   # referenceAncestrySetting = "MIX"
   # ancestrySetting = NULL
   # trait.names = NULL
@@ -132,12 +134,13 @@ ldscpp <- function(
   # cov.SE.p.liab.test.cDivS=0.000485594
   # verbose = F
   
-  #test for dr dev
-  # traits = gwas.meta.sel$filePath
-  # sample.prev = gwas.meta.sel$samplePrevalence
-  # population.prev = gwas.meta.sel$populationPrevalence
+  # #test for dr dev
+  # traits = gwas.meta.sel.validation$filePath
+  # sample.prev = gwas.meta.sel.validation$samplePrevalence
+  # population.prev = gwas.meta.sel.validation$populationPrevalence
+  # filepathLoci = file.path(folderpath.data,"variant_lists","lava_loc","blocks_s20000_m25_f1_w200.GRCh37_hg19.locfile")
   # ld = ld_path
-  # trait.names = gwas.meta.sel$code
+  # trait.names = gwas.meta.sel.validation$code
   # filter.maf = 0.01
   # resamplingMethod = "vbcs"
   # doubleRegressionRoutine = T
@@ -216,7 +219,7 @@ ldscpp <- function(
   # filter.maf = 0.01
   # filter.zz.min = 0
   
-  cat("\n\n\nLDSC++\t\tSHRU package version 1.3.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nLDSC++\t\tSHRU package version 1.4.0-dev\n") #UPDATE DISPLAYED VERSION HERE!!!!
   #this is not written in the log btw
   
   LOG <- function(..., print = TRUE) {
@@ -538,6 +541,16 @@ ldscpp <- function(
       stop("Please provide a value for the (total) M!")
     }
     rm(x.copy)
+    
+    
+    
+    
+    ### external block definition if specified
+    loci<-NULL
+    if(!is.null(filepathLoci)){
+      LOG("Reading in externally defined loci")
+      loci <- suppressMessages(fread(file = filepathLoci, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, showProgress = F, nThread = nThreads, data.table=T))
+    }
     
     ### READ ALL CHI2 + MERGE WITH LDSC FILES
   
@@ -1376,12 +1389,18 @@ ldscpp <- function(
         }
         
         #block construction follows
-        if(!is.finite(n.blocks) & (is.finite(blocksizeCM) | is.finite(minBlocksizeCM))){
+        if(
+          !is.null(loci) | #externaly defined loci/blocks
+          (!is.finite(n.blocks) & (is.finite(blocksizeCM) | is.finite(minBlocksizeCM))) #recombination based blocks
+          ){
           #determine size and loop over each block immediately
           
-          if(!any(colnames(merged)=="CM")){
+          if(is.null(loci) & !any(colnames(merged)=="CM")){
             stop("There is no CM column available to use for cM aware blocks. Please use an LD-score reference containing the CM column, or turn off the cM blocksize by setting blocksizeCM=NA and minBlocksizeCM=NA.")
           }
+          
+          
+          #HERE!!!!!
           
           #setkeyv(merged, cols = c("CHR","BP","CM")) #old sort setting
           chrs <- unique(merged$CHR)
