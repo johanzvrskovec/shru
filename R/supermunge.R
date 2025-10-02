@@ -312,7 +312,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.3.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -2287,6 +2287,16 @@ supermunge <- function(
             cSumstats<-as.data.frame(cSumstats[,.(SNP,A1,A2,freq=FRQ,b=BETA,se=SE,p=P,N)])
             filepath.out<-file.path(pathDirOutput,paste0(nfilename,".gz"))
             cat("\nWriting to (COJO format) ",filepath.out)
+            fwrite(x = cSumstats,file = filepath.out,append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
+            cat("\nSupermunged dataset saved as", filepath.out)
+          } else if(outputFormat=="2mr"){
+            #SNP beta se effect_allele other_allele pval eaf chr position samplesize
+            cSumstats.n <- nrow(cSumstats)
+            cSumstats<-cSumstats[is.finite(P) & is.finite(N),][,N:=round(N)]
+            cat("\nRemoved ",as.character((cSumstats.n-nrow(cSumstats))),"additional rows for TwoSampleMR compatibility")
+            cSumstats<-as.data.frame(cSumstats[,.(SNP,beta=BETA,se=SE,effect_allele=A1,other_allele=A2,pval=P,eaf=FRQ, samplesize=N, chr=CHR, position=BP)])
+            filepath.out<-file.path(pathDirOutput,paste0(nfilename,".2mr.gz"))
+            cat("\nWriting to (TwoSampleMR format) ",filepath.out)
             fwrite(x = cSumstats,file = filepath.out,append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads)
             cat("\nSupermunged dataset saved as", filepath.out)
           } else {
