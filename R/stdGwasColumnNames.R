@@ -6,7 +6,7 @@
 stdGwasColumnNames <- function(
     columnNames,
     missingEssentialColumnsStop=c("SNP","A1","A2"),
-    ancestrySetting=NA, #EUR, #ancestry setting string for the current dataset
+    ancestrySetting=NULL, #EUR, #ancestry setting string for the current dataset
     warnings=T
 ){
   
@@ -40,8 +40,11 @@ stdGwasColumnNames <- function(
   c.L2 =c("L2","LD")
   c.DF = c("DF","CHISQ_DF")
   
+  if(is.null(ancestrySetting)) ancestrySetting<-NA_character_
   #force NA for ancestrySetting="ANY"
-  if(toupper(ancestrySetting)=="ANY") ancestrySetting<-NA_character_
+  if(!is.na(ancestrySetting)){
+    if(toupper(ancestrySetting)=="ANY") ancestrySetting<-NA_character_
+  }
   
   columnNames<-as.character(columnNames)
   columnNames.upper<-toupper(columnNames)

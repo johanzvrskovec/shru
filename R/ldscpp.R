@@ -14,7 +14,7 @@ ldscpp <- function(
                      df_ld = NULL, #ldscores as a ready dataframe
                      filepathVariantsAdditional = NULL,
                      readyMergedTraits = NULL,
-                     referenceAncestrySetting = NA_character_,
+                     referenceAncestrySetting = NULL,
                      ancestrySetting=NULL, #ancestry setting, list with entries for each dataset
                      trait.names = NULL,
                      cap.NEFF = NULL, #list per dataset, T/F, cap NEFF with maximum N or not (not recommended for 'real' NEFF (from sub-cohorts)), DEFAULT = TRUE
@@ -78,7 +78,7 @@ ldscpp <- function(
   # df_ld = NULL
   # filepathVariantsAdditional = NULL
   # readyMergedTraits = NULL
-  # referenceAncestrySetting = NA_character_
+  # referenceAncestrySetting = NULL
   # ancestrySetting = NULL
   # trait.names = NULL
   # cap.NEFF = NULL
