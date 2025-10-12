@@ -227,7 +227,7 @@ ldscpp <- function(
   # filter.maf = 0.01
   # filter.zz.min = 0
   
-  cat("\n\n\nLDSC++\t\tSHRU package version 1.3.3\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nLDSC++\t\tSHRU package version 1.4.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   #this is not written in the log btw
   
   LOG <- function(..., print = TRUE) {
@@ -1176,8 +1176,8 @@ ldscpp <- function(
       y1$chi1 <- y1$Z^2
       
       #moved here as they are the same for j
-      samp.prev <- sample.prev[j]
-      pop.prev <- population.prev[j]
+      samp.prev <- as.numeric(sample.prev[j])
+      pop.prev <- as.numeric(population.prev[j])
       
      
       
@@ -1954,7 +1954,7 @@ ldscpp <- function(
   
         }
         
-        if(j==k & is.na(pop.prev)==F & is.na(samp.prev)==F){
+        if(j==k & !is.na(pop.prev) & !is.na(samp.prev)){
           conversion.factor <- (pop.prev^2*(1-pop.prev)^2)/(samp.prev*(1-samp.prev)* dnorm(qnorm(1-pop.prev))^2)
           Liab.S[j] <- conversion.factor
 
