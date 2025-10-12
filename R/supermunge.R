@@ -17,10 +17,12 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 
 
 #tests
-
-# filePaths = "~/Downloads/GCST90301964.tsv"
-# refFilePath = "/Users/jakz/project/JZ_GED_PHD_ADMIN_GENERAL/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
-# traitNames = c("gluc")
+# 
+# filePaths = "~/Downloads/MA_PAno23andMe_18022020.txt"
+# refFilePath = "/Users/jakz/Documents/local_db/SHARED/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
+# traitNames = c("pa.eur")
+# ancestrySetting = c("EUR")
+# N = c(410603)
 
 # single test with hard coded values
 # filePaths = "/Users/jakz/Downloads/continuous-21001-both_sexes-irnt.tsv.bgz"
@@ -312,7 +314,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1229,7 +1231,7 @@ supermunge <- function(
         if(any(colnames(cSumstats)=="N_CAS") && any(colnames(cSumstats)=="N_CON")) {
           ### Calculate total N from number of cases and number of controls if they are present, only for missing N.
           cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("N_CAS + N_CON")))
-          if(!any(colnames(cSumstats)=="N")) cSumstats$N <- NA_integer_
+          if(!any(colnames(cSumstats)=="N")) cSumstats[,N:=NA_integer_]
           cSumstats[!is.finite(N) & is.finite(N_CAS) & is.finite(N_CON),N:=N_CAS + N_CON]
         }
         cat(".")
@@ -1248,28 +1250,37 @@ supermunge <- function(
                 |
                 (N[iFile]-max(cSumstats[is.finite(N),]$N, na.rm = T))/N[iFile]>0.05
               ) cSumstats.warnings<-c(cSumstats.warnings,"Large (>5%) N discrepancies found between provided and existing N!")
-              cSumstats$N<-N[iFile]
+              cSumstats[,N:=eval(as.numeric(N[iFile]))]
               cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile])))
             } else if(any(colnames(cSumstats)=="N")){
-              cond<-is.na(cSumstats$N) | N[iFile] < cSumstats$N
-              if(sum(cond)>0) {
-                cSumstats$N<-ifelse(cond,N[iFile],cSumstats$N)
-                cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile],"for",sum(cond)," NA or > specified.")))
+              cSumstats[!is.numeric(N) | eval(as.numeric(N[iFile])) < N,cond:=TRUE]
+              if(sum(cSumstats$cond)>0) {
+                cSumstats[cond,N:=eval(as.numeric(N[iFile]))]
+                cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile],"for",sum(cSumstats$cond)," NA or > specified.")))
               }
-            } else cSumstats[,N:=eval(N[iFile])]
+              cSumstats[,cond:=NULL]
+            } else {
+              cSumstats[,N:=eval(as.numeric(N[iFile]))]
+              cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile])))
+            }
             
-            cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats[is.finite(N),]$N, na.rm = T),", ",min(cSumstats[is.finite(N),]$N, na.rm = T),", ", max(cSumstats[is.finite(N),]$N, na.rm = T))))
+            
           }
         } else if(!(any(colnames(cSumstats)=="N"))) {
           if(any(colnames(cSumstats)=="NEFF")){
             cSumstats$N<-cSumstats$NEFF
             cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF"))
-          } else {
-            cSumstats.warnings<-c(cSumstats.warnings,"\nNo N column detected!")
-            cSumstats.meta<-rbind(cSumstats.meta,list("N","Warning: Not detected!"))
-            #cSumstats$N<-NA_integer_
-          }
+          } 
         }
+        
+        if(any(colnames(cSumstats)=="N")){
+        cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats[is.finite(N),]$N, na.rm = T),", ",min(cSumstats[is.finite(N),]$N, na.rm = T),", ", max(cSumstats[is.finite(N),]$N, na.rm = T))))
+        } else {
+          cSumstats.warnings<-c(cSumstats.warnings,"\nNo resulting N column detected!")
+          cSumstats.meta<-rbind(cSumstats.meta,list("N","Warning: Not present!"))
+          #cSumstats$N<-NA_integer_
+        }
+        
         cat(".")
         
         ## Establish allele order from the reference
@@ -2065,7 +2076,7 @@ supermunge <- function(
         if(cSumstats.nNANEFF>0) cSumstats.meta<-rbind(cSumstats.meta,list("NEFF <= VSNP & SE",cSumstats.nNANEFF))
         
         if(any(colnames(cSumstats)=="N")){
-          maxN<-max(cSumstats[is.finite(N),]$N,na.rm = T)
+          maxN<-max(cSumstats[is.finite(N),.(N)],na.rm = T)
           cSumstats[,NEFF_CAPPED:=shru::clipValues(NEFF,max = 1.1*eval(maxN), min = 0.5*eval(maxN))]
         }
         
