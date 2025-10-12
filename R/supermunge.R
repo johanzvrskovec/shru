@@ -2325,30 +2325,32 @@ supermunge <- function(
       gc() #do garbage collect if this can help with out of memory issues.
     },
     error = function(error){
-        print(paste("\nERROR CAUGHT:\n",error))
+        cat(paste0("\nERROR CAUGHT(!) FOR INDEX:",iFile,"\n"))
+        print(error)
     },
     finally = function(){
-      
-      cat("\nDataset columns interpreted as:\n",cSumstats.names.string)
-      cat("\nData processing results:\n")
-      #print(readr::format_delim(as.data.frame(cSumstats.meta),delim = "\t",col_names = F,quote_escape = F, eol = "\n"))
-      apply(cSumstats.meta, MARGIN = 1, FUN = function(x){
-        cat(as.character(x[1]),"\t\t\t",as.character(x[2]),"\n")
-      })
-      
-      cat("\nDataset metdata:\n")
-      print(paste0(names(sumstats.meta[iFile]),":   ",sumstats.meta[iFile]))
-      
-      if(length(cSumstats.warnings)>0){
-        cat("\nShowing warnings below.\n")
-        lapply(X = cSumstats.warnings, FUN = cat)
-      } else {
-        cat("\nNo warnings detected.\n")
-      }
-      
-      
+      #nothing here
+      print("Finally")
     }
     ) #tryCatch
+    
+    #outside tryCatch - finally
+    cat("\nDataset columns interpreted as:\n",cSumstats.names.string)
+    cat("\nData processing results:\n")
+    #print(readr::format_delim(as.data.frame(cSumstats.meta),delim = "\t",col_names = F,quote_escape = F, eol = "\n"))
+    apply(cSumstats.meta, MARGIN = 1, FUN = function(x){
+      cat(as.character(x[1]),"\t\t\t",as.character(x[2]),"\n")
+    })
+    
+    cat("\nDataset metdata:\n")
+    print(paste0(names(sumstats.meta[iFile]),":   ",sumstats.meta[iFile]))
+    
+    if(length(cSumstats.warnings)>0){
+      cat("\nShowing warnings below.\n")
+      lapply(X = cSumstats.warnings, FUN = cat)
+    } else {
+      cat("\nNo warnings detected.\n")
+    }
     
   } #for
   
