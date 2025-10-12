@@ -563,6 +563,8 @@ ldscpp <- function(
       LOG("Columns: ")
       LOG(paste(colnames(y1)," "))
       LOG("Dataset specific ancestry setting: ",ancestrySetting[iTrait])
+      LOG("Dataset sample prevalence setting: ",as.numeric(sample.prev[j]))
+      LOG("Dataset population prevalence setting: ",as.numeric(population.prev[j]))
       LOG("Cap NEFF: ",cap.NEFF[[iTrait]])
       
       
