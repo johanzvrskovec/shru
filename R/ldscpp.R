@@ -525,7 +525,7 @@ ldscpp <- function(
     }
     
     
-    x.colnames <- shru::stdGwasColumnNames(columnNames = colnames(x),missingEssentialColumnsStop = NULL, ancestrySetting = referenceAncestrySetting, warnings=TRUE) #needs the shru-package
+    x.colnames <- shru::stdGwasColumnNames(columnNames = colnames(x),missingEssentialColumnsStop = NULL, ancestrySetting = referenceAncestrySetting, warnings=FALSE) #needs the shru-package, does not warn at all!
     x.copy <- x
     colnames(x.copy) <- x.colnames$std
     M.tot<-0
@@ -563,8 +563,8 @@ ldscpp <- function(
       LOG("Columns: ")
       LOG(paste(colnames(y1)," "))
       LOG("Dataset specific ancestry setting: ",ancestrySetting[iTrait])
-      LOG("Dataset sample prevalence setting: ",as.numeric(sample.prev[j]))
-      LOG("Dataset population prevalence setting: ",as.numeric(population.prev[j]))
+      LOG("Dataset sample prevalence setting: ",as.numeric(sample.prev[iTrait]))
+      LOG("Dataset population prevalence setting: ",as.numeric(population.prev[iTrait]))
       LOG("Cap NEFF: ",cap.NEFF[[iTrait]])
       
       
