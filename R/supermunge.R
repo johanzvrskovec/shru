@@ -1253,7 +1253,7 @@ supermunge <- function(
               cSumstats[,N:=eval(as.numeric(N[iFile]))]
               cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile])))
             } else if(any(colnames(cSumstats)=="N")){
-              cSumstats[!is.numeric(N) | eval(as.numeric(N[iFile])) < N,cond:=TRUE]
+              cSumstats[,cond:=FALSE][!is.numeric(N) | eval(as.numeric(N[iFile])) < N, cond:=TRUE]
               if(sum(cSumstats$cond)>0) {
                 cSumstats[cond,N:=eval(as.numeric(N[iFile]))]
                 cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile],"for",sum(cSumstats$cond)," NA or > specified.")))
