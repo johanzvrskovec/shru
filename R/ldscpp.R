@@ -252,15 +252,19 @@ ldscpp <- function(
   #mod addition - set NEFF cap setting to always have a value
   if(is.null(cap.NEFF)) cap.NEFF <- rep(T,n.traits)
   
-  if(is.null(ancestrySetting)) {ancestrySetting<-list("MIX")}
+  if(is.null(ancestrySetting)) {ancestrySetting<-list("ANY")}
   if(length(ancestrySetting)<n.traits) ancestrySetting <- shru::padListRight(ancestrySetting,padding = ancestrySetting[1],targetLength = n.traits)
   
   #for backwards compatibility
   if(resamplingMethod=='cv') resamplingMethod<-'vbcs'
   
   if(is.null(ldsc.log)){
+    #mod addition - we want the ld information here also to avoid collisions of ldsc-runs using different ld-scores
+    ldstring<-ld
+    if(is.null(ldstring)) ldstring<-basename(filepathLD)
+    if(is.null(ldstring)) ldstring<-"nold"
     logtraits<-gsub(".*/","",traits)
-    log2<-paste(logtraits,collapse="_")
+    log2<-paste(ldstring,logtraits,collapse="_")
     if(object.size(log2) > 200){
       log2<-substr(log2,1,100)
     }
@@ -488,6 +492,7 @@ ldscpp <- function(
     #merge in additional columns - rely on the SNP column
     if(!is.null(filepathVariantsAdditional)){
       x.additional <- suppressMessages(fread(file = filepathVariantsAdditional, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, showProgress = F, nThread = nThreads, data.table=T))
+      LOG(paste0("Read additional variant information for LD reference from ",filepathVariantsAdditional))
       setkeyv(x, cols = c("SNP"))
       setkeyv(x.additional, cols = c("SNP"))
       
@@ -528,6 +533,7 @@ ldscpp <- function(
     x.colnames <- shru::stdGwasColumnNames(columnNames = colnames(x),missingEssentialColumnsStop = NULL, ancestrySetting = referenceAncestrySetting, warnings=FALSE) #needs the shru-package, does not warn at all!
     x.copy <- x
     colnames(x.copy) <- x.colnames$std
+    cat("\nReference LD score dataset columns:\n", colnames(x.copy))
     M.tot<-0
     if(!is.null(force.M)){
       M.tot <- force.M
