@@ -314,7 +314,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -580,7 +580,7 @@ supermunge <- function(
       cat(".")
       
       # Give sumstats new standardised column names
-      cSumstats.names <- shru::stdGwasColumnNames(columnNames = colnames(cSumstats), missingEssentialColumnsStop = missingEssentialColumnsStop, ancestrySetting = ancestrySetting[iFile])
+      cSumstats.names <- shru::stdGwasColumnNames(columnNames = colnames(cSumstats), missingEssentialColumnsStop = missingEssentialColumnsStop, ancestrySetting = ancestrySetting[iFile],warnings = F)
       cSumstats.names.string <-""
       #for(iName in 1:length(cSumstats.names$orig)){
         cSumstats.names.string<-paste(paste(cSumstats.names$orig,"\t->",cSumstats.names$std), collapse = '\n')
@@ -968,7 +968,7 @@ supermunge <- function(
           cSumstats.n<-nrow(cSumstats)
           
           #Join with reference on SNP rsID, only keeping SNPs with rsIDs part of the reference
-          ref.colnames<-shru::stdGwasColumnNames(colnames(ref),missingEssentialColumnsStop = NULL,ancestrySetting = ancestrySetting[iFile], warnings = F)
+          ref.colnames<-shru::stdGwasColumnNames(colnames(ref),missingEssentialColumnsStop = NULL,ancestrySetting = ancestrySetting[iFile], warnings = T) #reference is resolved here to allow for dataset specific setting
           cSumstats.merged.snp<-ref
           colnames(cSumstats.merged.snp)<-paste0(ref.colnames$std,"_REF")
           setkeyv(cSumstats.merged.snp, cols = paste0(key(ref),"_REF"))

@@ -134,13 +134,24 @@ stdGwasColumnNames <- function(
     } else {
       if(warnings) warning("\nCould not find the ancestry specific 'FRQ' column.\n")
     }
-  } else if(!any(columnNames == c.FRQ[1])) {
-    #fallback
+  }
+  #fallback and non-ancestry specific case
+  if(!any(columnNames == c.FRQ[1])) {
     iDup<- unlist(lapply(
       X = c.FRQ,
       FUN = function(x){grep(pattern = paste0("^",x,"\\..+"),columnNames)}
     ))
-    if(length(iDup)>0) columnNames[iDup[1]] <- c.FRQ[1]
+    
+    #exceptions
+    if(length(iDup)>0){
+      iDup[columnNames[iDup]=="FRQ_CAS"]<-NA
+      iDup[columnNames[iDup]=="FRQ_CON"]<-NA
+      iDup<-iDup[!is.na(iDup)]
+    }
+    if(length(iDup)>0) {
+      columnNames[iDup[1]] <- c.FRQ[1]
+      if(!is.na(ancestrySetting) & warnings) warning(paste0("\nFalling back on ancestry FRQ using ",columnNames.orig[iDup[1]],"\n"))
+      }
   }
   
   columnNames[columnNames.upper %in% c.CHR] <- c.CHR[1]
@@ -172,13 +183,17 @@ stdGwasColumnNames <- function(
     } else {
       if(warnings) warning("\nCould not find the ancestry specific 'L2' column.\n")
     }
-  } else if(!any(columnNames == c.L2[1])) {
-    #fallback
+  }
+  #fallback and non-ancestry specific case
+  if(!any(columnNames == c.L2[1])) {
     iDup<- unlist(lapply(
       X = c.L2,
       FUN = function(x){grep(pattern = paste0("^",x,"\\..+"),columnNames)}
     ))
-    if(length(iDup)>0) columnNames[iDup[1]] <- c.L2[1]
+    if(length(iDup)>0) {
+      columnNames[iDup[1]] <- c.L2[1]
+      if(!is.na(ancestrySetting) & warnings) warning(paste0("\nFalling back on ancestry L2 using ",columnNames.orig[iDup[1]],"\n"))
+    }
   }
   
   if(length(missingEssentialColumnsStop)>0){
