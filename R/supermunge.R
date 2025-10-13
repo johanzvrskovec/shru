@@ -1064,6 +1064,7 @@ supermunge <- function(
             #Join with reference on position rather than rsID
             cSumstats.merged.pos1<-ref
             colnames(cSumstats.merged.pos1)<-paste0(ref.colnames$std,"_REF")
+            cSumstats.merged.pos1<-cSumstats.merged.pos1[!is.na(CHR_REF) & !is.na(BP_REF) & !is.na(A1_REF) & !is.na(A2_REF),] #filter from na-values to avoid mass join conditions
             setkeyv(cSumstats.merged.pos1, cols = paste0(key(ref),"_REF"))
             cSumstats.merged.pos1.inverted<-cSumstats.merged.pos1
             cSumstats.merged.pos2<-cSumstats.merged.pos1
