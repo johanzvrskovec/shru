@@ -325,6 +325,8 @@ ldscpp <- function(
   cov.unsigned <- matrix(NA,nrow=n.traits,ncol=n.traits)
   cov.p.unsigned <- matrix(NA,nrow=n.traits,ncol=n.traits)
   cov.blocks <- matrix(NA,nrow=n.traits,ncol=n.traits)
+  cellZZ.mean <- matrix(NA,nrow=n.traits,ncol=n.traits) #mod - statistical power measurement
+  cellZZ.median <- matrix(NA,nrow=n.traits,ncol=n.traits) #mod - statistical power measurement
   #V.hold <- matrix(NA,nrow=n.blocks,ncol=n.V)
   lV <- c() #new storage for results of varying blocksize (unscaled!!)
   lV.pos <- c()
@@ -1975,6 +1977,8 @@ ldscpp <- function(
           }
         }
         
+        
+        
         cov.pos[k, j] <- cov.pos[j, k] <- reg.tot.pos
         cov.neg[k, j] <- cov.neg[j, k] <- reg.tot.neg
         cov[k, j] <- cov[j, k] <- reg.tot
@@ -1996,6 +2000,10 @@ ldscpp <- function(
         cov.p.signed[k, j] <- cov.p.signed[j, k] <- 2 * pnorm(abs(reg.tot.signed / tot.se.signed), lower.tail = FALSE) #this is the same as when computed for the liability scale
         cov.p.unsigned[k, j] <- cov.p.unsigned[j, k] <- 2 * pnorm(abs(reg.tot.unsigned / tot.se.unsigned), lower.tail = FALSE) #this is the same as when computed for the liability scale
         cov.blocks[k, j] <- cov.blocks[j, k] <- n.blocksToUse
+        #mod - power measurements
+        cellZZ.mean[k, j]<-mean(merged[is.finite(ZZ),]$ZZ,na.rm=T)
+        cellZZ.median[k, j]<-median(merged[is.finite(ZZ),]$ZZ,na.rm=T)
+        
         if(verbose){
           if(any(!is.na(delete.values.pos)) | any(!is.na(delete.values.neg))){
             
@@ -2363,7 +2371,7 @@ ldscpp <- function(
         for(k in j:length(traits)){
           if(j == k){
             LOG("     ", print = FALSE)
-            LOG("Total Liability Scale h2 for: ", chi1,": ", round(S.pos[j, j], 3), " (", round(S.pos.SE[j, j], 4), ")"," [", round(S.pos.SE[k, j]/S.pos[k, j], 3),"]")
+            LOG("Total Liability Scale h2 for: ", chi1,": ", round(S.pos[j, j], 3), " (", round(S.pos.SE[j, j], 4), ")"," [", round(S.pos.SE[k, j]/S.pos[k, j], 3),"]    ZZ(mean,median)=",round(cellZZ.mean[j, j], 2),",",round(cellZZ.median[j, j], 2))
           } #round(sign(S.VAR.std_normal[k, j])*sqrt(abs(S.VAR.std_normal[k, j]))
           
           if(j != k){
@@ -2371,7 +2379,7 @@ ldscpp <- function(
               chi2<-traits[k]
             }else{chi2 <- trait.names[k]}
             
-            LOG("Total Liability Scale covG for ", chi1, " and ",chi2,", aligned/opposing/consensus(signed): ", round(S.pos[k, j], 3), " (", round(S.pos.SE[k, j], 4), ")"," [", round(S.pos.SE[k, j]/S.pos[k, j], 3),"]"," / ", round(S.neg[k, j], 3), " (", round(S.neg.SE[k, j], 4), ")"," [", round(S.neg.SE[k, j]/S.neg[k, j], 3),"]"," / ", round(S.signed[k, j], 3), " (", round(S.signed.SE[k, j], 4), ")"," [", round(S.signed.SE[k, j]/S.signed[k, j], 3),"]")
+            LOG("Total Liability Scale covG for ", chi1, " and ",chi2,", aligned/opposing/consensus(signed): ", round(S.pos[k, j], 3), " (", round(S.pos.SE[k, j], 4), ")"," [", round(S.pos.SE[k, j]/S.pos[k, j], 3),"]"," / ", round(S.neg[k, j], 3), " (", round(S.neg.SE[k, j], 4), ")"," [", round(S.neg.SE[k, j]/S.neg[k, j], 3),"]"," / ", round(S.signed[k, j], 3), " (", round(S.signed.SE[k, j], 4), ")"," [", round(S.signed.SE[k, j]/S.signed[k, j], 3),"]   ZZ(mean,median)=",round(cellZZ.mean[j, j], 2),",",round(cellZZ.median[j, j], 2))
             
             LOG("     ", print = FALSE)
           }
@@ -2424,7 +2432,7 @@ ldscpp <- function(
         for(k in j:length(traits)){
           if(j == k){
             LOG("     ", print = FALSE)
-            LOG("Total Liability Scale h2 for: ", chi1,": ", round(S[j, j], 3), " (", round(S.SE[j, j], 4), ")"," [", round(S.SE[k, j]/S[k, j], 3),"]"," {", round(sign(S.VAR.std_normal[k, j])*sqrt(abs(S.VAR.std_normal[k, j])), 3),"}")
+            LOG("Total Liability Scale h2 for: ", chi1,": ", round(S[j, j], 3), " (", round(S.SE[j, j], 4), ")"," [", round(S.SE[k, j]/S[k, j], 3),"]   ZZ(mean,median)=",round(cellZZ.mean[j, j], 2),",",round(cellZZ.median[j, j], 2))
           }
           
           if(j != k){
@@ -2432,7 +2440,7 @@ ldscpp <- function(
               chi2<-traits[k]
             }else{chi2 <- trait.names[k]}
             
-            LOG("Total Liability Scale covG for ", chi1, " and ",chi2,": ", round(S[k, j], 3), " (", round(S.SE[k, j], 4), ")"," [", round(S.SE[k, j]/S[k, j], 3),"]")
+            LOG("Total Liability Scale covG for ", chi1, " and ",chi2,": ", round(S[k, j], 3), " (", round(S.SE[k, j], 4), ")"," [", round(S.SE[k, j]/S[k, j], 3),"]   ZZ(mean,median)=",round(cellZZ.mean[j, j], 2),",",round(cellZZ.median[j, j], 2))
            #round(sign(S.VAR.std_normal[k, j])*sqrt(abs(S.VAR.std_normal[k, j])), 3)
             LOG("     ", print = FALSE)
           }
