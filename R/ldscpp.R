@@ -132,11 +132,11 @@ ldscpp <- function(
   # cov.SE.p.liab.test.cDivS=0.000485594
   # verbose = F
   
-  
-  # #dependencies
-  # library(R.utils)
-  # library(data.table)
-  # library(readr)
+# 
+#   #dependencies
+#   library(R.utils)
+#   library(data.table)
+#   library(readr)
   
   #test for dr dev
   # traits = gwas.meta.sel$filePath
@@ -149,19 +149,20 @@ ldscpp <- function(
   # doubleRegressionRoutine = T
   
   # #test for INT gwas
-  # traits = datasetsMeta.sel$files.supermunged
-  # sample.prev = datasetsMeta.sel$samplePrev
-  # population.prev = datasetsMeta.sel$populationPrev
-  # filepathLD = "/scratch/prj/gwas_sumstats/variant_lists/1kgp3.bX.eur.l2.jz2023.gz"
-  # #ld = "/scratch/prj/gwas_sumstats/ld_scores/1KG_Phase3.WG.CLEANED.EUR_MAF001.1cm.250blocks.ordered"
-  # trait.names = datasetsMeta.sel$traitNames
+  # traits = c("/Users/jakz/Downloads/dep.eur.gz","/Users/jakz/Downloads/lon.eur.gz")
+  # sample.prev = c(0.135802676933002,0.180066693032286)
+  # population.prev = c(0.15,0.16)
+  # filepathLD = "/Users/jakz/Downloads/UKBB.EUR.rsid.l2.ldscore.gz"
+  # filepathVariantsAdditional = "/Users/jakz/Documents/local_db/SHARED/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
+  # trait.names = c("dep.eur.gz","lon.eur.gz")
   # n.blocks = 200
   # preweight.alternativeCorrelationCorrection = F
   # preweight.INFO = F
   # preweight.SINFO = F
   # resamplingMethod="jn"
+  # force.M = 7009236
   # filter.maf = 0.01
-  # filter.info = 0.9
+  # filter.info = 0.6
 
   # #small test
   # traits = p$sumstats[c("SMRV01","SMRV02"),]$mungedpath.supermunge.1kg.orig.unfiltered
@@ -496,7 +497,7 @@ ldscpp <- function(
       setkeyv(x, cols = c("SNP"))
       setkeyv(x.additional, cols = c("SNP"))
       
-      n.additional.matches <- nrow(x[x.additional,on=c('SNP')])
+      n.additional.matches <- nrow(x[x.additional,on=c('SNP'),nomatch = NULL])
       
       if(any(colnames(x.additional)=="CHR")){
         x[x.additional,on=c('SNP'), c("CHR"):=list(i.CHR)]
@@ -543,7 +544,7 @@ ldscpp <- function(
       m <- do.call("rbind", lapply(list.files(path = ld, pattern = "\\.l2\\.M_5_50$"), function(i) {
         suppressMessages(fread(file = file.path(ld, i), na.strings =c(".",NA,"NA",""), encoding = "UTF-8", fill = T, blank.lines.skip = T, showProgress = F, nThread = nThreads, header = F))
       }))
-      M.tot <- sum(m)
+      M.tot <- sum(m, na.rm = T)
       rm(m)
       LOG("Total M (read from ld score files): ",M.tot)
     }
@@ -604,7 +605,7 @@ ldscpp <- function(
       if(any(colnames(y1)=="INFO")) y1$INFO<-as.numeric(y1$INFO)
       if(any(colnames(y1)=="SINFO")) y1$SINFO<-as.numeric(y1$SINFO)
       if(any(colnames(y1)=="N")) y1$N<-as.numeric(y1$N)
-      if(any(colnames(y1)=="NEFF")) y1$N<-as.numeric(y1$NEFF)
+      if(any(colnames(y1)=="NEFF")) y1$NEFF<-as.numeric(y1$NEFF)
       
       #mod addition - use NEF as N
       if(!any(colnames(y1)=="N") & any(colnames(y1)=="NEFF")) y1$N<-y1$NEFF
