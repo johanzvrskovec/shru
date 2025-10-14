@@ -147,6 +147,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # metaAnalyse = F
 # unite=F
 # imputeFromLD=F
+# filter.maf.imputation=0.01
 # imputeFrameLenBp=500000 #500000 for comparison with SSIMP and ImpG
 # imputeFrameLenCM=0.5 #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
 # imputeFromLD.validate.q=0.05
@@ -207,6 +208,7 @@ supermunge <- function(
   unite=F, #bind rows of datasets into one dataset
   diff=F, #compare the resulting first dataset with the rest of the datasets pairwise and detect differences, write these to separate files - NOT IMPLEMENTED YET!
   imputeFromLD=F, #apply LD-IMP or not
+  filter.maf.imputation=0.01, #filter variants below this threshold from imputation
   imputeFrameLenBp=500000, #500000 for comparison with SSIMP and ImpG
   imputeFrameLenCM=0.5, #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
   imputeFromLD.validate.q=0, #Fraction of variants of the input variants with known effects that will be used for estimating RMSD values. Setting a non-zero fraction here will lead to previously genotyped variants also receiving imputed effect sizes, standard errors and imputation quality assessments. Whatever program reading the output needs to take this into account if you want tp distinguish between originally genotyped effects and imputed effects. For example, you can test if the imputed effect and standard errors are different from what is displayed in the standard effect and standard error columns, which would indicate that the variant was previously genotyped and has received new values based on GWAS sumstat LDimp imputation.
@@ -313,7 +315,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.3\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -322,12 +324,14 @@ supermunge <- function(
   cat("\nchangeEffectDirectionOnAlleleFlip=",setChangeEffectDirectionOnAlleleFlip)
   cat("\nprocess=",process)
   cat("\nimputeFromLD=",imputeFromLD)
+  
   if(imputeFromLD & is.null(imputeFrameLenCM)) cat("\nimputeFrameLenBp=",imputeFrameLenBp)
   if(imputeFromLD & !is.null(imputeFrameLenCM)) cat("\nimputeFrameLenCM=",imputeFrameLenCM)
   if(imputeFromLD & imputeFromLD.validate.q>0) cat("\nimputeFromLD.validate.q=",imputeFromLD.validate.q)
   cat("\nproduceCompositeTable=",produceCompositeTable)
   cat("\nstandardiseEffectsToExposure=",standardiseEffectsToExposure)
   cat("\nFilters: MAF>",filter.maf,"\tINFO>",filter.info,"\tMAC>",filter.mac,"\tOR>",filter.or)
+  if(imputeFromLD & is.null(filter.maf.imputation)) cat("\tMAF(imputation)>",filter.maf.imputation)
   cat("\nFilters: FRQ.low<",filter.frq.lower,"\tFRQ.high>",filter.frq.upper)
   if(!is.null(filter.chr)) cat("\nExclude chromosomes: ",filter.chr)
   if(length(invertEffectDirectionOn)>0) cat("\ninvertEffectDirectionOn=", paste(invertEffectDirectionOn,sep = ","))
@@ -946,7 +950,7 @@ supermunge <- function(
             cSumstats[!is.finite(FRQ),FRQ:=NA_real_]
           } else {
             cSumstats <- cSumstats[is.finite(FRQ),]
-            cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; non-finite FRQ",as.character(cSumstats.n-nrow(cSumstats))))
+            cSumstats.meta<-rbind(cSumstats.meta,list("Cleared data; non-finite FRQ",as.character(cSumstats.n-nrow(cSumstats))))
           }
         }
         cat(".")
@@ -990,6 +994,7 @@ supermunge <- function(
             
             #cSumstats.merged.snp[,DUMMY_TRUE:=NULL]
           }
+          cat("$")
           
          
           cSumstats.unmatched<-cSumstats[MATCH_SNP==F & MATCH_SNPR==F & (MATCH_POS==F | MATCH_ALLELE==F),]
@@ -1016,16 +1021,19 @@ supermunge <- function(
             colnames(cSumstats.merged.snp)<-paste0(ref.colnames$std,"_REF")
             setkeyv(cSumstats.merged.snp, cols = paste0(key(ref),"_REF"))
             cSumstats.merged.snp<-cSumstats.merged.snp[!is.na(SNP_REF),]
+            cat("@")
           }
           rm(cSumstats.unmatched)
           cSumstats[,MATCH_SNP:=NULL][,MATCH_SNPR:=NULL][,MATCH_POS:=NULL][,MATCH_ALLELE:=NULL] #one option would be to keep this information and just join in the reference columns
           
+          
           #join with reference on SNP
           cSumstats.tmp<-cSumstats[!is.na(SNP),]
           cSumstats.merged.snp<-cSumstats.merged.snp[cSumstats.tmp, on=c(SNP_REF="SNP"), nomatch=0]
-          rm(cSumstats.tmp)
+         
           #replace missing columns
           cSumstats.merged.snp[,SNP:=SNP_REF][,SNP_REF:=NULL]
+          cat("%")
           
           #Join with reference on reverse SNP (SNPR)
           cSumstats.merged.snpr<-NULL
@@ -1035,7 +1043,7 @@ supermunge <- function(
             cSumstats.merged.snpr[,SNPR_REF:=as.character(SNPR_REF)] #extra type conversion
             setkeyv(cSumstats.merged.snpr, cols = c("SNPR_REF"))
             cSumstats.merged.snpr<-cSumstats.merged.snpr[!is.na(SNPR_REF),]
-            cSumstats.merged.snpr<-cSumstats.merged.snpr[cSumstats, on=c(SNPR_REF='SNP'), nomatch=0]
+            cSumstats.merged.snpr<-cSumstats.merged.snpr[cSumstats.tmp, on=c(SNPR_REF='SNP'), nomatch=0]
             
             #replace missing columns
             cSumstats.merged.snpr[,SNP:=SNP_REF][,SNP_REF:=NULL]
@@ -1045,8 +1053,10 @@ supermunge <- function(
             cSumstats.merged.snp<-rbindlist(list(cSumstats.merged.snp,cSumstats.merged.snpr), use.names=T, fill = T)
             cSumstats.meta<-rbind(cSumstats.meta,list("Salvaged SNPs by reverse SNP",as.character(nrow(cSumstats.merged.snpr))))
             cSumstats.merged.snpr<-NULL
+            cat("r%")
           }
-          cat(".")
+          rm(cSumstats.tmp)
+          
           
           cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; rsID not in ref",as.character(cSumstats.n-nrow(cSumstats.merged.snp))))
           cat(".")
@@ -1071,7 +1081,7 @@ supermunge <- function(
             cSumstats.merged.pos2<-cSumstats.merged.pos1
             cSumstats.merged.pos2.inverted<-cSumstats.merged.pos1
             
-            cSumstats.tmp<-cSumstats[!is.na(CHR) | !is.na(BP) | !is.na(A1) | !is.na(A2),]
+            cSumstats.tmp<-cSumstats[!is.na(CHR) & !is.na(BP) & !is.na(A1) & !is.na(A2),]
             
             cSumstats.merged.pos1<-cSumstats.merged.pos1[cSumstats.tmp, on=c(CHR_REF='CHR' , BP_REF='BP', A1_REF='A1'), nomatch=0]
             cSumstats.merged.pos1.inverted<-cSumstats.merged.pos1.inverted[cSumstats.tmp, on=c(CHR_REF='CHR' , BP_REF='BP', A2_REF='A1'), nomatch=0]
@@ -1089,8 +1099,9 @@ supermunge <- function(
             rm(cSumstats.merged.pos2)
             rm(cSumstats.merged.pos2.inverted)
             rm(cSumstats.tmp)
+            cat("%")
           }
-          cat(".")
+          
           
           #set cSumstatst to the merged version
           if(is.null(cSumstats.merged.pos)){
@@ -1726,12 +1737,12 @@ supermunge <- function(
         cSumstats.merged.snp[cSumstats, on=c(SNP_REF='SNP'),c('BETA','SE','N','FRQ') :=list(i.EFFECT,i.SE,i.N,i.FRQ)]
         
         #filtering and selecting the subset to impute
-        cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.finite(BETA) & is.finite(BP_REF) & is.finite(CHR_REF) & FRQ_REF>0.001,] #L2_REF>0
+        cSumstats.merged.snp.toimpute<-cSumstats.merged.snp[!is.finite(BETA) & is.finite(BP_REF) & is.finite(CHR_REF) & FRQ_REF>eval(filter.maf.imputation),] #L2_REF>0
         
         #prepare known variants to be imputed for validation
         imputeFromLD.validate.m <- imputeFromLD.validate.q * nrow(cSumstats.merged.snp[is.finite(BETA) & is.finite(SE),])
         if(imputeFromLD.validate.m>0){
-          cSumstats.merged.snp.toimpute.known <- head(cSumstats.merged.snp[is.finite(BETA) & is.finite(SE) & FRQ<0.90 & FRQ_REF>0.001,][order(-(FRQ*N*((BETA/SE)^2)*L2_REF)),],imputeFromLD.validate.m)
+          cSumstats.merged.snp.toimpute.known <- head(cSumstats.merged.snp[is.finite(BETA) & is.finite(SE) & FRQ<0.90 & FRQ_REF>eval(filter.maf.imputation),][order(-(FRQ*N*((BETA/SE)^2)*L2_REF)),],imputeFromLD.validate.m)
           cSumstats.merged.snp.toimpute <- rbind(cSumstats.merged.snp.toimpute.known,cSumstats.merged.snp.toimpute) #add the known imputations first, in case of testing
         }
         
