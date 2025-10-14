@@ -18,11 +18,10 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 
 #tests
 # 
-# filePaths = "~/Downloads/MA_PAno23andMe_18022020.txt"
+# filePaths = "~/Downloads/dep.afr"
 # refFilePath = "/Users/jakz/Documents/local_db/SHARED/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
-# traitNames = c("pa.eur")
-# ancestrySetting = c("EUR")
-# N = c(410603)
+# traitNames = c("dep.afr")
+# #ancestrySetting = c("EUR")
 
 # single test with hard coded values
 # filePaths = "/Users/jakz/Downloads/continuous-21001-both_sexes-irnt.tsv.bgz"
@@ -1022,7 +1021,9 @@ supermunge <- function(
           cSumstats[,MATCH_SNP:=NULL][,MATCH_SNPR:=NULL][,MATCH_POS:=NULL][,MATCH_ALLELE:=NULL] #one option would be to keep this information and just join in the reference columns
           
           #join with reference on SNP
-          cSumstats.merged.snp<-cSumstats.merged.snp[cSumstats, on=c(SNP_REF="SNP"), nomatch=0]
+          cSumstats.tmp<-cSumstats[!is.na(SNP),]
+          cSumstats.merged.snp<-cSumstats.merged.snp[cSumstats.tmp, on=c(SNP_REF="SNP"), nomatch=0]
+          rm(cSumstats.tmp)
           #replace missing columns
           cSumstats.merged.snp[,SNP:=SNP_REF][,SNP_REF:=NULL]
           
