@@ -411,10 +411,12 @@ supermunge <- function(
     # ref[,SNP:=tolower(as.character(SNP))]
     # ref[,A1:=toupper(as.character(A1))]
     # ref[,A2:=toupper(as.character(A2))]
-    if(any("SNPR"==colnames(ref))) {
-      ref.keys<-c(ref.keys,'SNPR')
-      ref<-ref[!is.na(SNPR),]
-    }
+    
+    # if(any("SNPR"==colnames(ref))) { #no this is not a good idea if you have set all of the values as NA
+    #   ref.keys<-c(ref.keys,'SNPR')
+    #   ref<-ref[!is.na(SNPR),]
+    # }
+    
     if(any("CHR"==colnames(ref))) {
       ref.keys<-c(ref.keys,'CHR')
       ref<-ref[!is.na(CHR),]
