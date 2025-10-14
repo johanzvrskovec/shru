@@ -406,22 +406,31 @@ supermunge <- function(
     
     # Column harmonisation
     ref.keys<-c("SNP")
+    ref<-ref[!is.na(SNP),]
     #let's assume the ref is properly formatted and interpreted here with PLINK numeric chromosome numbers
     # ref[,SNP:=tolower(as.character(SNP))]
     # ref[,A1:=toupper(as.character(A1))]
     # ref[,A2:=toupper(as.character(A2))]
-    if('CHR' %in% names(ref)) {
-      ref.keys<-c(ref.keys,'CHR') 
+    if(any("SNPR"==colnames(ref))) {
+      ref.keys<-c(ref.keys,'SNPR')
+      ref<-ref[!is.na(SNPR),]
     }
-    if('BP' %in% names(ref)) {
+    if(any("CHR"==colnames(ref))) {
+      ref.keys<-c(ref.keys,'CHR')
+      ref<-ref[!is.na(CHR),]
+    }
+    if(any("BP"==colnames(ref))) {
       #ref[,BP:=as.integer(BP)]
       ref.keys<-c(ref.keys,'BP')
+      ref<-ref[!is.na(BP),]
     }
-    if('A1' %in% names(ref)) {
+    if(any("A1"==colnames(ref))) {
       ref.keys<-c(ref.keys,'A1')
+      ref<-ref[!is.na(A1),]
     }
-    if('A2' %in% names(ref)) {
+    if(any("A2"==colnames(ref))) {
       ref.keys<-c(ref.keys,'A2')
+      ref<-ref[!is.na(A2),]
     }
     
     if(produceCompositeTable | metaAnalyse){
@@ -985,7 +994,7 @@ supermunge <- function(
           cSumstats[cSumstats.merged.snp,on=c(SNP="SNP_REF"),MATCH_SNP:=T]
           if(any(colnames(cSumstats)=="SNP") && any(colnames(ref)=="SNPR")) cSumstats[cSumstats.merged.snp,on=c(SNP='SNPR_REF' ),MATCH_SNPR:=T]
           if(any(colnames(cSumstats)=="CHR") && any(colnames(cSumstats)=="BP") && any(colnames(ref)=="CHR") && any(colnames(ref)=="BP")) {
-            cSumstats[cSumstats.merged.snp,on=c(CHR='CHR_REF' , BP='BP_REF'),MATCH_POS:=T]
+            cSumstats[cSumstats.merged.snp,on=c(CHR='CHR_REF', BP='BP_REF'),MATCH_POS:=T]
             #cSumstats.merged.snp[,DUMMY_TRUE:=T]
             if(any(colnames(cSumstats)=="A1") && any(colnames(cSumstats)=="A2") && any(colnames(ref)=="A1") && any(colnames(ref)=="A2")) {
               cSumstats[cSumstats.merged.snp,on=c(A1='A1_REF', A2='A2_REF', CHR='CHR_REF',BP='BP_REF'),MATCH_ALLELE:=T]
