@@ -1062,18 +1062,20 @@ supermunge <- function(
           cSumstats.merged.pos<-NULL
           if(any(colnames(cSumstats)=="CHR") && any(colnames(cSumstats)=="BP") && any(colnames(ref)=="CHR") && any(colnames(ref)=="BP") && any(colnames(cSumstats)=="A1") && any(colnames(ref)=="A1") && any(colnames(cSumstats)=="A2") && any(colnames(ref)=="A2")) {
             #Join with reference on position rather than rsID
-            cSumstats.merged.pos1<-ref
+            cSumstats.merged.pos1 <- ref
             colnames(cSumstats.merged.pos1)<-paste0(ref.colnames$std,"_REF")
-            cSumstats.merged.pos1<-cSumstats.merged.pos1[!is.na(CHR_REF) & !is.na(BP_REF) & !is.na(A1_REF) & !is.na(A2_REF),] #filter from na-values to avoid mass join conditions
+            cSumstats.merged.pos1 <- cSumstats.merged.pos1[!is.na(CHR_REF) | !is.na(BP_REF) | !is.na(A1_REF) | !is.na(A2_REF),] #filter from na-values to avoid mass join conditions
             setkeyv(cSumstats.merged.pos1, cols = paste0(key(ref),"_REF"))
             cSumstats.merged.pos1.inverted<-cSumstats.merged.pos1
             cSumstats.merged.pos2<-cSumstats.merged.pos1
             cSumstats.merged.pos2.inverted<-cSumstats.merged.pos1
             
-            cSumstats.merged.pos1<-cSumstats.merged.pos1[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP', A1_REF='A1'), nomatch=0]
-            cSumstats.merged.pos1.inverted<-cSumstats.merged.pos1.inverted[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP', A2_REF='A1'), nomatch=0]
-            cSumstats.merged.pos2<-cSumstats.merged.pos2[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP', A2_REF='A2'), nomatch=0]
-            cSumstats.merged.pos2.inverted<-cSumstats.merged.pos2.inverted[cSumstats, on=c(CHR_REF='CHR' , BP_REF='BP', A1_REF='A2'), nomatch=0]
+            cSumstats.tmp<-cSumstats[!is.na(CHR) | !is.na(BP) | !is.na(A1) | !is.na(A2),]
+            
+            cSumstats.merged.pos1<-cSumstats.merged.pos1[cSumstats.tmp, on=c(CHR_REF='CHR' , BP_REF='BP', A1_REF='A1'), nomatch=0]
+            cSumstats.merged.pos1.inverted<-cSumstats.merged.pos1.inverted[cSumstats.tmp, on=c(CHR_REF='CHR' , BP_REF='BP', A2_REF='A1'), nomatch=0]
+            cSumstats.merged.pos2<-cSumstats.merged.pos2[cSumstats.tmp, on=c(CHR_REF='CHR' , BP_REF='BP', A2_REF='A2'), nomatch=0]
+            cSumstats.merged.pos2.inverted<-cSumstats.merged.pos2.inverted[cSumstats.tmp, on=c(CHR_REF='CHR' , BP_REF='BP', A1_REF='A2'), nomatch=0]
             
             #replace missing columns
             cSumstats.merged.pos1[,CHR:=CHR_REF][,BP:=BP_REF][,A1:=A1_REF]
@@ -1085,6 +1087,7 @@ supermunge <- function(
             rm(cSumstats.merged.pos1.inverted)
             rm(cSumstats.merged.pos2)
             rm(cSumstats.merged.pos2.inverted)
+            rm(cSumstats.tmp)
           }
           cat(".")
           
