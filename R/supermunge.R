@@ -419,20 +419,20 @@ supermunge <- function(
     
     if(any("CHR"==colnames(ref))) {
       ref.keys<-c(ref.keys,'CHR')
-      ref<-ref[!is.na(CHR),]
+      #ref<-ref[!is.na(CHR),]
     }
     if(any("BP"==colnames(ref))) {
       #ref[,BP:=as.integer(BP)]
       ref.keys<-c(ref.keys,'BP')
-      ref<-ref[!is.na(BP),]
+      #ref<-ref[!is.na(BP),]
     }
     if(any("A1"==colnames(ref))) {
       ref.keys<-c(ref.keys,'A1')
-      ref<-ref[!is.na(A1),]
+      #ref<-ref[!is.na(A1),]
     }
     if(any("A2"==colnames(ref))) {
       ref.keys<-c(ref.keys,'A2')
-      ref<-ref[!is.na(A2),]
+      #ref<-ref[!is.na(A2),]
     }
     
     if(produceCompositeTable | metaAnalyse){
@@ -677,7 +677,16 @@ supermunge <- function(
       #parse SNP if needed
       if(parse){
         cSumstats$SNP<-shru::parseSNPColumnAsRSNumber(cSumstats$SNP) #this has to be run on the whole vector of SNP's as it contains tests for parsing in certain ways!
-        cat(".")
+        cat(">")
+      }
+      
+      #set NA SNP to fallback values
+      if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP") & any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")){
+        cSumstats[is.na(SNP),SNP:=paste0(CHR,BP,A1,A2,.I,collapse = "_")]
+      } else if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
+        cSumstats[is.na(SNP),SNP:=paste0(CHR,BP,.I,collapse = "_")]
+      } else {
+        cSumstats[is.na(SNP),SNP:=.I]
       }
       
       cSumstats.meta<-rbind(cSumstats.meta,list("# RS variants",as.character(sum(grepl(pattern = "^rs.+",x = cSumstats$SNP,ignore.case = T)))))
