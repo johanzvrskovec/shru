@@ -332,7 +332,7 @@ supermunge <- function(
   cat("\nproduceCompositeTable=",produceCompositeTable)
   cat("\nstandardiseEffectsToExposure=",standardiseEffectsToExposure)
   cat("\nFilters: MAF>",filter.maf,"\tINFO>",filter.info,"\tMAC>",filter.mac,"\tOR>",filter.or)
-  if(imputeFromLD & is.null(filter.maf.imputation)) cat("\tMAF(imputation)>",filter.maf.imputation)
+  if(imputeFromLD & !is.null(filter.maf.imputation)) cat("\tMAF(imputation)>",filter.maf.imputation)
   cat("\nFilters: FRQ.low<",filter.frq.lower,"\tFRQ.high>",filter.frq.upper)
   if(!is.null(filter.chr)) cat("\nExclude chromosomes: ",filter.chr)
   if(length(invertEffectDirectionOn)>0) cat("\ninvertEffectDirectionOn=", paste(invertEffectDirectionOn,sep = ","))
