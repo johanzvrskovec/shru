@@ -21,6 +21,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # filePaths = "~/Downloads/dep.afr"
 # refFilePath = "/Users/jakz/Documents/local_db/SHARED/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
 # traitNames = c("dep.afr")
+# test = TRUE
 # #ancestrySetting = c("EUR")
 
 # single test with hard coded values
@@ -682,9 +683,9 @@ supermunge <- function(
       
       #set NA SNP to fallback values
       if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP") & any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")){
-        cSumstats[is.na(SNP),SNP:=paste0(CHR,BP,A1,A2,.I,collapse = "_")]
+        cSumstats[is.na(SNP),SNP:=paste(CHR,BP,A1,A2,.I, sep = "_")]
       } else if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
-        cSumstats[is.na(SNP),SNP:=paste0(CHR,BP,.I,collapse = "_")]
+        cSumstats[is.na(SNP),SNP:=paste(CHR,BP,.I, sep = "_")]
       } else {
         cSumstats[is.na(SNP),SNP:=.I]
       }
