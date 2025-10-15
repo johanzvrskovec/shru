@@ -316,7 +316,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.3\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.4\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -632,17 +632,10 @@ supermunge <- function(
       }
       
       
-      #Add in backstop SNP column
-      if(!any(colnames(cSumstats)=="SNP")){
-        cSumstats$SNP<-paste0("sm",1:nrow(cSumstats))
-      }
       
-      
-      # Transform to data table
-      #cSumstats <- setDT(cSumstats) #redundant now
       # Column harmonisation
-      cSumstats.keys<-c('SNP')
-      cSumstats[,SNP:=as.character(SNP)]
+      cSumstats.keys<-c('SNP') #formatting of SNP further down
+      
       if(any(colnames(cSumstats)=="A1")) {
         cSumstats[,A1:=toupper(as.character(A1))]
         cSumstats.keys<-c(cSumstats.keys,'A1')
@@ -675,30 +668,12 @@ supermunge <- function(
       }
       cat(".")
       
-      #parse SNP if needed
-      if(parse){
-        cSumstats$SNP<-shru::parseSNPColumnAsRSNumber(cSumstats$SNP) #this has to be run on the whole vector of SNP's as it contains tests for parsing in certain ways!
-        cat(">")
-      }
-      
-      #set NA SNP to fallback values
-      if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP") & any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")){
-        cSumstats[is.na(SNP),SNP:=paste(CHR,BP,A1,A2,.I, sep = "_")]
-      } else if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
-        cSumstats[is.na(SNP),SNP:=paste(CHR,BP,.I, sep = "_")]
-      } else {
-        cSumstats[is.na(SNP),SNP:=.I]
-      }
-      
-      cSumstats.meta<-rbind(cSumstats.meta,list("# RS variants",as.character(sum(grepl(pattern = "^rs.+",x = cSumstats$SNP,ignore.case = T)))))
-      
-      
       if(any(colnames(cSumstats)=="CHR")) {
         if(parse) { 
           cSumstats$CHR<-shru::parseCHRColumn(cSumstats$CHR)
-          } else {
+        } else {
           cSumstats[,CHR:=as.integer(CHR)]
-          }
+        }
         cSumstats.keys<-c(cSumstats.keys,'CHR') 
       }
       cat(".")
@@ -715,15 +690,43 @@ supermunge <- function(
       }
       cat(".")
       
+      #Add in backstop SNP column
+      if(!any(colnames(cSumstats)=="SNP")){
+        if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP") & any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")){
+          cSumstats[,SNP:=paste(CHR,BP,A1,A2, sep = ":")] #use CHR:BP:A1:A2 format if possible
+        } else if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
+          cSumstats[,SNP:=paste(CHR,BP,.I, sep = "_")]
+        } else {
+          cSumstats[,SNP:=.I]
+        }
+        cat("s")
+      } else {
+        cSumstats[,SNP:=as.character(SNP)]
+        if(parse){
+          cSumstats$SNP<-shru::parseSNPColumnAsRSNumber(cSumstats$SNP) #this has to be run on the whole vector of SNP's as it contains tests for parsing in certain ways!
+          cat(">")
+        }
+      }
+      
+      #set NA SNP to fallback values - use same formats as for backstop SNP
+      if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP") & any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")){
+        cSumstats[is.na(SNP),SNP:=paste(CHR,BP,A1,A2, sep = ":")] #use CHR:BP:A1:A2 format if possible
+      } else if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
+        cSumstats[is.na(SNP),SNP:=paste(CHR,BP,.I, sep = "_")]
+      } else {
+        cSumstats[is.na(SNP),SNP:=.I]
+      }
+      
+      cSumstats.meta<-rbind(cSumstats.meta,list("# RS variants",as.character(sum(grepl(pattern = "^rs.+",x = cSumstats$SNP,ignore.case = T)))))
+      
       #set keys when columns stable
       setkeyv(cSumstats,cols = cSumstats.keys)
       cat(".")
       
       #Set effect to column standard - EFFECT
-      #TODO Fix according to new column standard
-      if(!("EFFECT" %in% colnames(cSumstats))){
-        if("BETA" %in% colnames(cSumstats)) cSumstats[,EFFECT:=BETA] else
-          if("OR" %in% colnames(cSumstats)) cSumstats[,EFFECT:=OR]
+      if(!any(colnames(cSumstats)=="EFFECT")){
+        if(any(colnames(cSumstats)=="BETA")) cSumstats[,EFFECT:=BETA] else
+          if(any(colnames(cSumstats)=="OR")) cSumstats[,EFFECT:=OR]
       }
       cat(".")
       
