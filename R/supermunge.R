@@ -18,9 +18,10 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 
 #tests
 # 
-# filePaths = "~/Downloads/dep.afr"
+# filePaths = "~/Downloads/ptsd.afr"
 # refFilePath = "/Users/jakz/Documents/local_db/SHARED/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
-# traitNames = c("dep.afr")
+# traitNames = c("ptsd.afr")
+# invertEffectDirectionOn = c("ptsd.afr")
 # test = TRUE
 # #ancestrySetting = c("EUR")
 
@@ -1436,7 +1437,7 @@ supermunge <- function(
             if(!is.null(invertEffectDirectionOn)){
               if(any(invertEffectDirectionOn==traitNames[iFile])){
                 cSumstats[,EFFECT:=EFFECT*-1]
-                cSumstats.meta<-rbind(cSumstats.meta,list("Inverted overall effect",as.character(length(cSumstats$EFFECT))))
+                cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","EFFECT*-1 (Inverted overall effect)"))
               }
               cat(".")
             }
