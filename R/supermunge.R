@@ -18,10 +18,10 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 
 #tests
 # 
-# filePaths = "~/Downloads/ptsd.afr"
+# filePaths = "~/Downloads/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
 # refFilePath = "/Users/jakz/Documents/local_db/SHARED/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
-# traitNames = c("ptsd.afr")
-# invertEffectDirectionOn = c("ptsd.afr")
+# traitNames = c("BODYTEST")
+# #invertEffectDirectionOn = c("ptsd.afr")
 # test = TRUE
 # #ancestrySetting = c("EUR")
 
@@ -317,7 +317,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.4\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.5\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
