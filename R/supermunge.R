@@ -142,6 +142,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # chainFilePath = NULL
 # traitNames=NULL
 # ancestrySetting=c("ANY")
+# additionalColumnsPath=NULL
 # setChangeEffectDirectionOnAlleleFlip=T #set to TRUE to emulate genomic sem munge
 # produceCompositeTable=F
 # setNtoNEFF=NULL #set N to NEFF before writing output
@@ -202,6 +203,7 @@ supermunge <- function(
   chainFilePath = NULL, #chain file for lift-over
   traitNames=NULL,
   ancestrySetting=c("ANY"), #EUR, #ancestry setting list, one entry per dataset - change this if you want to select MAF and L2 values from a specific ancestry
+  additionalColumnsPath=NULL, #sumstat file with additional columns to be added to the datasets (typically INFO score etc after GWAS)
   setChangeEffectDirectionOnAlleleFlip=T, #set to TRUE to emulate genomic sem munge
   produceCompositeTable=F, #create a dataframe with all effects and standard errors across datasets, as for Genomic SEM latent factor GWAS.
   setNtoNEFF=NULL, #list, set N to NEFF before writing output (per dataset), remove NEFF (as Genomic SEM munge)
@@ -317,7 +319,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.5\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.6\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -397,6 +399,24 @@ supermunge <- function(
     
    
     cat("Done!\n")
+  }
+  
+  
+  #Read additional columns
+  if(!is.null(additionalColumnsPath)){
+    cAdditionalColumns<-fread(file = additionalColumnsPath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
+    
+    cAdditionalColumns.colnames<-shru::stdGwasColumnNames(colnames(cAdditionalColumns),missingEssentialColumnsStop = NULL, warnings = F)
+    colnames(cAdditionalColumns)<-cAdditionalColumns.colnames$std
+    
+    #SNPALT is the shru/supermunge encoding for non-rs-id SNP columns
+    if(any("SNPALT"==colnames(cAdditionalColumns))){
+      cAdditionalColumns[is.na(SNP),SNP:=SNPALT]
+    }
+    
+    setkeyv(cAdditionalColumns, cols = c("SNP"))
+    
+    cat("\nRead additional columns from specified path: ",paste(cAdditionalColumns.colnames$std,collapse = ","))
   }
   
   
@@ -989,6 +1009,18 @@ supermunge <- function(
         }
         cat(".")
         
+        #Update with additional columns
+        if(nrow(cAdditionalColumns)>0){
+          if(any(colnames(cAdditionalColumns)=="INFO")){
+            if(!any(colnames(cSumstats)=="INFO")){
+              cSumstats[,INFO:=NA_real_]
+            }
+            cSumstats[cAdditionalColumns, on='SNP', c('INFO_TO_UPDATE_SUPERMUNGE') := list(i.INFO)]
+            cSumstats[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),INFO:=INFO_TO_UPDATE_SUPERMUNGE]
+            cSumstats.meta<-rbind(cSumstats.meta,list("Updated INFO",as.character(nrow(cSumstats[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),]))))
+            cat("A")
+          }
+        }
         
         # Join/merge with reference
         if(!is.null(ref)){
