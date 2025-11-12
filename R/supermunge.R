@@ -461,17 +461,6 @@ supermunge <- function(
       #ref<-ref[!is.na(A2),]
     }
     
-    if(produceCompositeTable | metaAnalyse){
-      #create composite variant table
-      variantTable.cols<-ref.keys
-      if(any(colnames(ref)=="MAF"))  variantTable.cols<-c(variantTable.cols,"MAF")
-      variantTable<-ref[,..variantTable.cols]
-      variantTable <- setDT(variantTable)
-      setkeyv(variantTable, cols = ref.keys)
-      #check keys with key(variantTable)
-    }
-    
-    
     #read and merge with ld scores from directory
     if(!is.null(ldDirPath)){
       cat("\nReading LD-scores from specified directory...")
@@ -483,12 +472,40 @@ supermunge <- function(
       cat("Done!\n")
     }
     
+    #Update with additional columns
+    if(nrow(cAdditionalColumns)>0){
+      if(any(colnames(cAdditionalColumns)=="INFO")){
+        if(!any(colnames(ref)=="INFO")){
+          ref[,INFO:=NA_real_]
+        }
+        ref[cAdditionalColumns, on='SNP', c('INFO_TO_UPDATE_SUPERMUNGE') := list(i.INFO)]
+        ref[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),INFO:=INFO_TO_UPDATE_SUPERMUNGE]
+        cSumstats.meta<-rbind(cSumstats.meta,list("Updated INFO",))
+        cat("Updated reference with additional INFO data for ",as.character(nrow(ref[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),]))," variants")
+        ref[,INFO_TO_UPDATE_SUPERMUNGE:=NULL]
+      }
+    }
+    
+    if(produceCompositeTable | metaAnalyse){
+      #create composite variant table
+      variantTable.cols<-ref.keys
+      if(any(colnames(ref)=="MAF"))  variantTable.cols<-c(variantTable.cols,"MAF")
+      variantTable<-ref[,..variantTable.cols]
+      variantTable <- setDT(variantTable)
+      setkeyv(variantTable, cols = ref.keys)
+      #check keys with key(variantTable)
+    }
+    
     #rename reference columns as to distinguish them from the dataset columns - MOVED UNTIL LATER AFTER ref COLUMN EDITS PER DATASET
     # colnames(ref)<-paste0(names(ref),"_REF")
     # setkeyv(ref, cols = paste0(ref.keys,"_REF"))
     # #check keys with key(ref)
     setkeyv(ref, cols = ref.keys)
     
+  } else if (metaAnalyse) {
+    stop("\nYou need a variant reference to perform meta-analysis (will be used as the backbone, but is completed with additional variants from the datasets)\n")
+  } else if (nrow(cAdditionalColumns)>0){
+    stop("\nYou need a variant reference to update additional columns, as these are update via the reference.\n")
   } else {
     warning("\nRunning without reference.\n")
   }
@@ -1012,19 +1029,6 @@ supermunge <- function(
           cSumstats.meta<-rbind(cSumstats.meta,list("Discarded indels",as.character(cSumstats.n-nrow(cSumstats))))
         }
         cat(".")
-        
-        #Update with additional columns
-        if(nrow(cAdditionalColumns)>0){
-          if(any(colnames(cAdditionalColumns)=="INFO")){
-            if(!any(colnames(cSumstats)=="INFO")){
-              cSumstats[,INFO:=NA_real_]
-            }
-            cSumstats[cAdditionalColumns, on='SNP', c('INFO_TO_UPDATE_SUPERMUNGE') := list(i.INFO)]
-            cSumstats[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),INFO:=INFO_TO_UPDATE_SUPERMUNGE]
-            cSumstats.meta<-rbind(cSumstats.meta,list("Updated INFO",as.character(nrow(cSumstats[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),]))))
-            cat("A")
-          }
-        }
         
         # Join/merge with reference
         if(!is.null(ref)){
@@ -2504,6 +2508,15 @@ supermunge <- function(
       variantTable$P_META <- 2*pnorm(q = abs(variantTable$Z_META),mean = 0, sd = 1, lower.tail = F)
       
       variantTable.metaOnly<-variantTable[K>0,.(SNP,CHR,BP,A1,A2,FRQ=FRQ_META,BETA=BETA_META,SE=SE_META,Z=Z_META,N=N_META,P=P_META,K)]
+      
+      #add in additional variant table/ref columns
+      if(any(colnames(variantTable)=="INFO")){
+        if(!any(colnames(variantTable.metaOnly)=="INFO")){ #in case previously meta-analysed for example
+          variantTable.metaOnly[,INFO:=NA_real_]
+        }
+        variantTable.metaOnly[variantTable,on='SNP',c('INFO_TO_UPDATE_SUPERMUNGE'):=list(i.INFO)]
+        variantTable.metaOnly[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),INFO:=INFO_TO_UPDATE_SUPERMUNGE][,INFO_TO_UPDATE_SUPERMUNGE:=NULL]
+      }
       
     }
   }
