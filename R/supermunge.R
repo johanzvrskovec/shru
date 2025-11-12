@@ -480,7 +480,6 @@ supermunge <- function(
         }
         ref[cAdditionalColumns, on='SNP', c('INFO_TO_UPDATE_SUPERMUNGE') := list(i.INFO)]
         ref[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),INFO:=INFO_TO_UPDATE_SUPERMUNGE]
-        cSumstats.meta<-rbind(cSumstats.meta,list("Updated INFO",))
         cat("Updated reference with additional INFO data for ",as.character(nrow(ref[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),]))," variants")
         ref[,INFO_TO_UPDATE_SUPERMUNGE:=NULL]
       }
