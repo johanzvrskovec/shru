@@ -409,9 +409,13 @@ supermunge <- function(
     cAdditionalColumns.colnames<-shru::stdGwasColumnNames(colnames(cAdditionalColumns),missingEssentialColumnsStop = NULL, warnings = F)
     colnames(cAdditionalColumns)<-cAdditionalColumns.colnames$std
     
-    #SNPALT is the shru/supermunge encoding for non-rs-id SNP columns
+    #SNPALT is the shru/supermunge encoding for non-rs-id SNP columns (does not seem to work correctly, the above always returns XSNP rather)
     if(any("SNPALT"==colnames(cAdditionalColumns))){
       cAdditionalColumns[is.na(SNP),SNP:=SNPALT]
+    }
+    
+    if(any("XSNP"==colnames(cAdditionalColumns))){
+      cAdditionalColumns[is.na(SNP),SNP:=XSNP]
     }
     
     setkeyv(cAdditionalColumns, cols = c("SNP"))
