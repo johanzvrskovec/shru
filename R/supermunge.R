@@ -17,6 +17,15 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 
 
 #tests
+
+# filePaths = file.path(folderpath.work,paste0(basenameC,".fastGWA"))
+# refFilePath = file.path(folderpath.data,"variant_lists","1kgp3.bX.eur.l2.jz2023.gz")
+# metaAnalyse = T
+# writeOutput = F
+# completeRefFromData = T
+# additionalColumnsPath = file.path(folderpath.work,"gladp.infoscores.vcf.gz")
+# test=T
+
 # 
 # filePaths = "~/Downloads/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
 # refFilePath = "/Users/jakz/Documents/local_db/SHARED/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
@@ -479,8 +488,8 @@ supermunge <- function(
           ref[,INFO:=NA_real_]
         }
         ref[cAdditionalColumns, on='SNP', c('INFO_TO_UPDATE_SUPERMUNGE') := list(i.INFO)]
-        ref[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),INFO:=INFO_TO_UPDATE_SUPERMUNGE]
         cat("Updated reference with additional INFO data for ",as.character(nrow(ref[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),]))," variants")
+        ref[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),INFO:=INFO_TO_UPDATE_SUPERMUNGE]
         ref[,INFO_TO_UPDATE_SUPERMUNGE:=NULL]
       }
     }
@@ -489,6 +498,7 @@ supermunge <- function(
       #create composite variant table
       variantTable.cols<-ref.keys
       if(any(colnames(ref)=="MAF"))  variantTable.cols<-c(variantTable.cols,"MAF")
+      if(any(colnames(ref)=="INFO"))  variantTable.cols<-c(variantTable.cols,"INFO")
       variantTable<-ref[,..variantTable.cols]
       variantTable <- setDT(variantTable)
       setkeyv(variantTable, cols = ref.keys)
@@ -1279,7 +1289,8 @@ supermunge <- function(
           
           
           #Set INFO from reference
-          if(!any(colnames(cSumstats)=="INFO") & any(colnames(cSumstats)=="INFO_REF")){
+          #do not do this if meta-analysing as INFO will be carried over from the reference
+          if(!any(colnames(cSumstats)=="INFO") & any(colnames(cSumstats)=="INFO_REF") & !metaAnalyse){
             cSumstats.meta<-rbind(cSumstats.meta,list("INFO","Missing. Set from reference."))
             cSumstats[,INFO:=as.numeric(INFO_REF)]
             cSumstats.warnings<-c(cSumstats.warnings,"Inferred all INFO from reference!")
@@ -2476,7 +2487,7 @@ supermunge <- function(
       variantTable[,c("BETAmiss")] <- rowSums(!is.finite.data.frame(variantTable[,..cNamesBETA]),na.rm = T)
       variantTable[,c("SEmiss")] <- rowSums(!is.finite.data.frame(variantTable[,..cNamesSE]),na.rm = T)
       variantTable[,BETAmiss_SEmiss:=SEmiss-BETAmiss]
-      variantTable[,K:=eval(nDatasets)-BETAmiss-BETAmiss_SEmiss]
+      variantTable[,K_EFFECT:=eval(nDatasets)-BETAmiss-BETAmiss_SEmiss]
       variantTable[,BETAmiss:=NULL][,SEmiss:=NULL][,BETAmiss_SEmiss:=NULL]
       
       
@@ -2494,28 +2505,74 @@ supermunge <- function(
       
       variantTable[,c("N_META")] <- rowSums(variantTable[,..cNamesN],na.rm = T)
       
-      # cNamesINFO2<-paste0("INFO2.",traitNames)
-      # variantTable[,cNamesINFO2]<-ifelse(variantTable[,..cNamesINFO]>1,1,variantTable[,..cNamesINFO])
-      # variantTable[,cNamesINFO2]<-variantTable[,..cNamesINFO2]>1
+      #View(head(variantTable[!is.na(INFO),]))
+      #View(head(variantTable))
       
-      #INFO and SINFO meta analysis not done yet
-      # variantTable[,c("INFO_META")] <- rowSums(variantTable[,..cNamesINFO]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
-      # 
-      # variantTable[,c("SINFO_META")] <- rowSums(variantTable[,..cNamesFRQ]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
+      #INFO meta analysis
+      #is.na(variantTable[,..cNamesINFO])
+      #!is.na(variantTable[,..cNamesINFO])
+      #treat NA INFO values as 1.0 for the sake of meta-analysis
+      variantTable[,INFO_META:=NA_real_]
+      if(length(cNamesINFO)>0){
+        variantTable<-as.data.frame(variantTable) #this is easier to do as a DF
+        
+        for(iInfoColumn in 1:length(cNamesINFO)){
+          #iInfoColumn<-4
+          #cInfoColumn<-cNamesINFO[iInfoColumn]
+          #is.na(variantTable[,cNamesINFO[iInfoColumn]])
+          variantTable[is.na(variantTable[,cNamesINFO[iInfoColumn]]) & !is.na(variantTable[,cNamesBETA[iInfoColumn]]),cNamesINFO[iInfoColumn]]<-1.0
+          #View(head(variantTable[is.na(variantTable[,cNamesINFO[iInfoColumn]]) & !is.na(variantTable[,cNamesBETA[iInfoColumn]]),]))
+          #sum(variantTable[,cNamesINFO[iInfoColumn]]==1,na.rm = T)
+          #sum(variantTable[,cNamesINFO[iInfoColumn]]<1,na.rm = T)
+        }
+        #sum(variantTable[,cNamesINFO]==1,na.rm = T)
+        #sum(variantTable[,cNamesINFO]<1,na.rm = T)
+        
+        #reset to DT
+        setDT(variantTable)
+        setkeyv(variantTable, cols = ref.keys)
+        
+        
+        variantTable[,c("INFO_META")] <- rowSums(variantTable[,..cNamesINFO]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
+      } else if(any(colnames(variantTable)=="INFO")){
+        variantTable[,INFO_META:=INFO] #set to carried over info-score
+      }
+
+      #SINFO meta analysis - repeat the procedure as for INFO
+      #treat NA SINFO values as 1.0 for the sake of meta-analysis
+      variantTable[,SINFO_META:=NA_real_]
+      if(length(cNamesSINFO)>0){
+        variantTable<-as.data.frame(variantTable) #this is easier to do as a DF
+        
+        for(iInfoColumn in 1:length(cNamesSINFO)){
+          #iInfoColumn<-1
+          #cInfoColumn<-cNamesSINFO[iInfoColumn]
+          #is.na(variantTable[,cNamesSINFO[iInfoColumn]])
+          variantTable[is.na(variantTable[,cNamesSINFO[iInfoColumn]]) & !is.na(variantTable[,cNamesBETA[iInfoColumn]]),cNamesSINFO[iInfoColumn]]<-1.0
+          #View(head(variantTable[is.na(variantTable[,cNamesINFO[iInfoColumn]]) & !is.na(variantTable[,cNamesBETA[iInfoColumn]]),]))
+          #sum(variantTable[,cNamesSINFO[iInfoColumn]]==1,na.rm = T)
+          #sum(variantTable[,cNamesSINFO[iInfoColumn]]<1,na.rm = T)
+        }
+        #sum(variantTable[,cNamesSINFO]==1,na.rm = T)
+        #sum(variantTable[,cNamesSINFO]<1,na.rm = T)
+        
+        #reset to DT
+        setDT(variantTable)
+        setkeyv(variantTable, cols = ref.keys)
+        
+        
+        variantTable[,c("SINFO_META")] <- rowSums(variantTable[,..cNamesSINFO]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
+      }
+      
+      
       
       variantTable[,Z_META:=BETA_META/SE_META]
       variantTable$P_META <- 2*pnorm(q = abs(variantTable$Z_META),mean = 0, sd = 1, lower.tail = F)
       
-      variantTable.metaOnly<-variantTable[K>0,.(SNP,CHR,BP,A1,A2,FRQ=FRQ_META,BETA=BETA_META,SE=SE_META,Z=Z_META,N=N_META,P=P_META,K)]
+      #some trimming of nan values
+      variantTable[is.na(BETA_META) | is.na(SE_META),c('FRQ_META','BETA_META','SE_META','Z_META','N_META','P_META','INFO_META','SINFO_META'):=list(NA_real_,NA_real_,NA_real_,NA_real_,NA_real_,NA_real_,NA_real_,NA_real_)]
       
-      #add in additional variant table/ref columns
-      if(any(colnames(variantTable)=="INFO")){
-        if(!any(colnames(variantTable.metaOnly)=="INFO")){ #in case previously meta-analysed for example
-          variantTable.metaOnly[,INFO:=NA_real_]
-        }
-        variantTable.metaOnly[variantTable,on='SNP',c('INFO_TO_UPDATE_SUPERMUNGE'):=list(i.INFO)]
-        variantTable.metaOnly[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),INFO:=INFO_TO_UPDATE_SUPERMUNGE][,INFO_TO_UPDATE_SUPERMUNGE:=NULL]
-      }
+      variantTable.metaOnly<-variantTable[K_EFFECT>0,.(SNP,CHR,BP,A1,A2,FRQ=FRQ_META,BETA=BETA_META,SE=SE_META,INFO=INFO_META,SINFO=SINFO_META,Z=Z_META,N=N_META,P=P_META,K_EFFECT)] #overwrite the INFO score fromn the reference
       
     }
   }
