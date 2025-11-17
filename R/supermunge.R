@@ -414,6 +414,7 @@ supermunge <- function(
   
   
   #Read additional columns
+  cAdditionalColumns<-as.data.frame(matrix(NA,nrow = 0,ncol = 0))
   if(!is.null(additionalColumnsPath)){
     cAdditionalColumns<-fread(file = additionalColumnsPath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
     
