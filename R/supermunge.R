@@ -185,6 +185,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # standardiseEffectsToExposure=F
 # writeOutput=T
 # outputFormat="default"
+# metaAnalysisFormat="ivw", #n
 # sortOutput=T
 # filter.info=NULL
 # filter.or=NULL
@@ -224,7 +225,7 @@ supermunge <- function(
   filter.maf.imputation=0.01, #filter variants below this threshold from imputation
   imputeFrameLenBp=500000, #500000 for comparison with SSIMP and ImpG
   imputeFrameLenCM=0.5, #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
-  imputeFromLD.validate.q=0, #Fraction of variants of the input variants with known effects that will be used for estimating RMSD values. Setting a non-zero fraction here will lead to previously genotyped variants also receiving imputed effect sizes, standard errors and imputation quality assessments. Whatever program reading the output needs to take this into account if you want tp distinguish between originally genotyped effects and imputed effects. For example, you can test if the imputed effect and standard errors are different from what is displayed in the standard effect and standard error columns, which would indicate that the variant was previously genotyped and has received new values based on GWAS sumstat LDimp imputation.
+  imputeFromLD.validate.q=0, #Fraction of variants of the input variants with known effects that will be used for estimating RMSD values. Setting a non-zero fraction here will lead to previously genotyped variants also receiving imputed effect sizes, standard errors and imputation quality assessments. Whatever program reading the output needs to take this into account if you want to distinguish between originally genotyped effects and imputed effects. For example, you can test if the imputed effect and standard errors are different from what is displayed in the standard effect and standard error columns, which would indicate that the variant was previously genotyped and has received new values based on GWAS sumstat LDimp imputation.
   N=NULL,
   forceN=F,
   prop=NULL,
@@ -247,6 +248,7 @@ supermunge <- function(
   standardiseEffectsToExposure=F,
   writeOutput=T,
   outputFormat="default", #default,ldsc,cojo
+  metaAnalysisFormat="ivw", #n #ivw - inverse variant weighting or n - sample size weighting.
   #ldscCompatibility=F,
   sortOutput=T,
   filter.info=NULL,
@@ -328,7 +330,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.6\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.7\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -488,7 +490,7 @@ supermunge <- function(
           ref[,INFO:=NA_real_]
         }
         ref[cAdditionalColumns, on='SNP', c('INFO_TO_UPDATE_SUPERMUNGE') := list(i.INFO)]
-        cat("Updated reference with additional INFO data for ",as.character(nrow(ref[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),]))," variants")
+        cat("\nUpdated reference with additional INFO data for ",as.character(nrow(ref[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),]))," variants")
         ref[is.na(INFO) & !is.na(INFO_TO_UPDATE_SUPERMUNGE),INFO:=INFO_TO_UPDATE_SUPERMUNGE]
         ref[,INFO_TO_UPDATE_SUPERMUNGE:=NULL]
       }
@@ -2495,11 +2497,18 @@ supermunge <- function(
       cNamesW<-paste0("W.",traitNames)
       variantTable[,cNamesW]<-1/(variantTable[,..cNamesSE]^2)
       variantTable[,c("W")] <- rowSums(abs(variantTable[,..cNamesW]),na.rm = T)
+      variantTable[W>0,VAR_META:=1/W][,SE_META:=sqrt(VAR_META)]
+      
+      #optionally, use n-weighting
+      if(metaAnalysisFormat=="n"){
+        variantTable[,cNamesW]<-variantTable[,..cNamesN]
+        variantTable[,c("W")] <- rowSums(abs(variantTable[,..cNamesW]),na.rm = T)
+      }
       
       #Meta estimates
       variantTable[,c("BETA_META")] <- rowSums(variantTable[,..cNamesBETA]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
       
-      variantTable[W>0,VAR_META:=1/W][,SE_META:=sqrt(VAR_META)]
+      
       
       variantTable[,c("FRQ_META")] <- rowSums(variantTable[,..cNamesFRQ]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
       
