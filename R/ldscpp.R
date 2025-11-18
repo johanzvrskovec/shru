@@ -56,7 +56,7 @@ ldscpp <- function(
                      correctAttenuationBias = F, #perform attenuation bias correction using the product moment correlation coefficient method
                      attenuationBiasCorrectionFactorExponent = 1/4, #Exponent of the attenuation bias correction factor to control how much correction to apply. 1 = full correction. 1/2 is the square root of the factor etc.
                      doubleRegressionRoutine = F, #This feature is controversial and needs more testing. Removed T as default. Use with care! Update: Original LDSC does not seem to perform double regressions. See irwls.py and class method wls().
-                     reinflateImputedGWAS=T,
+                     reinflateImputedGWAS=F,
                      reinflateImputedGWAS.inflationFactorExponent = 1/2, #Exponent of the inflation factor before applying it for re-inflating LD-IMP imputed variants
                      resamplingMethod="vbcs", #vbcs/jn/bs(not implemented yet), vbcs=variable block-count sampling, jn=block jackknife
                      k.folds=0, #folds to prepare for later cross validation, set to > 0 to run additional folds using the train ratio to set the size of the train subsets
@@ -121,7 +121,7 @@ ldscpp <- function(
   # correctAttenuationBias = F
   # attenuationBiasCorrectionFactorExponent = 1/3
   # doubleRegressionRoutine = F
-  # reinflateImputedGWAS=T
+  # reinflateImputedGWAS=F
   # reinflateImputedGWAS.inflationFactorExponent = 1/2 #Exponent of the inflation factor before applying it for re-inflating LD-IMP imputed variants
   # resamplingMethod="cv"
   # k.folds=0 #folds to prepare for later cross validation
@@ -1055,9 +1055,10 @@ ldscpp <- function(
         LOG("Removing ", sum(rm), " SNPs with Chi^2 < ", filter.chisq.min, "; ", nrow(merged), " remain")
       }
       
+      #THIS MAY BE BROKEN!!!
       #re-inflate GWAS summary statistics imputed effects by using the median Chi-square association as a guidemark
       #mean version - benefits from coming after the removal of extreme associations
-      if(any(colnames(merged)=="SINFO")){ #assume that all SINFO variants are actually imputed variants
+      if(any(colnames(merged)=="SINFO") & reinflateImputedGWAS){ #assume that all SINFO variants are actually imputed variants
         #assume that all SINFO variants are actually imputed variants by this point
         #Uses the meanChiSquare calculated earlier - before any genotyoped variants have been filtered out
         LOG("Mean Chi^2 (genotyped):",meanChi2.genotyped)
