@@ -185,7 +185,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # standardiseEffectsToExposure=F
 # writeOutput=T
 # outputFormat="default"
-# metaAnalysisFormat="ivw", #n
+# metaAnalysisFormat="ivw" #n
 # sortOutput=T
 # filter.info=NULL
 # filter.or=NULL
@@ -1292,8 +1292,7 @@ supermunge <- function(
           
           
           #Set INFO from reference
-          #do not do this if meta-analysing as INFO will be carried over from the reference
-          if(!any(colnames(cSumstats)=="INFO") & any(colnames(cSumstats)=="INFO_REF") & !metaAnalyse){
+          if(!any(colnames(cSumstats)=="INFO") & any(colnames(cSumstats)=="INFO_REF")){
             cSumstats.meta<-rbind(cSumstats.meta,list("INFO","Missing. Set from reference."))
             cSumstats[,INFO:=as.numeric(INFO_REF)]
             cSumstats.warnings<-c(cSumstats.warnings,"Inferred all INFO from reference!")
