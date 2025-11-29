@@ -21,6 +21,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # filePaths = file.path(folderpath.work,paste0(basenameC,".fastGWA"))
 # refFilePath = file.path(folderpath.data,"variant_lists","1kgp3.bX.eur.l2.jz2023.gz")
 # metaAnalyse = T
+# metaAnalysisFormat = "n"
 # writeOutput = F
 # completeRefFromData = T
 # additionalColumnsPath = file.path(folderpath.work,"gladp.infoscores.vcf.gz")
@@ -330,7 +331,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.7\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.9\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -2501,14 +2502,26 @@ supermunge <- function(
       
       #optionally, use n-weighting
       if(metaAnalysisFormat=="n"){
-        variantTable[,cNamesW]<-variantTable[,..cNamesN]
+        
+        variantTable<-as.data.frame(variantTable)
+        n.bar.variantTable<-c()
+        for(iColumn in 1:length(cNamesN)){
+          #iColumn<-1
+          n.bar.variantTable[iColumn]<-mean(variantTable[,cNamesN[iColumn]],na.rm = T)
+        }
+        n.bar.variantTable<-max(n.bar.variantTable,na.rm = T)
+        
+        setDT(variantTable)
+        setkeyv(variantTable, cols = ref.keys)
+
+        variantTable[,cNamesW]<-NA_real_
+        variantTable[,cNamesW]<-variantTable[,..cNamesN]/n.bar.variantTable #normalised using the n-bar value
+        variantTable[,W:=NA_real_]
         variantTable[,c("W")] <- rowSums(abs(variantTable[,..cNamesW]),na.rm = T)
       }
       
       #Meta estimates
       variantTable[,c("BETA_META")] <- rowSums(variantTable[,..cNamesBETA]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
-      
-      
       
       variantTable[,c("FRQ_META")] <- rowSums(variantTable[,..cNamesFRQ]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
       
@@ -2580,6 +2593,10 @@ supermunge <- function(
       
       #some trimming of nan values
       variantTable[is.na(BETA_META) | is.na(SE_META),c('FRQ_META','BETA_META','SE_META','Z_META','N_META','P_META','INFO_META','SINFO_META'):=list(NA_real_,NA_real_,NA_real_,NA_real_,NA_real_,NA_real_,NA_real_,NA_real_)]
+      
+      # setorder(variantTable,-Z_META,FRQ_META)
+      # View(head(variantTable[!is.na(Z_META),],1000))
+
       
       variantTable.metaOnly<-variantTable[K_EFFECT>0,.(SNP,CHR,BP,A1,A2,FRQ=FRQ_META,BETA=BETA_META,SE=SE_META,INFO=INFO_META,SINFO=SINFO_META,Z=Z_META,N=N_META,P=P_META,K_EFFECT)] #overwrite the INFO score fromn the reference
       
