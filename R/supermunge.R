@@ -249,7 +249,7 @@ supermunge <- function(
   standardiseEffectsToExposure=F,
   writeOutput=T,
   outputFormat="default", #default,ldsc,cojo
-  metaAnalysisFormat="ivw", #n #ivw - inverse variant weighting or n - sample size weighting.
+  metaAnalysisFormat="ivw", #ivw - inverse variance weighting, ivwpop - inverse variance weighting with meta-analysed population variance, or n - sample size weighting (with meta-analysed population variance).
   #ldscCompatibility=F,
   sortOutput=T,
   filter.info=NULL,
@@ -331,7 +331,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.9\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.10\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -2469,14 +2469,17 @@ supermunge <- function(
     if(metaAnalyse){
       cat("\nPerforming fixed effect meta analysis on traits in the composite table...")
       cNamesBETA<-colnames(variantTable)[grep("^BETA\\.", ignore.case = TRUE,colnames(variantTable))]
+      if(length(cNamesBETA)!=nDatasets) stop(paste0("Irregular number of dataset variables for BETA in meta analysis."))
       cNamesSE<-colnames(variantTable)[grep("^SE\\.", ignore.case = TRUE,colnames(variantTable))]
+      if(length(cNamesSE)!=nDatasets) stop(paste0("Irregular number of dataset variables for SE in meta analysis."))
       cNamesFRQ<-colnames(variantTable)[grep("^FRQ\\.", ignore.case = TRUE,colnames(variantTable))]
-      
+      if(length(cNamesFRQ)!=nDatasets) stop(paste0("Irregular number of dataset variables for FRQ in meta analysis."))
       cNamesN<-colnames(variantTable)[grep("^N\\.", ignore.case = TRUE,colnames(variantTable))]
-      
+      if(length(cNamesN)!=nDatasets) stop(paste0("Irregular number of dataset variables for N in meta analysis."))
       cNamesINFO<-colnames(variantTable)[grep("^INFO\\.", ignore.case = TRUE,colnames(variantTable))]
-      
+      if(length(cNamesINFO)!=nDatasets) stop(paste0("Irregular number of dataset variables for INFO in meta analysis."))
       cNamesSINFO<-colnames(variantTable)[grep("^SINFO\\.", ignore.case = TRUE,colnames(variantTable))]
+      if(length(cNamesSINFO)!=nDatasets) stop(paste0("Irregular number of dataset variables for SINFO in meta analysis."))
       
       #deal with non-finite values  - treat these as NA/missing
       ## https://stackoverflow.com/questions/8173094/how-to-check-a-data-frame-for-any-non-finite
@@ -2518,14 +2521,25 @@ supermunge <- function(
         variantTable[,cNamesW]<-variantTable[,..cNamesN]/n.bar.variantTable #normalised using the n-bar value
         variantTable[,W:=NA_real_]
         variantTable[,c("W")] <- rowSums(abs(variantTable[,..cNamesW]),na.rm = T)
+        
       }
+      
+      #for meta-analysing population variance and new standard error
+      cNamesPOPVAR<-paste0("POPVAR.",traitNames)
+      if(length(cNamesPOPVAR)!=nDatasets) stop(paste0("Irregular number of dataset variables for POPVAR in meta analysis."))
+      variantTable[,cNamesPOPVAR]<-variantTable[,..cNamesN]*(variantTable[,..cNamesSE]^2)
       
       #Meta estimates
       variantTable[,c("BETA_META")] <- rowSums(variantTable[,..cNamesBETA]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
       
+      variantTable[,c("POPVAR_META")] <- rowSums(variantTable[,..cNamesPOPVAR]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
+      
+      
       variantTable[,c("FRQ_META")] <- rowSums(variantTable[,..cNamesFRQ]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
       
       variantTable[,c("N_META")] <- rowSums(variantTable[,..cNamesN],na.rm = T)
+      
+      variantTable[,SE_POPVAR_META:=sqrt(POPVAR_META/N_META)]
       
       #View(head(variantTable[!is.na(INFO),]))
       #View(head(variantTable))
@@ -2586,7 +2600,9 @@ supermunge <- function(
         variantTable[,c("SINFO_META")] <- rowSums(variantTable[,..cNamesSINFO]*variantTable[,..cNamesW],na.rm = T)/variantTable[,.(W)]
       }
       
-      
+      if(metaAnalysisFormat=="n" | metaAnalysisFormat=="ivwpop"){
+        variantTable[,SE_META:=SE_POPVAR_META]
+      }
       
       variantTable[,Z_META:=BETA_META/SE_META]
       variantTable$P_META <- 2*pnorm(q = abs(variantTable$Z_META),mean = 0, sd = 1, lower.tail = F)
