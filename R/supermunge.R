@@ -18,6 +18,15 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 
 #tests
 
+# list_df = list(
+#   pheno_data_m_glad_corp=pheno_data_m_glad_corp$corp.df,
+#   pheno_data_m_edgi_corp=pheno_data_m_edgi_corp$corp.df,
+#   pheno_data_m_nbr_corp=pheno_data_m_nbr_corp$corp.df
+# )
+# metaAnalyse = T
+# writeOutput = F
+# completeRefFromData = T
+
 # filePaths = file.path(folderpath.work,paste0(basenameC,".fastGWA"))
 # refFilePath = file.path(folderpath.data,"variant_lists","1kgp3.bX.eur.l2.jz2023.gz")
 # metaAnalyse = T
@@ -187,6 +196,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # writeOutput=T
 # outputFormat="default"
 # metaAnalysisFormat="ivw" #n
+# metaAnalysisMinSE = 0.000000001
 # sortOutput=T
 # filter.info=NULL
 # filter.or=NULL
@@ -250,7 +260,7 @@ supermunge <- function(
   writeOutput=T,
   outputFormat="default", #default,ldsc,cojo
   metaAnalysisFormat="ivw", #ivw - inverse variance weighting, ivwpop - inverse variance weighting with meta-analysed population variance, or n - sample size weighting (with meta-analysed population variance).
-  #ldscCompatibility=F,
+  metaAnalysisMinSE = 0.000000001, #minimum SE, anything below this will be set to this value
   sortOutput=T,
   filter.info=NULL,
   filter.or=NULL,
@@ -331,7 +341,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.10\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.11\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -515,23 +525,25 @@ supermunge <- function(
     # #check keys with key(ref)
     setkeyv(ref, cols = ref.keys)
     
-  } else if (metaAnalyse) {
-    stop("\nYou need a variant reference to perform meta-analysis (will be used as the backbone, but is completed with additional variants from the datasets)\n")
-  } else if (nrow(cAdditionalColumns)>0){
-    stop("\nYou need a variant reference to update additional columns, as these are update via the reference.\n")
   } else {
-    warning("\nRunning without reference.\n")
+    if (nrow(cAdditionalColumns)>0){
+      stop("\nYou need a variant reference to update additional columns, as these are update via the reference.\n")
+    } 
+    if (metaAnalyse) {
+      completeRefFromData<-T
+      warning("\nRunning without reference. The reference will be completed from the datasets (as with completeRefFromData=TRUE)\n")
+    } else {
+      warning("\nRunning without reference.\n")
+    }
   }
-  
   
   sumstats.meta<-data.table(name=traitNames,file_path=ifelse(is.null(filePaths),NA_character_,filePaths),n_snp_raw=NA_integer_,n_snp_res=NA_integer_)
 
   
-  
   for(iFile in 1:nDatasets){
     tryCatch({
       #for testing!
-      #iFile=1
+      #iFile=2
       timeStart.ds <- Sys.time()
       cSumstats.warnings<-list()
       
@@ -1042,659 +1054,678 @@ supermunge <- function(
           cSumstats.meta<-rbind(cSumstats.meta,list("Discarded indels",as.character(cSumstats.n-nrow(cSumstats))))
         }
         cat(".")
+      } #end of first processing block
+      
+      # Join/merge with reference
+      if(!is.null(ref) & !empty){
+        #Aligning and validating with reference file
+        cSumstats.n<-nrow(cSumstats)
         
-        # Join/merge with reference
-        if(!is.null(ref)){
-          #Aligning and validating with reference file
-          cSumstats.n<-nrow(cSumstats)
+        #Join with reference on SNP rsID, only keeping SNPs with rsIDs part of the reference
+        ref.colnames<-shru::stdGwasColumnNames(colnames(ref),missingEssentialColumnsStop = NULL,ancestrySetting = ancestrySetting[iFile], warnings = T) #reference is resolved here to allow for dataset specific setting
+        cSumstats.merged.snp<-ref
+        colnames(cSumstats.merged.snp)<-paste0(ref.colnames$std,"_REF")
+        setkeyv(cSumstats.merged.snp, cols = paste0(key(ref),"_REF"))
+        cSumstats.merged.snp<-cSumstats.merged.snp[!is.na(SNP_REF),]
+        
+        
+        #non-matching variants
+        #SNPsNotInRef<-cSumstats$SNP[!cSumstats$SNP %in% cSumstats.merged.snp$SNP_REF] #old
+        
+        cSumstats[,MATCH_SNP:=F][,MATCH_SNPR:=F][,MATCH_POS:=F][,MATCH_ALLELE:=F]
+        cSumstats[cSumstats.merged.snp,on=c(SNP="SNP_REF"),MATCH_SNP:=T]
+        if(any(colnames(cSumstats)=="SNP") && any(colnames(ref)=="SNPR")) cSumstats[cSumstats.merged.snp,on=c(SNP='SNPR_REF' ),MATCH_SNPR:=T]
+        if(any(colnames(cSumstats)=="CHR") && any(colnames(cSumstats)=="BP") && any(colnames(ref)=="CHR") && any(colnames(ref)=="BP")) {
+          cSumstats[cSumstats.merged.snp,on=c(CHR='CHR_REF', BP='BP_REF'),MATCH_POS:=T]
+          #cSumstats.merged.snp[,DUMMY_TRUE:=T]
+          if(any(colnames(cSumstats)=="A1") && any(colnames(cSumstats)=="A2") && any(colnames(ref)=="A1") && any(colnames(ref)=="A2")) {
+            cSumstats[cSumstats.merged.snp,on=c(A1='A1_REF', A2='A2_REF', CHR='CHR_REF',BP='BP_REF'),MATCH_ALLELE:=T]
+            cSumstats[cSumstats.merged.snp,on=c(A1='A2_REF', A2='A1_REF', CHR='CHR_REF',BP='BP_REF'),MATCH_ALLELE:=T]
+            }
           
-          #Join with reference on SNP rsID, only keeping SNPs with rsIDs part of the reference
-          ref.colnames<-shru::stdGwasColumnNames(colnames(ref),missingEssentialColumnsStop = NULL,ancestrySetting = ancestrySetting[iFile], warnings = T) #reference is resolved here to allow for dataset specific setting
+          #cSumstats.merged.snp[,DUMMY_TRUE:=NULL]
+        }
+        cat("$")
+        
+       
+        cSumstats.unmatched<-cSumstats[MATCH_SNP==F & MATCH_SNPR==F & (MATCH_POS==F | MATCH_ALLELE==F),]
+        if(doStatistics){
+          saveRDS(object = cSumstats.unmatched[,.(SNP)],file = file.path(pathDirOutput,paste0(traitNames[iFile],".unmatched.Rds")))
+        }
+
+        if(completeRefFromData & nrow(cSumstats.unmatched)>0){
+          unmatched.cols<-c("SNP")
+          if(any(colnames(cSumstats)=="CHR") && any(colnames(cSumstats)=="BP") && any(colnames(ref)=="CHR") && any(colnames(ref)=="BP")) unmatched.cols<-c(unmatched.cols,"CHR","BP")
+          if(any(colnames(cSumstats)=="A1") && any(colnames(cSumstats)=="A2") && any(colnames(ref)=="A1") && any(colnames(ref)=="A2")) unmatched.cols<-c(unmatched.cols,"A1","A2")
+          if(any(colnames(cSumstats)=="FRQ") && any(colnames(ref)=="MAF")) unmatched.cols<-c(unmatched.cols,"FRQ") #This FRQ may not be representative of the whole meta-analysis sample
+          cSumstats.unmatched<-cSumstats.unmatched[,..unmatched.cols]
+          if(any(colnames(cSumstats.unmatched)=="FRQ")) cSumstats.unmatched[,MAF:=FRQ][,FRQ:=NULL]
+          ref.n<-nrow(ref)
+          ref<-rbindlist(list(ref,cSumstats.unmatched),use.names = T,fill = T) #ref
+          variantTable<-rbindlist(list(variantTable,cSumstats.unmatched),use.names = T,fill = T)
+          cSumstats.meta<-rbind(cSumstats.meta,list("Completed ref variants from dataset",as.character(nrow(ref)-ref.n)))
+          
+          setkeyv(ref, cols = ref.keys)
+          setkeyv(variantTable, cols = ref.keys)
+          #create the temporary reference again
           cSumstats.merged.snp<-ref
           colnames(cSumstats.merged.snp)<-paste0(ref.colnames$std,"_REF")
           setkeyv(cSumstats.merged.snp, cols = paste0(key(ref),"_REF"))
           cSumstats.merged.snp<-cSumstats.merged.snp[!is.na(SNP_REF),]
+          cat("@")
+        }
+        rm(cSumstats.unmatched)
+        cSumstats[,MATCH_SNP:=NULL][,MATCH_SNPR:=NULL][,MATCH_POS:=NULL][,MATCH_ALLELE:=NULL] #one option would be to keep this information and just join in the reference columns
+        
+        
+        #join with reference on SNP
+        cSumstats.tmp<-cSumstats[!is.na(SNP),]
+        cSumstats.merged.snp<-cSumstats.merged.snp[cSumstats.tmp, on=c(SNP_REF="SNP"), nomatch=0]
+       
+        #replace missing columns
+        cSumstats.merged.snp[,SNP:=SNP_REF][,SNP_REF:=NULL]
+        cat("%")
+        
+        #Join with reference on reverse SNP (SNPR)
+        cSumstats.merged.snpr<-NULL
+        if(any(colnames(cSumstats)=="SNP") && any(colnames(ref)=="SNPR")) {
+          cSumstats.merged.snpr<-ref
+          colnames(cSumstats.merged.snpr)<-paste0(ref.colnames$std,"_REF")
+          cSumstats.merged.snpr[,SNPR_REF:=as.character(SNPR_REF)] #extra type conversion
+          setkeyv(cSumstats.merged.snpr, cols = c("SNPR_REF"))
+          cSumstats.merged.snpr<-cSumstats.merged.snpr[!is.na(SNPR_REF),]
+          cSumstats.merged.snpr<-cSumstats.merged.snpr[cSumstats.tmp, on=c(SNPR_REF='SNP'), nomatch=0]
           
-          
-          #non-matching variants
-          #SNPsNotInRef<-cSumstats$SNP[!cSumstats$SNP %in% cSumstats.merged.snp$SNP_REF] #old
-          
-          cSumstats[,MATCH_SNP:=F][,MATCH_SNPR:=F][,MATCH_POS:=F][,MATCH_ALLELE:=F]
-          cSumstats[cSumstats.merged.snp,on=c(SNP="SNP_REF"),MATCH_SNP:=T]
-          if(any(colnames(cSumstats)=="SNP") && any(colnames(ref)=="SNPR")) cSumstats[cSumstats.merged.snp,on=c(SNP='SNPR_REF' ),MATCH_SNPR:=T]
-          if(any(colnames(cSumstats)=="CHR") && any(colnames(cSumstats)=="BP") && any(colnames(ref)=="CHR") && any(colnames(ref)=="BP")) {
-            cSumstats[cSumstats.merged.snp,on=c(CHR='CHR_REF', BP='BP_REF'),MATCH_POS:=T]
-            #cSumstats.merged.snp[,DUMMY_TRUE:=T]
-            if(any(colnames(cSumstats)=="A1") && any(colnames(cSumstats)=="A2") && any(colnames(ref)=="A1") && any(colnames(ref)=="A2")) {
-              cSumstats[cSumstats.merged.snp,on=c(A1='A1_REF', A2='A2_REF', CHR='CHR_REF',BP='BP_REF'),MATCH_ALLELE:=T]
-              cSumstats[cSumstats.merged.snp,on=c(A1='A2_REF', A2='A1_REF', CHR='CHR_REF',BP='BP_REF'),MATCH_ALLELE:=T]
-              }
-            
-            #cSumstats.merged.snp[,DUMMY_TRUE:=NULL]
-          }
-          cat("$")
-          
-         
-          cSumstats.unmatched<-cSumstats[MATCH_SNP==F & MATCH_SNPR==F & (MATCH_POS==F | MATCH_ALLELE==F),]
-          if(doStatistics){
-            saveRDS(object = cSumstats.unmatched[,.(SNP)],file = file.path(pathDirOutput,paste0(traitNames[iFile],".unmatched.Rds")))
-          }
-  
-          if(completeRefFromData & nrow(cSumstats.unmatched)>0){
-            unmatched.cols<-c("SNP")
-            if(any(colnames(cSumstats)=="CHR") && any(colnames(cSumstats)=="BP") && any(colnames(ref)=="CHR") && any(colnames(ref)=="BP")) unmatched.cols<-c(unmatched.cols,"CHR","BP")
-            if(any(colnames(cSumstats)=="A1") && any(colnames(cSumstats)=="A2") && any(colnames(ref)=="A1") && any(colnames(ref)=="A2")) unmatched.cols<-c(unmatched.cols,"A1","A2")
-            if(any(colnames(cSumstats)=="FRQ") && any(colnames(ref)=="MAF")) unmatched.cols<-c(unmatched.cols,"FRQ") #This FRQ may not be representative of the whole meta-analysis sample
-            cSumstats.unmatched<-cSumstats.unmatched[,..unmatched.cols]
-            if(any(colnames(cSumstats.unmatched)=="FRQ")) cSumstats.unmatched[,MAF:=FRQ][,FRQ:=NULL]
-            ref.n<-nrow(ref)
-            ref<-rbindlist(list(ref,cSumstats.unmatched),use.names = T,fill = T) #ref
-            variantTable<-rbindlist(list(variantTable,cSumstats.unmatched),use.names = T,fill = T)
-            cSumstats.meta<-rbind(cSumstats.meta,list("Completed ref variants from dataset",as.character(nrow(ref)-ref.n)))
-            
-            setkeyv(ref, cols = ref.keys)
-            setkeyv(variantTable, cols = ref.keys)
-            #create the temporary reference again
-            cSumstats.merged.snp<-ref
-            colnames(cSumstats.merged.snp)<-paste0(ref.colnames$std,"_REF")
-            setkeyv(cSumstats.merged.snp, cols = paste0(key(ref),"_REF"))
-            cSumstats.merged.snp<-cSumstats.merged.snp[!is.na(SNP_REF),]
-            cat("@")
-          }
-          rm(cSumstats.unmatched)
-          cSumstats[,MATCH_SNP:=NULL][,MATCH_SNPR:=NULL][,MATCH_POS:=NULL][,MATCH_ALLELE:=NULL] #one option would be to keep this information and just join in the reference columns
-          
-          
-          #join with reference on SNP
-          cSumstats.tmp<-cSumstats[!is.na(SNP),]
-          cSumstats.merged.snp<-cSumstats.merged.snp[cSumstats.tmp, on=c(SNP_REF="SNP"), nomatch=0]
-         
           #replace missing columns
-          cSumstats.merged.snp[,SNP:=SNP_REF][,SNP_REF:=NULL]
-          cat("%")
+          cSumstats.merged.snpr[,SNP:=SNP_REF][,SNP_REF:=NULL]
           
-          #Join with reference on reverse SNP (SNPR)
+          #merge merged datasets
+          cSumstats.merged.snpr<-cSumstats.merged.snpr[!(cSumstats.merged.snpr$SNP_REF %in% cSumstats.merged.snp$SNP_REF),]
+          cSumstats.merged.snp<-rbindlist(list(cSumstats.merged.snp,cSumstats.merged.snpr), use.names=T, fill = T)
+          cSumstats.meta<-rbind(cSumstats.meta,list("Salvaged SNPs by reverse SNP",as.character(nrow(cSumstats.merged.snpr))))
           cSumstats.merged.snpr<-NULL
-          if(any(colnames(cSumstats)=="SNP") && any(colnames(ref)=="SNPR")) {
-            cSumstats.merged.snpr<-ref
-            colnames(cSumstats.merged.snpr)<-paste0(ref.colnames$std,"_REF")
-            cSumstats.merged.snpr[,SNPR_REF:=as.character(SNPR_REF)] #extra type conversion
-            setkeyv(cSumstats.merged.snpr, cols = c("SNPR_REF"))
-            cSumstats.merged.snpr<-cSumstats.merged.snpr[!is.na(SNPR_REF),]
-            cSumstats.merged.snpr<-cSumstats.merged.snpr[cSumstats.tmp, on=c(SNPR_REF='SNP'), nomatch=0]
-            
-            #replace missing columns
-            cSumstats.merged.snpr[,SNP:=SNP_REF][,SNP_REF:=NULL]
-            
-            #merge merged datasets
-            cSumstats.merged.snpr<-cSumstats.merged.snpr[!(cSumstats.merged.snpr$SNP_REF %in% cSumstats.merged.snp$SNP_REF),]
-            cSumstats.merged.snp<-rbindlist(list(cSumstats.merged.snp,cSumstats.merged.snpr), use.names=T, fill = T)
-            cSumstats.meta<-rbind(cSumstats.meta,list("Salvaged SNPs by reverse SNP",as.character(nrow(cSumstats.merged.snpr))))
-            cSumstats.merged.snpr<-NULL
-            cat("r%")
-          }
+          cat("r%")
+        }
+        rm(cSumstats.tmp)
+        
+        
+        cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; rsID not in ref",as.character(cSumstats.n-nrow(cSumstats.merged.snp))))
+        cat(".")
+        
+        if(any(colnames(cSumstats.merged.snp)=="CHR") && any(colnames(cSumstats.merged.snp)=="CHR_REF"))
+        {
+          cSumstats.merged.snp.n<-nrow(cSumstats.merged.snp)
+          cSumstats.merged.snp<-cSumstats.merged.snp[CHR==CHR_REF]
+          cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; CHR not matching ref",as.character(cSumstats.merged.snp.n-nrow(cSumstats.merged.snp))))
+        }
+        cat(".")
+        
+        #Join with reference on genetic coordinates
+        cSumstats.merged.pos<-NULL
+        if(any(colnames(cSumstats)=="CHR") && any(colnames(cSumstats)=="BP") && any(colnames(ref)=="CHR") && any(colnames(ref)=="BP") && any(colnames(cSumstats)=="A1") && any(colnames(ref)=="A1") && any(colnames(cSumstats)=="A2") && any(colnames(ref)=="A2")) {
+          #Join with reference on position rather than rsID
+          cSumstats.merged.pos1 <- ref
+          colnames(cSumstats.merged.pos1)<-paste0(ref.colnames$std,"_REF")
+          cSumstats.merged.pos1 <- cSumstats.merged.pos1[!is.na(CHR_REF) | !is.na(BP_REF) | !is.na(A1_REF) | !is.na(A2_REF),] #filter from na-values to avoid mass join conditions
+          setkeyv(cSumstats.merged.pos1, cols = paste0(key(ref),"_REF"))
+          cSumstats.merged.pos1.inverted<-cSumstats.merged.pos1
+          cSumstats.merged.pos2<-cSumstats.merged.pos1
+          cSumstats.merged.pos2.inverted<-cSumstats.merged.pos1
+          
+          cSumstats.tmp<-cSumstats[!is.na(CHR) & !is.na(BP) & !is.na(A1) & !is.na(A2),]
+          
+          cSumstats.merged.pos1<-cSumstats.merged.pos1[cSumstats.tmp, on=c(CHR_REF='CHR' , BP_REF='BP', A1_REF='A1'), nomatch=0]
+          cSumstats.merged.pos1.inverted<-cSumstats.merged.pos1.inverted[cSumstats.tmp, on=c(CHR_REF='CHR' , BP_REF='BP', A2_REF='A1'), nomatch=0]
+          cSumstats.merged.pos2<-cSumstats.merged.pos2[cSumstats.tmp, on=c(CHR_REF='CHR' , BP_REF='BP', A2_REF='A2'), nomatch=0]
+          cSumstats.merged.pos2.inverted<-cSumstats.merged.pos2.inverted[cSumstats.tmp, on=c(CHR_REF='CHR' , BP_REF='BP', A1_REF='A2'), nomatch=0]
+          
+          #replace missing columns
+          cSumstats.merged.pos1[,CHR:=CHR_REF][,BP:=BP_REF][,A1:=A1_REF]
+          cSumstats.merged.pos1.inverted[,CHR:=CHR_REF][,BP:=BP_REF][,A1:=A2_REF]
+          cSumstats.merged.pos2[,CHR:=CHR_REF][,BP:=BP_REF][,A2:=A2_REF]
+          cSumstats.merged.pos2.inverted[,CHR:=CHR_REF][,BP:=BP_REF][,A2:=A1_REF]
+          cSumstats.merged.pos<-rbindlist(list(cSumstats.merged.pos1,cSumstats.merged.pos1.inverted,cSumstats.merged.pos2,cSumstats.merged.pos2.inverted), use.names=T, fill = T)
+          rm(cSumstats.merged.pos1)
+          rm(cSumstats.merged.pos1.inverted)
+          rm(cSumstats.merged.pos2)
+          rm(cSumstats.merged.pos2.inverted)
           rm(cSumstats.tmp)
-          
-          
-          cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; rsID not in ref",as.character(cSumstats.n-nrow(cSumstats.merged.snp))))
-          cat(".")
-          
-          if(any(colnames(cSumstats.merged.snp)=="CHR") && any(colnames(cSumstats.merged.snp)=="CHR_REF"))
-          {
-            cSumstats.merged.snp.n<-nrow(cSumstats.merged.snp)
-            cSumstats.merged.snp<-cSumstats.merged.snp[CHR==CHR_REF]
-            cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; CHR not matching ref",as.character(cSumstats.merged.snp.n-nrow(cSumstats.merged.snp))))
+          cat("%")
+        }
+        
+        
+        #set cSumstatst to the merged version
+        if(is.null(cSumstats.merged.pos)){
+          cSumstats<-cSumstats.merged.snp
+          cSumstats.n<-nrow(cSumstats)
+          if(cSumstats.n>0) {
+            cSumstats$MERGEID<-1:cSumstats.n
+          } else {
+            cSumstats[,MERGEID:=NA_integer_]
           }
-          cat(".")
           
-          #Join with reference on genetic coordinates
+        } else {
+          
+          # #assure proper allele configuration
+          # if(any(colnames(cSumstats.merged.pos)=="A1") && any(colnames(cSumstats.merged.pos)=="A1_REF") && any(colnames(cSumstats.merged.pos)=="A2") && any(colnames(cSumstats.merged.pos)=="A2_REF")) cSumstats.merged.pos<-cSumstats.merged.pos[(A1==A1_REF & A2==A2_REF) | (A2==A1_REF & A1==A2_REF),] #maybe not needed anymore?
+          
+          #merge merged datasets
+          cSumstats.merged.pos.salvaged<-cSumstats.merged.pos[!(cSumstats.merged.pos$SNP_REF %in% cSumstats.merged.snp$SNP),] #cSumstats.merged.snp$SNP_REF previosly - error?
+          cSumstats.merged.pos.salvaged[,c("SNP","inferredFromCoord"):=list(SNP_REF,T)] #make sure that these variants are interpreted as the one inferred from the reference from now on
+          cSumstats<-rbindlist(list(cSumstats.merged.snp,cSumstats.merged.pos.salvaged), use.names=T, fill = T)
+          cSumstats.n<-nrow(cSumstats)
+          if(cSumstats.n>0) {
+            cSumstats$MERGEID<-1:cSumstats.n
+          } else {
+            cSumstats[,MERGEID:=NA_integer_]
+          }
+          cSumstats.meta<-rbind(cSumstats.meta,list("Salvaged SNPs by ref locus",as.character(nrow(cSumstats.merged.pos.salvaged))))
           cSumstats.merged.pos<-NULL
-          if(any(colnames(cSumstats)=="CHR") && any(colnames(cSumstats)=="BP") && any(colnames(ref)=="CHR") && any(colnames(ref)=="BP") && any(colnames(cSumstats)=="A1") && any(colnames(ref)=="A1") && any(colnames(cSumstats)=="A2") && any(colnames(ref)=="A2")) {
-            #Join with reference on position rather than rsID
-            cSumstats.merged.pos1 <- ref
-            colnames(cSumstats.merged.pos1)<-paste0(ref.colnames$std,"_REF")
-            cSumstats.merged.pos1 <- cSumstats.merged.pos1[!is.na(CHR_REF) | !is.na(BP_REF) | !is.na(A1_REF) | !is.na(A2_REF),] #filter from na-values to avoid mass join conditions
-            setkeyv(cSumstats.merged.pos1, cols = paste0(key(ref),"_REF"))
-            cSumstats.merged.pos1.inverted<-cSumstats.merged.pos1
-            cSumstats.merged.pos2<-cSumstats.merged.pos1
-            cSumstats.merged.pos2.inverted<-cSumstats.merged.pos1
-            
-            cSumstats.tmp<-cSumstats[!is.na(CHR) & !is.na(BP) & !is.na(A1) & !is.na(A2),]
-            
-            cSumstats.merged.pos1<-cSumstats.merged.pos1[cSumstats.tmp, on=c(CHR_REF='CHR' , BP_REF='BP', A1_REF='A1'), nomatch=0]
-            cSumstats.merged.pos1.inverted<-cSumstats.merged.pos1.inverted[cSumstats.tmp, on=c(CHR_REF='CHR' , BP_REF='BP', A2_REF='A1'), nomatch=0]
-            cSumstats.merged.pos2<-cSumstats.merged.pos2[cSumstats.tmp, on=c(CHR_REF='CHR' , BP_REF='BP', A2_REF='A2'), nomatch=0]
-            cSumstats.merged.pos2.inverted<-cSumstats.merged.pos2.inverted[cSumstats.tmp, on=c(CHR_REF='CHR' , BP_REF='BP', A1_REF='A2'), nomatch=0]
-            
-            #replace missing columns
-            cSumstats.merged.pos1[,CHR:=CHR_REF][,BP:=BP_REF][,A1:=A1_REF]
-            cSumstats.merged.pos1.inverted[,CHR:=CHR_REF][,BP:=BP_REF][,A1:=A2_REF]
-            cSumstats.merged.pos2[,CHR:=CHR_REF][,BP:=BP_REF][,A2:=A2_REF]
-            cSumstats.merged.pos2.inverted[,CHR:=CHR_REF][,BP:=BP_REF][,A2:=A1_REF]
-            cSumstats.merged.pos<-rbindlist(list(cSumstats.merged.pos1,cSumstats.merged.pos1.inverted,cSumstats.merged.pos2,cSumstats.merged.pos2.inverted), use.names=T, fill = T)
-            rm(cSumstats.merged.pos1)
-            rm(cSumstats.merged.pos1.inverted)
-            rm(cSumstats.merged.pos2)
-            rm(cSumstats.merged.pos2.inverted)
-            rm(cSumstats.tmp)
-            cat("%")
-          }
+          cSumstats.merged.pos.salvaged<-NULL
+          #TODO Make more memory friendly version using https://www.biostars.org/p/432389/
+        }
+        cSumstats.merged.snp<-NULL
+        cat(".")
+        
+        #compare coordinates with reference
+        if(any(colnames(cSumstats)=="BP") && any(colnames(cSumstats)=="BP_REF")){
+          cSumstats.maxAlleleLength<-max(nchar(cSumstats$A1),nchar(cSumstats$A2),nchar(cSumstats$A1_REF),nchar(cSumstats$A2_REF))
+          cSumstats.n<-nrow(cSumstats)
+          cSumstats[,c("DBP","ADBP"):=list((BP-BP_REF),abs(BP-BP_REF))]
+          #cSumstats.merged.snp[,DBPREF_ORIG:=abs(BP_ORIG-BP_REF)]
           
-          
-          #set cSumstatst to the merged version
-          if(is.null(cSumstats.merged.pos)){
-            cSumstats<-cSumstats.merged.snp
-          } else {
-            
-            # #assure proper allele configuration
-            # if(any(colnames(cSumstats.merged.pos)=="A1") && any(colnames(cSumstats.merged.pos)=="A1_REF") && any(colnames(cSumstats.merged.pos)=="A2") && any(colnames(cSumstats.merged.pos)=="A2_REF")) cSumstats.merged.pos<-cSumstats.merged.pos[(A1==A1_REF & A2==A2_REF) | (A2==A1_REF & A1==A2_REF),] #maybe not needed anymore?
-            
-            #merge merged datasets
-            cSumstats.merged.pos.salvaged<-cSumstats.merged.pos[!(cSumstats.merged.pos$SNP_REF %in% cSumstats.merged.snp$SNP_REF),]
-            cSumstats.merged.pos.salvaged[,c("SNP","inferredFromCoord"):=list(SNP_REF,T)] #make sure that these variants are interpreted as the one inferred from the reference from now on
-            cSumstats<-rbindlist(list(cSumstats.merged.snp,cSumstats.merged.pos.salvaged), use.names=T, fill = T)
-            #cat("\nSalvaged SNPs by merging on SNP position rather than rsID:",nrow(cSumstats.merged.pos.salvaged))
-            cSumstats.meta<-rbind(cSumstats.meta,list("Salvaged SNPs by ref locus",as.character(nrow(cSumstats.merged.pos.salvaged))))
-            cSumstats.merged.pos<-NULL
-            cSumstats.merged.pos.salvaged<-NULL
-            #TODO Make more memory friendly version using https://www.biostars.org/p/432389/
-          }
-          cSumstats.merged.snp<-NULL
+          cSumstats.medianDBPperCHR<-cSumstats[, .(medDBP = median(DBP)), by = c("CHR")]
           cat(".")
           
-          #compare coordinates with reference
-          if(any(colnames(cSumstats)=="BP") && any(colnames(cSumstats)=="BP_REF")){
-            cSumstats.maxAlleleLength<-max(nchar(cSumstats$A1),nchar(cSumstats$A2),nchar(cSumstats$A1_REF),nchar(cSumstats$A2_REF))
-            cSumstats.n<-nrow(cSumstats)
-            cSumstats[,c("DBP","ADBP"):=list((BP-BP_REF),abs(BP-BP_REF))]
-            #cSumstats.merged.snp[,DBPREF_ORIG:=abs(BP_ORIG-BP_REF)]
-            
-            cSumstats.medianDBPperCHR<-cSumstats[, .(medDBP = median(DBP)), by = c("CHR")]
-            cat(".")
-            
-            #calculate adjusted BP to account for systematic differences between the dataset and reference
-            cSumstats[cSumstats.medianDBPperCHR,on=(CHR="CHR"),c("BPADJ","ADBPADJ"):=list((BP-i.medDBP),abs((BP-i.medDBP)-BP_REF))]
-            cat(".")
+          #calculate adjusted BP to account for systematic differences between the dataset and reference
+          cSumstats[cSumstats.medianDBPperCHR,on=(CHR="CHR"),c("BPADJ","ADBPADJ"):=list((BP-i.medDBP),abs((BP-i.medDBP)-BP_REF))]
+          cat(".")
+        }
+        
+      } else { 
+        
+        cSumstats.n<-nrow(cSumstats)
+        if(cSumstats.n>0) {
+          cSumstats$MERGEID<-1:cSumstats.n
+        } else {
+          cSumstats[,MERGEID:=NA_integer_]
+        }
+      } #end of merge with reference
+      
+      
+      # More QC and data management, after merge with reference - this should now handle both reference/non reference and process/no process cases.
+      
+      #store original allele order and frequency info
+      if(any(colnames(cSumstats)=="A1")) cSumstats[,A1_ORIG:=A1]
+      if(any(colnames(cSumstats)=="A2")) cSumstats[,A2_ORIG:=A2]
+      if(any(colnames(cSumstats)=="FRQ")) cSumstats[,FRQ_ORIG:=FRQ]
+      
+      if(!is.null(ref)){
+        
+        ##Synchronise SNP,CHR,BP,FRQ with reference
+        if(forceBPToReference & any(colnames(cSumstats)=="BP_REF")) cSumstats[,BP:=BP_REF]
+        
+        ## Add in chr and bp from ref if not present in datasets
+        if(any(colnames(cSumstats)=="CHR")){
+          if(any(colnames(cSumstats)=="CHR_REF")) cSumstats[is.na(CHR),CHR:=as.integer(CHR_REF)]
+        } else {
+          sumstats.meta[iFile,c("no_CHR")]<-T
+          cSumstats.warnings<-c(cSumstats.warnings,"No CHR column present!")
+          if(any(colnames(cSumstats)=="CHR_REF")){
+            Sumstats.meta<-rbind(cSumstats.meta,list("CHR","Missing. Set from reference."))
+            cSumstats[,CHR:=as.integer(CHR_REF)]
+            cSumstats.keys<-c(cSumstats.keys,'CHR')
+            cSumstats.warnings<-c(cSumstats.warnings,"Inferred all CHR from reference!")
+          } else {
+            cSumstats[,CHR:=NA_integer_]
+          }
+        }
+        
+        if(any(colnames(cSumstats)=="BP")){
+          if(any(colnames(cSumstats)=="BP_REF")) cSumstats[is.na(BP),BP:=as.integer(BP_REF)]
+        } else {
+          sumstats.meta[iFile,c("no_BP")]<-T
+          cSumstats.warnings<-c(cSumstats.warnings,"No BP column present!")
+          if(any(colnames(cSumstats)=="BP_REF")){
+            cSumstats.meta<-rbind(cSumstats.meta,list("BP","Missing. Set from reference."))
+            cSumstats[,BP:=as.integer(BP_REF)]
+            cSumstats.warnings<-c(cSumstats.warnings,"Inferred all BP from reference!")
+          } else {
+            cSumstats[,BP:=NA_integer_]
           }
           
-        } #end of merge with reference
+        }
         
-        # More QC and data management, after merge with reference
-        
-        #store original allele order and frequency info
-        if(any(colnames(cSumstats)=="A1")) cSumstats[,A1_ORIG:=A1]
-        if(any(colnames(cSumstats)=="A2")) cSumstats[,A2_ORIG:=A2]
-        if(any(colnames(cSumstats)=="FRQ")) cSumstats[,FRQ_ORIG:=FRQ]
-        
-        if(!is.null(ref)){
-          
-          ##Synchronise SNP,CHR,BP,FRQ with reference
-          if(forceBPToReference & any(colnames(cSumstats)=="BP_REF")) cSumstats[,BP:=BP_REF]
-          
-          ## Add in chr and bp from ref if not present in datasets
-          if(any(colnames(cSumstats)=="CHR")){
-            if(any(colnames(cSumstats)=="CHR_REF")) cSumstats[is.na(CHR),CHR:=as.integer(CHR_REF)]
-          } else {
-            sumstats.meta[iFile,c("no_CHR")]<-T
-            cSumstats.warnings<-c(cSumstats.warnings,"No CHR column present!")
-            if(any(colnames(cSumstats)=="CHR_REF")){
-              Sumstats.meta<-rbind(cSumstats.meta,list("CHR","Missing. Set from reference."))
-              cSumstats[,CHR:=as.integer(CHR_REF)]
-              cSumstats.keys<-c(cSumstats.keys,'CHR')
-              cSumstats.warnings<-c(cSumstats.warnings,"Inferred all CHR from reference!")
-            } else {
-              cSumstats[,CHR:=NA_integer_]
-            }
-          }
-          
-          if(any(colnames(cSumstats)=="BP")){
-            if(any(colnames(cSumstats)=="BP_REF")) cSumstats[is.na(BP),BP:=as.integer(BP_REF)]
-          } else {
-            sumstats.meta[iFile,c("no_BP")]<-T
-            cSumstats.warnings<-c(cSumstats.warnings,"No BP column present!")
-            if(any(colnames(cSumstats)=="BP_REF")){
-              cSumstats.meta<-rbind(cSumstats.meta,list("BP","Missing. Set from reference."))
-              cSumstats[,BP:=as.integer(BP_REF)]
-              cSumstats.warnings<-c(cSumstats.warnings,"Inferred all BP from reference!")
-            } else {
-              cSumstats[,BP:=NA_integer_]
-            }
-            
-          }
-          
-          if(any(colnames(cSumstats)=="FRQ")){
-            if(nrow(cSumstats[is.na(FRQ),])>0){
-              if(any(colnames(cSumstats)=="FRQ_REF")){
-                cSumstats.meta<-rbind(cSumstats.meta,list("FRQ missing, attempting to infer from reference FRQ",as.character(nrow(cSumstats[is.na(FRQ),]))))
-                cSumstats[is.na(FRQ),FRQ:=as.numeric(FRQ_REF)]
-              }
-            }
-          } else {
-            sumstats.meta[iFile,c("no_FRQ")]<-T
-            cSumstats.warnings<-c(cSumstats.warnings,"No FRQ column present!")
+        if(any(colnames(cSumstats)=="FRQ")){
+          if(nrow(cSumstats[is.na(FRQ),])>0){
             if(any(colnames(cSumstats)=="FRQ_REF")){
-              cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Missing. Set from reference."))
-              cSumstats[,FRQ:=as.numeric(FRQ_REF)]
-              cSumstats.warnings<-c(cSumstats.warnings,"Inferred all FRQ from reference!")
-            } else {
-              cSumstats[,FRQ:=NA_real_]
-            }
-            
-          }
-          
-          #dataset should have a FRQ column now
-          #assign missing FRQ from fallback column (mixed ancestry for example) if still missing
-          if(any(colnames(cSumstats)=="FRQFB_REF")){
-            if(nrow(cSumstats[!is.finite(FRQ),])>0){
-              cSumstats.meta<-rbind(cSumstats.meta,list("FRQ still missing/non-finite, attempting to infer from reference fallback FRQ",as.character(nrow(cSumstats[!is.finite(FRQ),]))))
-              cSumstats[!is.finite(FRQ),FRQ:=as.numeric(FRQFB_REF)]
+              cSumstats.meta<-rbind(cSumstats.meta,list("FRQ missing, attempting to infer from reference FRQ",as.character(nrow(cSumstats[is.na(FRQ),]))))
+              cSumstats[is.na(FRQ),FRQ:=as.numeric(FRQ_REF)]
             }
           }
-          
-          
-          #Set INFO from reference
-          if(!any(colnames(cSumstats)=="INFO") & any(colnames(cSumstats)=="INFO_REF")){
-            cSumstats.meta<-rbind(cSumstats.meta,list("INFO","Missing. Set from reference."))
-            cSumstats[,INFO:=as.numeric(INFO_REF)]
-            cSumstats.warnings<-c(cSumstats.warnings,"Inferred all INFO from reference!")
-          }
-          
-        }
-        cat(".")
-        
-        #restore sumstats data table keys
-        setkeyv(cSumstats,cols = cSumstats.keys)
-        cat(".")
-        
-        #QC of allele configuration, or harmonisation with reference if missing allele columns
-        if(!is.null(ref) & any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")){
-          ## Remove SNPs where alleles are not matching at least one of the reference alleles
-          cSumstats.n<-nrow(cSumstats)
-          cond.removeNonmatching<-(cSumstats$A1 != (cSumstats$A1_REF) & cSumstats$A1 != (cSumstats$A2_REF)) & (cSumstats$A2 != (cSumstats$A1_REF)  & cSumstats$A2 != (cSumstats$A2_REF))
-          cSumstats<-cSumstats[!cond.removeNonmatching, ]
-          cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; A1 or A2 not matching any ref allele",as.character(sum(cond.removeNonmatching))))
-          sumstats.meta[iFile,c("Removed, nonmatching ref alleles")]<-sum(cond.removeNonmatching)
-        } else if(!is.null(ref) & any(colnames(cSumstats)=="A1_REF") & any(colnames(cSumstats)=="A2_REF")){
-          #the sumstats do not have A1 and A2
-          cSumstats[,A1:=A1_REF][,A2:=A2_REF]
-          cSumstats.meta<-rbind(cSumstats.meta,list("A1,A2","From reference"))
-        }
-        cat(".")
-        
-        ## N
-        if(any(colnames(cSumstats)=="N_CAS") && any(colnames(cSumstats)=="N_CON")) {
-          ### Calculate total N from number of cases and number of controls if they are present, only for missing N.
-          cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("N_CAS + N_CON")))
-          if(!any(colnames(cSumstats)=="N")) cSumstats[,N:=NA_integer_]
-          cSumstats[!is.finite(N) & is.finite(N_CAS) & is.finite(N_CON),N:=N_CAS + N_CON]
-        }
-        cat(".")
-        
-        # if(any(colnames(cSumstats)=="N")){
-        #   cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats$N, na.rm = T),", ",min(cSumstats$N, na.rm = T),", ", max(cSumstats$N, na.rm = T))))
-        # }
-        
-        if(!is.null(N) & length(N)>=iFile) {
-          if(!is.na(N[iFile])){
-            if(forceN && any(colnames(cSumstats)=="N")) {
-              if(
-                abs((median(cSumstats[is.finite(N),]$N, na.rm = T)-N[iFile])/median(cSumstats[is.finite(N),]$N, na.rm = T))>0.05
-                |
-                (N[iFile]-min(cSumstats[is.finite(N),]$N, na.rm = T))/N[iFile]>0.05
-                |
-                (N[iFile]-max(cSumstats[is.finite(N),]$N, na.rm = T))/N[iFile]>0.05
-              ) cSumstats.warnings<-c(cSumstats.warnings,"Large (>5%) N discrepancies found between provided and existing N!")
-              cSumstats[,N:=eval(as.numeric(N[iFile]))]
-              cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile])))
-            } else if(any(colnames(cSumstats)=="N")){
-              cSumstats[,cond:=FALSE][!is.numeric(N) | eval(as.numeric(N[iFile])) < N, cond:=TRUE]
-              if(sum(cSumstats$cond)>0) {
-                cSumstats[cond==TRUE,N:=eval(as.numeric(N[iFile]))]
-                cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile],"for",sum(cSumstats$cond)," NA or > specified.")))
-              }
-              cSumstats[,cond:=NULL]
-            } else {
-              cSumstats[,N:=eval(as.numeric(N[iFile]))]
-              cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile])))
-            }
-            
-            
-          }
-        } else if(!(any(colnames(cSumstats)=="N"))) {
-          if(any(colnames(cSumstats)=="NEFF")){
-            cSumstats$N<-cSumstats$NEFF
-            cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF"))
-          } 
-        }
-        
-        if(any(colnames(cSumstats)=="N")){
-        cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats[is.finite(N),]$N, na.rm = T),", ",min(cSumstats[is.finite(N),]$N, na.rm = T),", ", max(cSumstats[is.finite(N),]$N, na.rm = T))))
         } else {
-          cSumstats.warnings<-c(cSumstats.warnings,"\nNo resulting N column detected!")
-          cSumstats.meta<-rbind(cSumstats.meta,list("N","Warning: Not present!"))
-          #cSumstats$N<-NA_integer_
-        }
-        
-        cat(".")
-        
-        ## Establish allele order from the reference
-        if(!is.null(ref)){
-          #cond.invertedAlleleOrder<-(cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF) #the same condition as in GenomicSEM munge.
-          #cond.invertedAlleleOrder<-(cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF)
-          #cond.invertedAlleleOrder<-((cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF) | (cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF)) #experimental - seems to work similar to the GenomicSEM implementation
-          cSumstats[,cond.invertedAlleleOrder:=((A2!=A2_REF & A1==A2_REF) | (A1!=A1_REF & A2 ==A1_REF))]
+          sumstats.meta[iFile,c("no_FRQ")]<-T
+          cSumstats.warnings<-c(cSumstats.warnings,"No FRQ column present!")
+          if(any(colnames(cSumstats)=="FRQ_REF")){
+            cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Missing. Set from reference."))
+            cSumstats[,FRQ:=as.numeric(FRQ_REF)]
+            cSumstats.warnings<-c(cSumstats.warnings,"Inferred all FRQ from reference!")
+          } else {
+            cSumstats[,FRQ:=NA_real_]
+          }
           
         }
-        cat(".")
         
-        ## Invert alleles or harmonise (including their FRQ) to reference
-        if(!is.null(ref) & forceAllelesToReference){
-          # Fix A1 and A2 to reflect the reference alleles
-          cSumstats[,A1:=A1_REF]
-          cSumstats[,A2:=A2_REF]
-          if(any(colnames(cSumstats)=="FRQ_REF")) {
-            cSumstats[,FRQ:=FRQ_REF]
-            cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Forced to reference FRQ/MAF"))
+        #dataset should have a FRQ column now
+        #assign missing FRQ from fallback column (mixed ancestry for example) if still missing
+        if(any(colnames(cSumstats)=="FRQFB_REF")){
+          if(nrow(cSumstats[!is.finite(FRQ),])>0){
+            cSumstats.meta<-rbind(cSumstats.meta,list("FRQ still missing/non-finite, attempting to infer from reference fallback FRQ",as.character(nrow(cSumstats[!is.finite(FRQ),]))))
+            cSumstats[!is.finite(FRQ),FRQ:=as.numeric(FRQFB_REF)]
           }
-        } else if(any(colnames(cSumstats)=="cond.invertedAlleleOrder")) { ## Invert alleles  -FRQ is dealt with below
-          cSumstats[,A1:=ifelse(cond.invertedAlleleOrder, A2_ORIG, A1)]
-          cSumstats[,A2:=ifelse(cond.invertedAlleleOrder, A1_ORIG, A2)]
         }
-        cat(".")
         
-        # FRQ
-        # Dataset should have a FRQ columnn by now if reference also has FRQ
-        #cond.invertedFRQ<-NULL
-        if(any(colnames(cSumstats)=="FRQ")) {
-          if(any(is.finite(cSumstats$FRQ))) {
-            ### Has FRQ
-            
-            #cSumstats.meta<-rbind(cSumstats.meta,list("FRQ (median, min(abs), max(abs))",paste(median(cSumstats$FRQ, na.rm = T),", ",min(abs(cSumstats$FRQ), na.rm = T),", ", max(abs(cSumstats$FRQ), na.rm = T))))
-            #### Check if value is within limits [0,1]
-            if(any(cSumstats$FRQ>1,na.rm = T) || any(cSumstats$FRQ<0,na.rm = T)) {
-              
-              cSumstats.n.FRQmt<-sum(cSumstats[is.finite(FRQ),]$FRQ>1)
-              cSumstats.n.FRQlt<-sum(cSumstats[is.finite(FRQ),]$FRQ<0)
-              maf.max <- sqrt(max(cSumstats[FRQ<1 & FRQ>0,]$FRQ,na.rm=T))
-              maf.min <- sqrt(min(cSumstats[FRQ<1 & FRQ>0,]$FRQ,na.rm=T))
-              
-              if((cSumstats.n.FRQmt + cSumstats.n.FRQlt)/cSumstats.n>0.01 | !is.finite(maf.max) | !is.finite(maf.min)){
-              stop(paste0('\nThere are >1% FRQ values larger than 1 (',cSumstats.n.FRQmt,') or less than 0 (',cSumstats.n.FRQlt,') which is outside of the possible FRQ range.'))
-              } else {
-                cSumstats[FRQ>1,FRQ:=eval(maf.max)]
-                cSumstats.meta<-rbind(cSumstats.meta,list("FRQ",paste("FRQ > 1: ",cSumstats.n.FRQmt," set to ",maf.max)))
-                cSumstats[FRQ<0,FRQ:=eval(maf.min)]
-                cSumstats.meta<-rbind(cSumstats.meta,list("FRQ",paste("FRQ < 0: ",cSumstats.n.FRQmt," set to ",maf.min)))
-              }
+        
+        #Set INFO from reference
+        if(!any(colnames(cSumstats)=="INFO") & any(colnames(cSumstats)=="INFO_REF")){
+          cSumstats.meta<-rbind(cSumstats.meta,list("INFO","Missing. Set from reference."))
+          cSumstats[,INFO:=as.numeric(INFO_REF)]
+          cSumstats.warnings<-c(cSumstats.warnings,"Inferred all INFO from reference!")
+        }
+        
+      }
+      cat(".")
+      
+      #restore sumstats data table keys
+      setkeyv(cSumstats,cols = cSumstats.keys)
+      cat(".")
+      
+      #QC of allele configuration, or harmonisation with reference if missing allele columns
+      if(!is.null(ref) & any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")){
+        ## Remove SNPs where alleles are not matching at least one of the reference alleles
+        cSumstats.n<-nrow(cSumstats)
+        cond.removeNonmatching<-(cSumstats$A1 != (cSumstats$A1_REF) & cSumstats$A1 != (cSumstats$A2_REF)) & (cSumstats$A2 != (cSumstats$A1_REF)  & cSumstats$A2 != (cSumstats$A2_REF))
+        cSumstats<-cSumstats[!cond.removeNonmatching, ]
+        cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; A1 or A2 not matching any ref allele",as.character(sum(cond.removeNonmatching))))
+        sumstats.meta[iFile,c("Removed, nonmatching ref alleles")]<-sum(cond.removeNonmatching)
+      } else if(!is.null(ref) & any(colnames(cSumstats)=="A1_REF") & any(colnames(cSumstats)=="A2_REF")){
+        #the sumstats do not have A1 and A2
+        cSumstats[,A1:=A1_REF][,A2:=A2_REF]
+        cSumstats.meta<-rbind(cSumstats.meta,list("A1,A2","From reference"))
+      }
+      cat(".")
+      
+      ## N
+      if(any(colnames(cSumstats)=="N_CAS") && any(colnames(cSumstats)=="N_CON")) {
+        ### Calculate total N from number of cases and number of controls if they are present, only for missing N.
+        cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("N_CAS + N_CON")))
+        if(!any(colnames(cSumstats)=="N")) cSumstats[,N:=NA_integer_]
+        cSumstats[!is.finite(N) & is.finite(N_CAS) & is.finite(N_CON),N:=N_CAS + N_CON]
+      }
+      cat(".")
+      
+      # if(any(colnames(cSumstats)=="N")){
+      #   cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats$N, na.rm = T),", ",min(cSumstats$N, na.rm = T),", ", max(cSumstats$N, na.rm = T))))
+      # }
+      
+      if(!is.null(N) & length(N)>=iFile) {
+        if(!is.na(N[iFile])){
+          if(forceN && any(colnames(cSumstats)=="N")) {
+            if(
+              abs((median(cSumstats[is.finite(N),]$N, na.rm = T)-N[iFile])/median(cSumstats[is.finite(N),]$N, na.rm = T))>0.05
+              |
+              (N[iFile]-min(cSumstats[is.finite(N),]$N, na.rm = T))/N[iFile]>0.05
+              |
+              (N[iFile]-max(cSumstats[is.finite(N),]$N, na.rm = T))/N[iFile]>0.05
+            ) cSumstats.warnings<-c(cSumstats.warnings,"Large (>5%) N discrepancies found between provided and existing N!")
+            cSumstats[,N:=eval(as.numeric(N[iFile]))]
+            cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile])))
+          } else if(any(colnames(cSumstats)=="N")){
+            cSumstats[,cond:=FALSE][!is.numeric(N) | eval(as.numeric(N[iFile])) < N, cond:=TRUE]
+            if(sum(cSumstats$cond)>0) {
+              cSumstats[cond==TRUE,N:=eval(as.numeric(N[iFile]))]
+              cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile],"for",sum(cSumstats$cond)," NA or > specified.")))
             }
-            
-            ### Invert FRQ based on the previous reference matching
-            if(any(colnames(cSumstats)=="cond.invertedAlleleOrder") & !forceAllelesToReference) {
-                cSumstats[cond.invertedAlleleOrder==T,FRQ:=1-FRQ]
-                #cSumstats$FRQ<-alleleFRQ
-                cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Fitted (flipped) according to reference allele order"))
-                sumstats.meta[iFile,c("FRQ.flipped")]<-T
-            } #JZ: Removed the faulty fallback routine to infer FRQ from MAF
-            
-            ### Compute MAF
-            cond.invertedMAF<-cSumstats$FRQ > .5
-            cSumstats$MAF<-ifelse(cond.invertedMAF,1-cSumstats$FRQ,cSumstats$FRQ)
-            
-            ## Compute variance of individual variant effects according to 2pq
-            if(any(colnames(cSumstats)=="FRQ")) cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
-            cat(".")
-          }
-        }
-       
-        
-        #remove duplicate ID variants, ordered by ADBPADJ, -MAF
-        if(any(colnames(cSumstats)=="MAF")){
-          cSumstats.n<-nrow(cSumstats)
-          if(any(colnames(cSumstats)=="ADBPADJ")){
-            cSumstats<-cSumstats[order(ADBPADJ, -MAF),]
+            cSumstats[,cond:=NULL]
           } else {
-            cSumstats<-cSumstats[order(-MAF),]
+            cSumstats[,N:=eval(as.numeric(N[iFile]))]
+            cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("Set to",N[iFile])))
           }
-          cSumstats$ADBPADJ_ID<-1:nrow(cSumstats)
-          cSumstats.unique<-cSumstats[, .(ADBPADJ_ID = head(ADBPADJ_ID,1)), by = c("SNP")]
-          cSumstats<-cSumstats[cSumstats.unique, on=c(ADBPADJ_ID=c("ADBPADJ_ID"))]
-          cSumstats[,i.SNP:=NULL]
-          cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; duplicate variant ID",as.character(cSumstats.n-nrow(cSumstats))))
+          
+          
+        }
+      } else if(!(any(colnames(cSumstats)=="N"))) {
+        if(any(colnames(cSumstats)=="NEFF")){
+          cSumstats$N<-cSumstats$NEFF
+          cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF"))
+        } 
+      }
+      
+      if(any(colnames(cSumstats)=="N")){
+      cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats[is.finite(N),]$N, na.rm = T),", ",min(cSumstats[is.finite(N),]$N, na.rm = T),", ", max(cSumstats[is.finite(N),]$N, na.rm = T))))
+      } else {
+        cSumstats.warnings<-c(cSumstats.warnings,"\nNo resulting N column detected!")
+        cSumstats.meta<-rbind(cSumstats.meta,list("N","Warning: Not present!"))
+        #cSumstats$N<-NA_integer_
+      }
+      
+      cat(".")
+      
+      ## Establish allele order from the reference
+      if(!is.null(ref)){
+        #cond.invertedAlleleOrder<-(cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF) #the same condition as in GenomicSEM munge.
+        #cond.invertedAlleleOrder<-(cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF)
+        #cond.invertedAlleleOrder<-((cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF) | (cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF)) #experimental - seems to work similar to the GenomicSEM implementation
+        cSumstats[,cond.invertedAlleleOrder:=((A2!=A2_REF & A1==A2_REF) | (A1!=A1_REF & A2 ==A1_REF))]
+        
+      }
+      cat(".")
+      
+      ## Invert alleles or harmonise (including their FRQ) to reference
+      if(!is.null(ref) & forceAllelesToReference){
+        # Fix A1 and A2 to reflect the reference alleles
+        cSumstats[,A1:=A1_REF]
+        cSumstats[,A2:=A2_REF]
+        if(any(colnames(cSumstats)=="FRQ_REF")) {
+          cSumstats[,FRQ:=FRQ_REF]
+          cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Forced to reference FRQ/MAF"))
+        }
+      } else if(any(colnames(cSumstats)=="cond.invertedAlleleOrder")) { ## Invert alleles  -FRQ is dealt with below
+        cSumstats[,A1:=ifelse(cond.invertedAlleleOrder, A2_ORIG, A1)]
+        cSumstats[,A2:=ifelse(cond.invertedAlleleOrder, A1_ORIG, A2)]
+      }
+      cat(".")
+      
+      # FRQ
+      # Dataset should have a FRQ columnn by now if reference also has FRQ
+      #cond.invertedFRQ<-NULL
+      if(any(colnames(cSumstats)=="FRQ")) {
+        if(any(is.finite(cSumstats$FRQ))) {
+          ### Has FRQ
+          
+          #cSumstats.meta<-rbind(cSumstats.meta,list("FRQ (median, min(abs), max(abs))",paste(median(cSumstats$FRQ, na.rm = T),", ",min(abs(cSumstats$FRQ), na.rm = T),", ", max(abs(cSumstats$FRQ), na.rm = T))))
+          #### Check if value is within limits [0,1]
+          if(any(cSumstats$FRQ>1,na.rm = T) || any(cSumstats$FRQ<0,na.rm = T)) {
+            
+            cSumstats.n.FRQmt<-sum(cSumstats[is.finite(FRQ),]$FRQ>1)
+            cSumstats.n.FRQlt<-sum(cSumstats[is.finite(FRQ),]$FRQ<0)
+            maf.max <- sqrt(max(cSumstats[FRQ<1 & FRQ>0,]$FRQ,na.rm=T))
+            maf.min <- sqrt(min(cSumstats[FRQ<1 & FRQ>0,]$FRQ,na.rm=T))
+            
+            if((cSumstats.n.FRQmt + cSumstats.n.FRQlt)/cSumstats.n>0.01 | !is.finite(maf.max) | !is.finite(maf.min)){
+            stop(paste0('\nThere are >1% FRQ values larger than 1 (',cSumstats.n.FRQmt,') or less than 0 (',cSumstats.n.FRQlt,') which is outside of the possible FRQ range.'))
+            } else {
+              cSumstats[FRQ>1,FRQ:=eval(maf.max)]
+              cSumstats.meta<-rbind(cSumstats.meta,list("FRQ",paste("FRQ > 1: ",cSumstats.n.FRQmt," set to ",maf.max)))
+              cSumstats[FRQ<0,FRQ:=eval(maf.min)]
+              cSumstats.meta<-rbind(cSumstats.meta,list("FRQ",paste("FRQ < 0: ",cSumstats.n.FRQmt," set to ",maf.min)))
+            }
+          }
+          
+          ### Invert FRQ based on the previous reference matching
+          if(any(colnames(cSumstats)=="cond.invertedAlleleOrder") & !forceAllelesToReference) {
+              cSumstats[cond.invertedAlleleOrder==T,FRQ:=1-FRQ]
+              #cSumstats$FRQ<-alleleFRQ
+              cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Fitted (flipped) according to reference allele order"))
+              sumstats.meta[iFile,c("FRQ.flipped")]<-T
+          } #JZ: Removed the faulty fallback routine to infer FRQ from MAF
+          
+          ### Compute MAF
+          cond.invertedMAF<-cSumstats$FRQ > .5
+          cSumstats$MAF<-ifelse(cond.invertedMAF,1-cSumstats$FRQ,cSumstats$FRQ)
+          
+          ## Compute variance of individual variant effects according to 2pq
+          if(any(colnames(cSumstats)=="FRQ")) cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
           cat(".")
         }
-        
-        # P validity checks before the Z-score calculation
-        ### Check the values of the P-column
-        if("P" %in% colnames(cSumstats)) {
-          if((sum(cSumstats$P > 1) + sum(cSumstats$P < 0)) > 100){
-            cSumstats.warnings<-c(cSumstats.warnings,"\nThe P column contains numerous values outside of the expected bounds [0,1]. This can indicate that the column is misinterpreted.")
+      }
+     
+      
+      #remove duplicate ID variants, ordered by ADBPADJ, -MAF, MERGEID - IMPORTANT!
+
+      cSumstats.n<-nrow(cSumstats)
+      if(any(colnames(cSumstats)=="ADBPADJ") & any(colnames(cSumstats)=="MAF")){
+        cSumstats<-cSumstats[order(ADBPADJ, -MAF, MERGEID),]
+      } else if(any(colnames(cSumstats)=="MAF")) {
+        cSumstats<-cSumstats[order(-MAF, MERGEID),]
+      } else {
+        cSumstats<-cSumstats[order(MERGEID),]
+      }
+      cSumstats.unique<-cSumstats[, .(MERGEID = head(MERGEID,1)), by = c("SNP")]
+      cSumstats<-cSumstats[cSumstats.unique, on=c(MERGEID=c("MERGEID"))]
+      cSumstats[,i.SNP:=NULL]
+      cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; duplicate variant ID",as.character(cSumstats.n-nrow(cSumstats))))
+      cat(".")
+      
+      
+      # P validity checks before the Z-score calculation
+      ### Check the values of the P-column
+      if(any(colnames(cSumstats)=="P")) {
+        if((sum(cSumstats$P > 1, na.rm = T) + sum(cSumstats$P < 0,na.rm = T)) > 100){
+          cSumstats.warnings<-c(cSumstats.warnings,"\nThe P column contains numerous values outside of the expected bounds [0,1]. This can indicate that the column is misinterpreted.")
+        }
+      }
+      cat(".")
+      
+      # EFFECT and SE standardisations and corrections according to effect type (OLS, log OR or non log OR)
+      ## adapted from the GenomicSEM sumstats-function
+      
+      #produce the unstandardised regression beta from Z if no EFFECT present
+      if(any(colnames(cSumstats)=="Z") && any(colnames(cSumstats)=="VSNP") && any(colnames(cSumstats)=="N") && !any(colnames(cSumstats)=="EFFECT")) {
+        ## Compute BETA/EFFECT from Z if present
+        cSumstats[,EFFECT:= Z/sqrt(N*VSNP)][,SE:=EFFECT/Z]
+        cSumstats[is.na(SE),SE:=1] #explicitly set NA SE to 1
+        cSumstats.meta<-rbind(cSumstats.meta,list("BETA","Calculated from Z"))
+      }
+      cat(".")
+      
+      if(any(colnames(cSumstats)=="EFFECT")) {
+        if(any(is.finite(cSumstats$EFFECT))) {
+          ##invert overall effect if specified
+          if(!is.null(invertEffectDirectionOn)){
+            if(any(invertEffectDirectionOn==traitNames[iFile])){
+              cSumstats[,EFFECT:=EFFECT*-1]
+              cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","EFFECT*-1 (Inverted overall effect)"))
+            }
+            cat(".")
           }
-        }
-        cat(".")
-        
-        # EFFECT and SE standardisations and corrections according to effect type (OLS, log OR or non log OR)
-        ## adapted from the GenomicSEM sumstats-function
-        
-        #produce the unstandardised regression beta from Z if no EFFECT present
-        if(any(colnames(cSumstats)=="Z") && any(colnames(cSumstats)=="VSNP") && any(colnames(cSumstats)=="N") && !any(colnames(cSumstats)=="EFFECT")) {
-          ## Compute BETA/EFFECT from Z if present
-          cSumstats[,EFFECT:= Z/sqrt(N*VSNP)][,SE:=EFFECT/Z]
-          cSumstats[is.na(SE),SE:=1] #explicitly set NA SE to 1
-          cSumstats.meta<-rbind(cSumstats.meta,list("BETA","Calculated from Z"))
-        }
-        cat(".")
-        
-        if(any(colnames(cSumstats)=="EFFECT")) {
-          if(any(is.finite(cSumstats$EFFECT))) {
-            ##invert overall effect if specified
-            if(!is.null(invertEffectDirectionOn)){
-              if(any(invertEffectDirectionOn==traitNames[iFile])){
-                cSumstats[,EFFECT:=EFFECT*-1]
-                cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","EFFECT*-1 (Inverted overall effect)"))
-              }
-              cat(".")
-            }
+          
+          ## Determine effect type, and set effect to log(EFFECT) if odds ratio
+          if(round(median(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm=T),digits = 1) == 1) {
+            ###is odds ratio
+            cSumstats[,EFFECT:=log(EFFECT)]
+            sumstats.meta[iFile,c("effect_type")]<-"OR"
+            cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","OR  =>ln(OR)"))
             
-            ## Determine effect type, and set effect to log(EFFECT) if odds ratio
-            if(round(median(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm=T),digits = 1) == 1) {
-              ###is odds ratio
-              cSumstats[,EFFECT:=log(EFFECT)]
-              sumstats.meta[iFile,c("effect_type")]<-"OR"
-              cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","OR  =>ln(OR)"))
-              
-              if(any(colnames(cSumstats)=="BETA")) {
-                cSumstats.warnings<-c(cSumstats.warnings,"The effect format being an ODDS RATIO may not be compatible with the original variable naming scheme!")
-                sumstats.meta[iFile,c("effect_type_warning")]<-T
-              }
-              
-            } else {
-              ###is NOT odds ratio
-              sumstats.meta[iFile,c("effect_type")]<-"non_OR"
-              cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","NON OR"))
-              if(any(colnames(cSumstats)=="OR")) {
-                cSumstats.warnings<-c(cSumstats.warnings,"The effect format NOT being an ODDS RATIO may not compatible with the original variable naming scheme!")
-                sumstats.meta[iFile,c("effect_type_warning")]<-T
-              }
-            }
-            cat(".")
-            
-            ## Determine effect SE type, and standardise to log scale SE if necessary
-            sumstats.meta[iFile,c("se_type")]<-"unknown" #fallback
-            if(any(colnames(cSumstats)=="SE") && any(colnames(cSumstats)=="P")){
-              cSumstats[,P.SEtest:=pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4] #Effect is now in log-scale
-              if(sum(cSumstats$P.SEtest.is.same.scale,na.rm = T)<0.75*nrow(cSumstats)){
-                #transform to logit SE - from the Genomic SEM conversions
-                cSumstats[,SE:=(SE/exp(EFFECT))]
-                cSumstats.meta <- rbind(cSumstats.meta,list("SE","SE(OR) => SE(ln(OR))"))
-                sumstats.meta[iFile,c("se_type")]<-"OR"
-                if(sumstats.meta[iFile,c("effect_type")]!="OR"){
-                  cSumstats.warnings<-c(cSumstats.warnings,"The SE was converted into the SE of a ln(OR), while the effect was not confirmed to be an OR. The effect may be a ln(OR) however, which is fine.")
-                  sumstats.meta[iFile,c("se_type_warning")]<-T
-                }
-                #cleanup
-                cSumstats[,P.SEtest:=NULL][,P.SEtest.is.same.scale:=NULL]
-              } else {
-                cSumstats.meta <- rbind(cSumstats.meta,list("SE","scale as effect (OLS/ln(OR)/other)"))
-                sumstats.meta[iFile,c("se_type")]<-"non_OR"
-              }
-              cat(".")
-            }
-            
-            ## Compute Z score (standardised beta) - used for effect corrections further and is later corrected accordingly - assumes correct effects and SE
-            ## Also 
-            if(any(colnames(cSumstats)=="Z")) cSumstats[,Z_ORIG:=Z] #save original Z-score
-            if(any(colnames(cSumstats)=="P")) {
-              cSumstats[,Z:=sign(EFFECT) * sqrt(qchisq(P,1,lower=F))]
-              cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from P and sign(EFFECT)"))
-            } else if(any(colnames(cSumstats)=="SE")){
-              cSumstats[,Z:=EFFECT/SE] #is this less reliable as we cannot know the scale of SE? Should be more reliable now.
-              cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from EFFECT and SE"))
-            } else {
-              cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT calculated since no P or SE"))
-            }
-            cat(".")
-            
-            ## Inspect new and old Z-values
-            if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="Z_ORIG")){
-              if(abs(mean(cSumstats[is.finite(Z),]$Z)-mean(cSumstats[is.finite(Z_ORIG),]$Z_ORIG,na.rm=T))>1) cSumstats.warnings<-c(cSumstats.warnings,"New Z differ from old by more than 1sd!")
-              cat(".")
-            }
-            
-            #Re-compute SE!!! new
-            if(any(colnames(cSumstats)=="Z")){
-              cSumstats[,SE:=EFFECT/Z]
-              cSumstats.meta<-rbind(cSumstats.meta,list("SE","(Re-)calculated from new EFFECT and Z"))
-              cat(".")
-            }
-            
-            #Recommend parameter settings for Genomic SEM sumstats function
-            if(sumstats.meta[iFile,c("effect_type")]=="OR" | sumstats.meta[iFile,c("se_type")]=="OR"){
-              cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Probably F"))
-            } else {
-              cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Maybe T"))
-            }
-            
-            if(sumstats.meta[iFile,c("effect_type")]=="OR" & sumstats.meta[iFile,c("se_type")]=="OR"){
-              cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Probably F"))
-            } else {
-              cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Maybe T"))
+            if(any(colnames(cSumstats)=="BETA")) {
+              cSumstats.warnings<-c(cSumstats.warnings,"The effect format being an ODDS RATIO may not be compatible with the original variable naming scheme!")
+              sumstats.meta[iFile,c("effect_type_warning")]<-T
             }
             
           } else {
-            #no finite EFFECT
-            cSumstats.warnings<-c(cSumstats.warnings,"No finite EFFECT value found.")
-            sumstats.meta[iFile,c("no_EFFECT")]<-T
+            ###is NOT odds ratio
+            sumstats.meta[iFile,c("effect_type")]<-"non_OR"
+            cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","NON OR"))
+            if(any(colnames(cSumstats)=="OR")) {
+              cSumstats.warnings<-c(cSumstats.warnings,"The effect format NOT being an ODDS RATIO may not compatible with the original variable naming scheme!")
+              sumstats.meta[iFile,c("effect_type_warning")]<-T
+            }
           }
+          cat(".")
+          
+          ## Determine effect SE type, and standardise to log scale SE if necessary
+          sumstats.meta[iFile,c("se_type")]<-"unknown" #fallback
+          if(any(colnames(cSumstats)=="SE") && any(colnames(cSumstats)=="P")){
+            cSumstats[,P.SEtest:=pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4] #Effect is now in log-scale
+            if(sum(cSumstats$P.SEtest.is.same.scale,na.rm = T)<0.75*nrow(cSumstats)){
+              #transform to logit SE - from the Genomic SEM conversions
+              cSumstats[,SE:=(SE/exp(EFFECT))]
+              cSumstats.meta <- rbind(cSumstats.meta,list("SE","SE(OR) => SE(ln(OR))"))
+              sumstats.meta[iFile,c("se_type")]<-"OR"
+              if(sumstats.meta[iFile,c("effect_type")]!="OR"){
+                cSumstats.warnings<-c(cSumstats.warnings,"The SE was converted into the SE of a ln(OR), while the effect was not confirmed to be an OR. The effect may be a ln(OR) however, which is fine.")
+                sumstats.meta[iFile,c("se_type_warning")]<-T
+              }
+              #cleanup
+              cSumstats[,P.SEtest:=NULL][,P.SEtest.is.same.scale:=NULL]
+            } else {
+              cSumstats.meta <- rbind(cSumstats.meta,list("SE","scale as effect (OLS/ln(OR)/other)"))
+              sumstats.meta[iFile,c("se_type")]<-"non_OR"
+            }
+            cat(".")
+          }
+          
+          ## Compute Z score (standardised beta) - used for effect corrections further and is later corrected accordingly - assumes correct effects and SE
+          ## Also 
+          if(any(colnames(cSumstats)=="Z")) cSumstats[,Z_ORIG:=Z] #save original Z-score
+          if(any(colnames(cSumstats)=="P")) {
+            cSumstats[,Z:=sign(EFFECT) * sqrt(qchisq(P,1,lower=F))]
+            cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from P and sign(EFFECT)"))
+          } else if(any(colnames(cSumstats)=="SE")){
+            cSumstats[,Z:=EFFECT/SE] #is this less reliable as we cannot know the scale of SE? Should be more reliable now.
+            cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from EFFECT and SE"))
+          } else {
+            cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT calculated since no P or SE"))
+          }
+          cat(".")
+          
+          ## Inspect new and old Z-values
+          if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="Z_ORIG")){
+            if(abs(mean(cSumstats[is.finite(Z),]$Z)-mean(cSumstats[is.finite(Z_ORIG),]$Z_ORIG,na.rm=T))>1) cSumstats.warnings<-c(cSumstats.warnings,"New Z differ from old by more than 1sd!")
+            cat(".")
+          }
+          
+          #Re-compute SE!!! new
+          if(any(colnames(cSumstats)=="Z")){
+            cSumstats[,SE:=EFFECT/Z]
+            cSumstats.meta<-rbind(cSumstats.meta,list("SE","(Re-)calculated from new EFFECT and Z"))
+            cat(".")
+          }
+          
+          #Recommend parameter settings for Genomic SEM sumstats function
+          if(sumstats.meta[iFile,c("effect_type")]=="OR" | sumstats.meta[iFile,c("se_type")]=="OR"){
+            cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Probably F"))
+          } else {
+            cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Maybe T"))
+          }
+          
+          if(sumstats.meta[iFile,c("effect_type")]=="OR" & sumstats.meta[iFile,c("se_type")]=="OR"){
+            cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Probably F"))
+          } else {
+            cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Maybe T"))
+          }
+          
         } else {
-          ## Does not have EFFECT
-          ### Note that EFFECT is not present
-          cSumstats.warnings<-c(cSumstats.warnings,"No EFFECT column present.")
+          #no finite EFFECT
+          cSumstats.warnings<-c(cSumstats.warnings,"No finite EFFECT value found.")
           sumstats.meta[iFile,c("no_EFFECT")]<-T
-          cat(".")
         }
-        
-        #compute minimum variance for later calculations
-        if(any(colnames(cSumstats)=="SE")){
-          minv<-min(cSumstats[is.finite(SE),]$SE, na.rm = T)^2
-        }
-        
-        #compare hypothesised inverted allele effects with non-inverted allele effects for validation
-        #use weighting because uncertain associations tend to skew the mean effect towards a negative value
-        if(is.null(changeEffectDirectionOnAlleleFlip)) changeEffectDirectionOnAlleleFlip<-T
-        
-        if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="cond.invertedAlleleOrder")){
-          if(any(cSumstats$cond.invertedAlleleOrder) & any(is.finite(cSumstats$EFFECT)) & any(is.finite(cSumstats$SE))){
-            sumstats.meta[iFile,c("Inverted allele order variants")]<-sum(cSumstats$cond.invertedAlleleOrder)
-            
-            cSumstats[,WEFFECT:=EFFECT/(SE^2)]
-            
-            nFlipReference<-nrow(cSumstats[!(cond.invertedAlleleOrder),])
-            nFlipCandiate<-nrow(cSumstats[(cond.invertedAlleleOrder),])
-            
-            meffects.reference<-sum(cSumstats[is.finite(WEFFECT) & !(cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(1/(cSumstats[is.finite(SE) & !(cond.invertedAlleleOrder),]$SE^2),na.rm = T)
-            meffects.candidate<-sum(cSumstats[is.finite(WEFFECT) & (cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(1/(cSumstats[is.finite(SE) & (cond.invertedAlleleOrder),]$SE^2),na.rm = T)
-            
-            
-            meffects.candidate.inverted<-meffects.candidate*-1
-            meffects.reference.inverted<-meffects.reference*-1
-            
-            sdeffects.reference<-sd(cSumstats[is.finite(EFFECT) & !(cond.invertedAlleleOrder),]$EFFECT,na.rm = T)
-            sdeffects.candidate<-sd(cSumstats[is.finite(EFFECT) & (cond.invertedAlleleOrder),]$EFFECT,na.rm = T)
-            cSumstats.meta<-rbind(cSumstats.meta,list("Number variants, reference, candidate:",paste0(as.character(nFlipReference),",",as.character(nFlipCandiate))))
-            cSumstats.meta<-rbind(cSumstats.meta,list("Mean reference effect (sd)",paste0(as.character(round(meffects.reference,digits = 5))," (",round(sdeffects.reference,digits = 4),")")))
-            cSumstats.meta<-rbind(cSumstats.meta,list("Mean candidate effect (sd)",paste0(as.character(round(meffects.candidate,digits = 5))," (",round(sdeffects.candidate,digits = 4),")")))
-            
-            
-            sumstats.meta[iFile,c("Reference variants")]<-nFlipReference
-            sumstats.meta[iFile,c("Candidate variants")]<-nFlipCandiate
-            
-            sumstats.meta[iFile,c("Mean reference effect")]<-round(meffects.reference,digits = 5)
-            sumstats.meta[iFile,c("Mean reference effect sd")]<-round(sdeffects.reference,digits = 4)
-            sumstats.meta[iFile,c("Mean candidate effect")]<-round(meffects.candidate,digits = 4)
-            sumstats.meta[iFile,c("Mean candidate effect sd")]<-round(sdeffects.candidate,digits = 5)
-            
-            if(nFlipCandiate>nFlipReference){
-              cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","interpreting candidate variants as reference as they are more numerous"))
-            }
-            
-            if(is.finite(nFlipReference) & is.finite(nFlipCandiate) & is.finite(meffects.reference) & is.finite(meffects.candidate)) { #safety check so the conditions below do not crash in case of all reference/candidates
-              
-            #This is just for notifications, the real flip comes below!
-              if(
-                (nFlipCandiate <= nFlipReference & abs(meffects.candidate.inverted - meffects.reference) > (abs(meffects.candidate - meffects.reference) + 1*sdeffects.reference)) |
-                (nFlipCandiate > nFlipReference & abs(meffects.reference.inverted - meffects.candidate) > (abs(meffects.reference - meffects.candidate) + 1*sdeffects.candidate))
-                ){
-                cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","inverted > plain+1sd"))
-                sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-T
-                if(is.null(changeEffectDirectionOnAlleleFlip)){
-                  changeEffectDirectionOnAlleleFlip<-F #inactivate the correction of effect direction on allele flip because of less credible new effect mean.
-                } else if(changeEffectDirectionOnAlleleFlip){
-                  cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip specified, but the mean effect difference between plain and inverted variants is much larger than between plain and non-inverted, indicating that inverted effects may be invalid.")
-                }
-                
-              } else {
-                cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect, relationship","inverted < plain+1sd"))
-                sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-F
-                if(!is.null(changeEffectDirectionOnAlleleFlip)){
-                  if(!changeEffectDirectionOnAlleleFlip) cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip inactivated, but the mean effect difference between untouched and inverted variants is much smaller than between untouched and non-inverted, indicating that inverted effects for these variants may still be valid.")
-                }
-              }
-            
-            }
-            
+      } else {
+        ## Does not have EFFECT
+        ### Note that EFFECT is not present
+        cSumstats.warnings<-c(cSumstats.warnings,"No EFFECT column present.")
+        sumstats.meta[iFile,c("no_EFFECT")]<-T
+        cat(".")
+      }
+      
+      #compute minimum variance for later calculations
+      if(any(colnames(cSumstats)=="SE")){
+        minv<-min(cSumstats[is.finite(SE),]$SE, na.rm = T)^2
+      }
+      
+      #compare hypothesised inverted allele effects with non-inverted allele effects for validation
+      #use weighting because uncertain associations tend to skew the mean effect towards a negative value
+      if(is.null(changeEffectDirectionOnAlleleFlip)) changeEffectDirectionOnAlleleFlip<-T
+      
+      if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="cond.invertedAlleleOrder")){
+        if(any(cSumstats$cond.invertedAlleleOrder) & any(is.finite(cSumstats$EFFECT)) & any(is.finite(cSumstats$SE))){
+          sumstats.meta[iFile,c("Inverted allele order variants")]<-sum(cSumstats$cond.invertedAlleleOrder)
+          
+          cSumstats[,WEFFECT:=EFFECT/(SE^2)]
+          
+          nFlipReference<-nrow(cSumstats[!(cond.invertedAlleleOrder),])
+          nFlipCandiate<-nrow(cSumstats[(cond.invertedAlleleOrder),])
+          
+          meffects.reference<-sum(cSumstats[is.finite(WEFFECT) & !(cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(1/(cSumstats[is.finite(SE) & !(cond.invertedAlleleOrder),]$SE^2),na.rm = T)
+          meffects.candidate<-sum(cSumstats[is.finite(WEFFECT) & (cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(1/(cSumstats[is.finite(SE) & (cond.invertedAlleleOrder),]$SE^2),na.rm = T)
+          
+          
+          meffects.candidate.inverted<-meffects.candidate*-1
+          meffects.reference.inverted<-meffects.reference*-1
+          
+          sdeffects.reference<-sd(cSumstats[is.finite(EFFECT) & !(cond.invertedAlleleOrder),]$EFFECT,na.rm = T)
+          sdeffects.candidate<-sd(cSumstats[is.finite(EFFECT) & (cond.invertedAlleleOrder),]$EFFECT,na.rm = T)
+          cSumstats.meta<-rbind(cSumstats.meta,list("Number variants, reference, candidate:",paste0(as.character(nFlipReference),",",as.character(nFlipCandiate))))
+          cSumstats.meta<-rbind(cSumstats.meta,list("Mean reference effect (sd)",paste0(as.character(round(meffects.reference,digits = 5))," (",round(sdeffects.reference,digits = 4),")")))
+          cSumstats.meta<-rbind(cSumstats.meta,list("Mean candidate effect (sd)",paste0(as.character(round(meffects.candidate,digits = 5))," (",round(sdeffects.candidate,digits = 4),")")))
+          
+          
+          sumstats.meta[iFile,c("Reference variants")]<-nFlipReference
+          sumstats.meta[iFile,c("Candidate variants")]<-nFlipCandiate
+          
+          sumstats.meta[iFile,c("Mean reference effect")]<-round(meffects.reference,digits = 5)
+          sumstats.meta[iFile,c("Mean reference effect sd")]<-round(sdeffects.reference,digits = 4)
+          sumstats.meta[iFile,c("Mean candidate effect")]<-round(meffects.candidate,digits = 4)
+          sumstats.meta[iFile,c("Mean candidate effect sd")]<-round(sdeffects.candidate,digits = 5)
+          
+          if(nFlipCandiate>nFlipReference){
+            cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","interpreting candidate variants as reference as they are more numerous"))
           }
-        }
-        cat(".")
-        
-        ## EFFECT direction
-        ##invert effect if inverted allele order
-        if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="cond.invertedAlleleOrder") & changeEffectDirectionOnAlleleFlip) {
-          if(any(cSumstats$cond.invertedAlleleOrder)) cSumstats[,EFFECT:=ifelse(cond.invertedAlleleOrder,(EFFECT*-1),EFFECT)]
           
-          meffects.new <- NA_real_
-          if(any(is.finite(cSumstats$EFFECT))) meffects.new<-mean(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm = T)
+          if(is.finite(nFlipReference) & is.finite(nFlipCandiate) & is.finite(meffects.reference) & is.finite(meffects.candidate)) { #safety check so the conditions below do not crash in case of all reference/candidates
+            
+          #This is just for notifications, the real flip comes below!
+            if(
+              (nFlipCandiate <= nFlipReference & abs(meffects.candidate.inverted - meffects.reference) > (abs(meffects.candidate - meffects.reference) + 1*sdeffects.reference)) |
+              (nFlipCandiate > nFlipReference & abs(meffects.reference.inverted - meffects.candidate) > (abs(meffects.reference - meffects.candidate) + 1*sdeffects.candidate))
+              ){
+              cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","inverted > plain+1sd"))
+              sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-T
+              if(is.null(changeEffectDirectionOnAlleleFlip)){
+                changeEffectDirectionOnAlleleFlip<-F #inactivate the correction of effect direction on allele flip because of less credible new effect mean.
+              } else if(changeEffectDirectionOnAlleleFlip){
+                cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip specified, but the mean effect difference between plain and inverted variants is much larger than between plain and non-inverted, indicating that inverted effects may be invalid.")
+              }
+              
+            } else {
+              cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect, relationship","inverted < plain+1sd"))
+              sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-F
+              if(!is.null(changeEffectDirectionOnAlleleFlip)){
+                if(!changeEffectDirectionOnAlleleFlip) cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip inactivated, but the mean effect difference between untouched and inverted variants is much smaller than between untouched and non-inverted, indicating that inverted effects for these variants may still be valid.")
+              }
+            }
           
-          cSumstats.meta<-rbind(cSumstats.meta,list("New effect mean",as.character(round(meffects.new,digits = 5))))
+          }
+          
         }
-        sumstats.meta[iFile,c("changeEffectDirectionOnAlleleFlip")]<-changeEffectDirectionOnAlleleFlip
-        cat(".")
+      }
+      cat(".")
+      
+      ## EFFECT direction
+      ##invert effect if inverted allele order
+      if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="cond.invertedAlleleOrder") & changeEffectDirectionOnAlleleFlip) {
+        if(any(cSumstats$cond.invertedAlleleOrder)) cSumstats[,EFFECT:=ifelse(cond.invertedAlleleOrder,(EFFECT*-1),EFFECT)]
         
+        meffects.new <- NA_real_
+        if(any(is.finite(cSumstats$EFFECT))) meffects.new<-mean(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm = T)
         
-        if(any(colnames(cSumstats)=="cond.invertedAlleleOrder")) cSumstats.meta<-rbind(cSumstats.meta,list(
-          paste0(
-            "Modified SNPs; inverted allele order [",ifelse(any(colnames(cSumstats)=="FRQ"),"FRQ",""),",",
-            ifelse(changeEffectDirectionOnAlleleFlip,"EFFECT",""),"]"),
-          as.character(sum(cSumstats$cond.invertedAlleleOrder))))
-        
-        
-        ## Compute Z score (standardised beta) and P or update it according to any corrections just done
-        if(any(colnames(cSumstats)=="SE")) cSumstats[,Z:=EFFECT/SE] #EFFECT and SE should be unstandardised beta and its corresponding SE here!!!!
-        if(any(colnames(cSumstats)=="Z")) cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
-        cat(".")
-        
-       
-        cat("Processing done!")
-      } #end of process stuff
+        cSumstats.meta<-rbind(cSumstats.meta,list("New effect mean",as.character(round(meffects.new,digits = 5))))
+      }
+      sumstats.meta[iFile,c("changeEffectDirectionOnAlleleFlip")]<-changeEffectDirectionOnAlleleFlip
+      cat(".")
+      
+      
+      if(any(colnames(cSumstats)=="cond.invertedAlleleOrder")) cSumstats.meta<-rbind(cSumstats.meta,list(
+        paste0(
+          "Modified SNPs; inverted allele order [",ifelse(any(colnames(cSumstats)=="FRQ"),"FRQ",""),",",
+          ifelse(changeEffectDirectionOnAlleleFlip,"EFFECT",""),"]"),
+        as.character(sum(cSumstats$cond.invertedAlleleOrder))))
+      
+      
+      ## Compute Z score (standardised beta) and P or update it according to any corrections just done
+      if(any(colnames(cSumstats)=="SE")) cSumstats[,Z:=EFFECT/SE] #EFFECT and SE should be unstandardised beta and its corresponding SE here!!!!
+      if(any(colnames(cSumstats)=="Z")) cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
+      cat(".")
       
       
       if(standardiseEffectsToExposure & any(colnames(cSumstats)=="EFFECT")) {
@@ -2019,14 +2050,6 @@ supermunge <- function(
         
       }
       
-      # #adjust N to reflect uncertainty of imputed variants - NO, DON'T DO THIS ANYMORE!
-      # if((imputeFromLD | imputeAdjustN) & any(colnames(cSumstats)=="SINFO")){
-      #   SINFO.median<-median(cSumstats[is.finite(SINFO),]$SINFO, na.rm = T)
-      #   #TODO - add a fallback to an N value when N not specified
-      #   cSumstats[!is.na(SINFO),]$N <- round(N[iFile]*shru::clipValues(cSumstats[!is.na(SINFO),]$SINFO/SINFO.median,0,1))
-      #   cSumstats.meta<-rbind(cSumstats.meta,list("N","Adjusted N to reflect uncertainty of imputed variants (LD-IMP)"))
-      # }
-      
       
       #Filter variants MAF<filter.maf
       if(!is.null(filter.maf)){
@@ -2328,7 +2351,18 @@ supermunge <- function(
         if(!any(colnames(toJoin)=="INFO")) toJoin[,INFO:=NA_real_]
         if(!any(colnames(toJoin)=="SINFO")) toJoin[,SINFO:=NA_real_]
         if(!any(colnames(toJoin)=="LDIMP.K")) toJoin[,LDIMP.K:=NA_integer_]
+        if(is.null(variantTable)){
+          #set new variant table if not already present
+          ref.keys<-cSumstats.keys #should include A1 and A2 if any - processing may fail without
+          ref<-cSumstats[,..ref.keys]
+          setkeyv(ref, cols = ref.keys)
+          variantTable.cols<-ref.keys
+          variantTable<-ref[,..variantTable.cols]
+          setkeyv(variantTable, cols = ref.keys)
+        }
+        
         variantTable[toJoin, on='SNP', c(cName.beta,cName.se,cName.frq,cName.n,cName.info,cName.sinfo,cName.ldimp.k):=.(i.BETA,i.SE,i.FRQ,i.N,i.INFO,i.SINFO,i.LDIMP.K)]
+        
       }
       
       
@@ -2496,6 +2530,16 @@ supermunge <- function(
       variantTable[,K_EFFECT:=eval(nDatasets)-BETAmiss-BETAmiss_SEmiss]
       variantTable[,BETAmiss:=NULL][,SEmiss:=NULL][,BETAmiss_SEmiss:=NULL]
       
+      
+      #deal with 0 SE values
+      variantTable<-as.data.frame(variantTable) #to data frame
+      for(iColumn in 1:length(cNamesSE)){
+        #iColumn<-1
+        cColumn<-cNamesSE[iColumn]
+        variantTable[!is.na(variantTable[,cColumn]) & variantTable[,cColumn]<=0,cColumn]<-metaAnalysisMinSE
+      }
+      setDT(variantTable)
+      setkeyv(variantTable, cols = ref.keys)
       
       #weights
       cNamesW<-paste0("W.",traitNames)
