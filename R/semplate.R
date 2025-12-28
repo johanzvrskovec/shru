@@ -3,9 +3,18 @@ semplate$powers.of.two32bit <- 2^(0:(32 - 1))
 semplate$bit.one<-intToBits(1)[1]
 semplate$bit.zero<-intToBits(0)[1]
 
-semplate$generateIndicatorLoadingPatternsFromFactorLoadings<-function(factorLoadings, increment=0.0005, forceOneIndicatorLoading=T,valueCutoffStart=0.05){
-  nrow<-nrow(factorLoadings)
-  ncol<-ncol(factorLoadings)
+#' @title Generate indicator loading patterns from factor loadings
+#' @note Updated from the PhD project version to provide a more conveniently formatted result.
+#' 
+#' @usage semplate$generateIndicatorLoadingPatternsFromFactorLoadings(factorLoadings,increment,forceOneIndicatorLoading,valueCutoffStart)
+#' @param factorLoadings data frame, factors as columns and indicators as rows
+#' @return data frame, loading patterns, boolean values per indicator/factor combination
+#' @export
+semplate$generateIndicatorLoadingPatternsFromFactorLoadings<-function(factorLoadings, label='loadings', increment=0.0005, forceOneIndicatorLoading=T,valueCutoffStart=0.05, labelFactorsInOrder=TRUE){
+  #factorLoadings = fa.combined.dimensions.g.5f$loadings
+  
+  nIndicators<-nrow(factorLoadings)
+  nFactors<-ncol(factorLoadings)
   
   indicatorLoadingPatterns<-c()
   factorLoadings<-base::abs(factorLoadings)
@@ -15,21 +24,45 @@ semplate$generateIndicatorLoadingPatternsFromFactorLoadings<-function(factorLoad
   }
   
   cValue<-valueCutoffStart
+  iLoop<-1
   while(cValue < max(factorLoadings)){
+    
     toadd<-(factorLoadings>cValue)
     #if(!all(toadd) | !any(toadd)){
     if(forceOneIndicatorLoading) {
-        for(iIndicator in 1 : nrow){
+        for(iIndicator in 1 : nIndicators){
           toadd[iIndicator,forced[iIndicator]]<-TRUE
       }
     }
     
-    #indicatorLoadingPatterns<-rbind(indicatorLoadingPatterns,list(unlist(as.data.frame(toadd)),use.names = F))
-    indicatorLoadingPatterns<-rbind(indicatorLoadingPatterns,as.vector(x = unlist(as.data.frame(toadd)), mode = 'logical'))
+    if(labelFactorsInOrder){
+      colnames(toadd)<-1:nFactors
+    }
+    
+    #indicatorLoadingPatterns<-rbind(indicatorLoadingPatterns,as.vector(x = unlist(as.data.frame(toadd)), mode = 'logical')) #unique works across dataframes also!!
+    #indicatorLoadingPatterns[[iLoop]]<-as.data.frame(toadd)
+    indicatorLoadingPatterns[[iLoop]]<-as.matrix(toadd)
     cValue<-(cValue+increment)
+    iLoop<-iLoop+1
   }
   
-  return(unique(indicatorLoadingPatterns))
+  indicatorLoadingPatterns<-unique(indicatorLoadingPatterns)
+  
+  indicatorLoadingPatterns.df<-data.frame(
+    label=rep(label,length(indicatorLoadingPatterns)),
+    nIndicators=rep(nIndicators,length(indicatorLoadingPatterns)),
+    nFactors=rep(nFactors,length(indicatorLoadingPatterns))
+    #indicatorLoadingPatterns=indicatorLoadingPatterns
+    )
+  
+  indicatorLoadingPatterns.df$indicatorLoadingPatterns<-NA
+  
+  for(iDf in 1:nrow(indicatorLoadingPatterns.df)){
+    #iDf<-1
+    indicatorLoadingPatterns.df[[iDf,c("indicatorLoadingPatterns")]]<-list(indicatorLoadingPatterns[[iDf]])
+  }
+  
+  return(indicatorLoadingPatterns.df)
 }
 
 #deprecated
@@ -571,6 +604,298 @@ semplate$parseGenomicSEMResultAsDOTDataframes <- function(resultDf = NULL) {
   
   toReturn<-list(nodeDf=node_set, edgeDf=edge_set)
   return(toReturn)
+  
+}
+
+semplate$runPatternGenomicSEM <-function(indicatorLoadingPatternsDf, indexToRun, covstruct.mvLDSC, estimation = "ML", CFIcalc = FALSE, verbal=TRUE){
+  #indicatorLoadingPatternsDf<-indicatorLoadingPatternsAll
+  #indexToRun<-31
+  #covstruct.mvLDSC<-ldsc.1kg.ldscpp.results
+  #covstruct.mvLDSC<-ldsc.debug.results
+  
+  originalTraitNames<-colnames(covstruct.mvLDSC$S)
+  newTraitNames<-paste0('t',originalTraitNames)
+  
+  colnames(covstruct.mvLDSC$S)<-rownames(covstruct.mvLDSC$S)<-newTraitNames
+
+  
+  resultColumnNames<-c("chisq","df","p_chisq","AIC","CFI","SRMR")
+  
+  recordCode<-paste0(indicatorLoadingPatternsDf[indexToRun,]$label,"_",indicatorLoadingPatternsDf[indexToRun,]$nFactors,"_",indicatorLoadingPatternsDf[indexToRun,]$nIndicators,"_",indexToRun)
+  
+  
+  allow_loading.table.indicator_factor<-indicatorLoadingPatternsDf[indexToRun,]$indicatorLoadingPatterns[[1]][[1]]
+  
+  originalTraitNamesPatterns<-rownames(allow_loading.table.indicator_factor)
+  newTraitNamesPatterns<-paste0('t',originalTraitNamesPatterns)
+  rownames(allow_loading.table.indicator_factor)<-newTraitNamesPatterns
+  
+  lmodelString<- semplate$generateLavaanCFAModel(
+      allow_loading.table.indicator_factor = allow_loading.table.indicator_factor,
+      #indicatorArgs = p$sumstats.sel[,c("code","residualSizeLimitMax")],
+      #universalResidualLimitMin = 0.0001,
+      orthogonal = FALSE
+      #universalCorrelationLimitMax = 0.3
+    )
+  
+  # lmodelString<-"                      F1 =~ NA*ADHD06+ANOR02+ANXI03+AUTI09+BIPO03+BORD02+DEPR05+NEUR05+OPEN02+PTSD11+SCHI06+HO+AG+OP+NEU
+  #                     F2 =~ NA*ADHD06+AUTI09+BODY14+COAD03+EDUC03+LONG04+PTSD04+PTSD11+DE+DI+PS+HO+EX
+  #                     F3 =~ NA*AGAB02+NEUR05+NA+AN+DE+DI+HO+EM+AG+CO+OP+NEU
+  #                     F4 =~ NA*AUTI09+BIPO03+COAD03+CONS02+DEPR05+EDUC03+EXTR02+NEUR05+SCHI06+AN+DE+DI+EM+EX+NEU
+  #                     F5 =~ NA*ANOR02+DE+DI+PS+HO+EM+CO+OP
+  # ADHD06~~r1*ADHD06
+  #                        AGAB02~~r2*AGAB02
+  #                        ANOR02~~r3*ANOR02
+  #                        ANXI03~~r4*ANXI03
+  #                        AUTI09~~r5*AUTI09
+  #                        BIPO03~~r6*BIPO03
+  #                        BODY14~~r7*BODY14
+  #                        BORD02~~r8*BORD02
+  #                        COAD03~~r9*COAD03
+  #                        CONS02~~r10*CONS02
+  #                        DEPR05~~r11*DEPR05
+  #                        EDUC03~~r12*EDUC03
+  #                        EXTR02~~r13*EXTR02
+  #                        LONG04~~r14*LONG04
+  #                        NEUR05~~r15*NEUR05
+  #                        OPEN02~~r16*OPEN02
+  #                        PTSD04~~r17*PTSD04
+  #                        PTSD11~~r18*PTSD11
+  #                        SCHI06~~r19*SCHI06
+  #                        NA~~r20*NA
+  #                        AN~~r21*AN
+  #                        DE~~r22*DE
+  #                        DI~~r23*DI
+  #                        PS~~r24*PS
+  #                        HO~~r25*HO
+  #                        EM~~r26*EM
+  #                        EX~~r27*EX
+  #                        AG~~r28*AG
+  #                        CO~~r29*CO
+  #                        OP~~r30*OP
+  #                        NEU~~r31*NEU
+  #                        
+  #                           F1~~1*F1
+  #                           F2~~1*F2
+  #                           F3~~1*F3
+  #                           F4~~1*F4
+  #                           F5~~1*F5
+  #                          F1~~F2
+  #                          F1~~F3
+  #                          F1~~F4
+  #                          F1~~F5
+  #                          F2~~F3
+  #                          F2~~F4
+  #                          F2~~F5
+  #                          F3~~F4
+  #                          F3~~F5
+  #                          F4~~F5
+  # r1>0.001
+  #                                     r2>0.001
+  #                                     r3>0.001
+  #                                     r4>0.001
+  #                                     r5>0.001
+  #                                     r6>0.001
+  #                                     r7>0.001
+  #                                     r8>0.001
+  #                                     r9>0.001
+  #                                     r10>0.001
+  #                                     r11>0.001
+  #                                     r12>0.001
+  #                                     r13>0.001
+  #                                     r14>0.001
+  #                                     r15>0.001
+  #                                     r16>0.001
+  #                                     r17>0.001
+  #                                     r18>0.001
+  #                                     r19>0.001
+  #                                     r20>0.001
+  #                                     r21>0.001
+  #                                     r22>0.001
+  #                                     r23>0.001
+  #                                     r24>0.001
+  #                                     r25>0.001
+  #                                     r26>0.001
+  #                                     r27>0.001
+  #                                     r28>0.001
+  #                                     r29>0.001
+  #                                     r30>0.001
+  #                                     r31>0.001"
+  # 
+  # lmodelString<-"F1 =~ NA*NA+AN+HO+EM+AG+NEU
+  # F2 =~ NA*AN+DE+DI+PS+HO
+  # F3 =~ NA*DE+EM+EX+OP
+  # F4 =~ NA*AN+DE+DI+EM+EX+NEU
+  # F5 =~ NA*AN+DE+DI+EM+CO
+  # 
+  # F1~~c1*F2
+  #                          F1~~c2*F3
+  #                          F1~~c3*F4
+  #                          F1~~c4*F5
+  #                          F2~~c5*F3
+  #                          F2~~c6*F4
+  #                          F2~~c7*F5
+  #                          F3~~c8*F4
+  #                          F3~~c9*F5
+  #                          F4~~c10*F5
+  #                     
+  #                           F1~~1*F1
+  #                           F2~~1*F2
+  #                           F3~~1*F3
+  #                           F4~~1*F4
+  #                           F5~~1*F5
+  #                           
+  #                           
+  #                           c1<=1
+  #                           c2<=1
+  #                           c3<=1
+  #                           c4<=1
+  #                           c5<=1
+  #                           c6<=1
+  #                           c7<=1
+  #                           c8<=1
+  #                           c9<=1
+  #                           c10<=1
+  #                        "
+  # 
+  # lmodelString<-"F1 =~ NA*tNA+tAN+tHO+tEM+tAG+tNEU
+  # F2 =~ NA*tAN+tDE+tDI+tPS+tHO
+  # F3 =~ NA*tDE+tEM+tEX+tOP
+  # F4 =~ NA*tAN+tDE+tDI+tEM+tEX+tNEU
+  # F5 =~ NA*tAN+tDE+tDI+tEM+tCO
+  # 
+  # F1~~c1*F2
+  #                          F1~~c2*F3
+  #                          F1~~c3*F4
+  #                          F1~~c4*F5
+  #                          F2~~c5*F3
+  #                          F2~~c6*F4
+  #                          F2~~c7*F5
+  #                          F3~~c8*F4
+  #                          F3~~c9*F5
+  #                          F4~~c10*F5
+  #                     
+  #                           F1~~1*F1
+  #                           F2~~1*F2
+  #                           F3~~1*F3
+  #                           F4~~1*F4
+  #                           F5~~1*F5
+  #                           
+  #                           
+  #                           c1<1
+  #                           c2<1
+  #                           c3<1
+  #                           c4<1
+  #                           c5<1
+  #                           c6<1
+  #                           c7<1
+  #                           c8<1
+  #                           c9<1
+  #                           c10<1
+  #                        "
+  # 
+  # 
+  # lmodelString<-"F1 =~ NA*tNA+tAN+tHO+tEM+tAG+tNEU
+  # F2 =~ NA*tAN+tDE+tDI+tPS+tHO
+  # F3 =~ NA*tDE+tEM+tEX+tOP
+  # F4 =~ NA*tAN+tDE+tDI+tEM+tCO+tEX+tNEU
+  # 
+  # F1~~F2
+  #                          F1~~F3
+  #                          F1~~F4
+  #                          F2~~F3
+  #                          F2~~F4
+  #                          F3~~F4
+  # 
+  #                           F1~~1*F1
+  #                           F2~~1*F2
+  #                           F3~~1*F3
+  #                           F4~~1*F4
+  # 
+  # 
+  #                        " #working
+  # 
+  # 
+  # lmodelString<-"F1 =~ NA*tNA+tAN+tHO+tEM+tAG+tNEU
+  # F2 =~ NA*tAN+tDE+tDI+tPS+tHO
+  # F3 =~ NA*tDE+tEM+tEX+tOP
+  # F4 =~ NA*tAN+tDE+tDI+tEM+tCO+tEX+tNEU
+  # 
+  # F1~~F2
+  #                          F1~~F3
+  #                          F1~~F4
+  #                          F2~~F3
+  #                          F2~~F4
+  #                          F3~~F4
+  # 
+  #                           F1~~1*F1
+  #                           F2~~1*F2
+  #                           F3~~1*F3
+  #                           F4~~1*F4
+  #                           
+  #                         tNA~~r20*tNA
+  #                         tAN~~r21*tAN
+  #                         tDE~~r22*tDE
+  #                         tDI~~r23*tDI
+  #                         tPS~~r24*tPS
+  #                         tHO~~r25*tHO
+  #                         tEM~~r26*tEM
+  #                         tEX~~r27*tEX
+  #                         tAG~~r28*tAG
+  #                         tCO~~r29*tCO
+  #                         tOP~~r30*tOP
+  #                         tNEU~~r31*tNEU
+  #                         
+  #                         r20>0.001
+  #                                      r21>0.001
+  #                                      r22>0.001
+  #                                      r23>0.001
+  #                                      r24>0.001
+  #                                      r25>0.001
+  #                                      r26>0.001
+  #                                      r27>0.001
+  #                                      r28>0.001
+  #                                      r29>0.001
+  #                                      r30>0.001
+  #                                      r31>0.001
+  # 
+  #                        " #working
+  
+  #evaluate lavaan model in GenomicSEM
+  if(verbal) cat("\nEvaluating new model:\t",recordCode,"\n")
+  cModelResults = tryCatch(
+    usermodel(
+      covstruc = covstruct.mvLDSC,
+      model = lmodelString,
+      estimation = estimation,
+      #std.lv=TRUE, #unit variance identification
+      #fix_resid = TRUE,
+      CFIcalc = CFIcalc
+    ), error= function(e) e
+  )
+  
+  resultDataFrame<-as.data.frame(matrix(data = NA,nrow = 0,ncol = 0))
+  resultDataFrame[1,c('index','code','lmodel')]<-c(indexToRun,recordCode,lmodelString)
+  
+  if(!inherits(cModelResults, "try-error") && !is.null(cModelResults$modelfit)){
+    if(nrow(cModelResults$modelfit)>0 && any(resultColumnNames %in% colnames(cModelResults$modelfit))) {
+      if(verbal) print(cModelResults$modelfit)
+      #record results even though not fitting
+      resultDataFrame[1,c('gsem')]<-list(cModelResults)
+      cRescolnames<-intersect(resultColumnNames,colnames(cModelResults$modelfit))
+      resultDataFrame[1,cRescolnames]<-cModelResults$modelfit[1,cRescolnames]
+      if(is.numeric(cModelResults$modelfit$chisq)){
+        #This is considered a fitting model
+        if(verbal) cat("\nFITTING!")
+      }
+    } else {
+      if(verbal) cat("\nThe model did not yield correct results.")
+    }
+  } else {
+    if(verbal) cat("\nThe model did not converge.")
+  }
+  
+  return(resultDataFrame)
   
 }
 
