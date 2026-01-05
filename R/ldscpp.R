@@ -228,7 +228,7 @@ ldscpp <- function(
   # filter.maf = 0.01
   # filter.zz.min = 0
   
-  cat("\n\n\nLDSC++\t\tSHRU package version 1.4.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nLDSC++\t\tSHRU package version 1.4.13\n") #UPDATE DISPLAYED VERSION HERE!!!!
   #this is not written in the log btw
   
   LOG <- function(..., print = TRUE) {
@@ -609,9 +609,6 @@ ldscpp <- function(
       if(any(colnames(y1)=="N")) y1$N<-as.numeric(y1$N)
       if(any(colnames(y1)=="NEFF")) y1$NEFF<-as.numeric(y1$NEFF)
       
-      #mod addition - use NEF as N
-      if(!any(colnames(y1)=="N") & any(colnames(y1)=="NEFF")) y1$N<-y1$NEFF
-      
       #mod addition - checks, use explicit new N value
       LOG("N - median, min, max: ",median(y1$N, na.rm = T),", ",min(y1$N, na.rm = T),", ", max(y1$N, na.rm = T))
       if(!is.null(N) & length(N)>=length(traits)) {
@@ -640,13 +637,15 @@ ldscpp <- function(
         LOG("New N - median, min, max: ",median(y1$N, na.rm = T),", ",min(y1$N, na.rm = T),", ", max(y1$N, na.rm = T))
       }
       
-      #use NEFF_CAPPED rather than N for binary traits if available
-      if(cap.NEFF[[iTrait]] & !is.na(sample.prev[[iTrait]]) & !is.na(population.prev[[iTrait]]) & any(colnames(y1)=="NEFF")){
-        if(any(colnames(y1)=="N")){
-          LOG("Attention: Using CAPPED NEFF for N and setting the sample prevalence to a balanced design (0.5).")
-          maxN<-max(y1[is.finite(N),]$N,na.rm = T)
-          y1[,NEFF_CAPPED:=shru::clipValues(NEFF,max = 1.1*eval(maxN), min = 0.5*eval(maxN))]
-          y1[,N:=NEFF_CAPPED]
+      if(any(colnames(y1)=="NEFF")){
+        if(any(colnames(y1)=="N")){  
+          #use NEFF_CAPPED rather than N for binary traits if available
+          if(cap.NEFF[[iTrait]] & !is.na(sample.prev[[iTrait]]) & !is.na(population.prev[[iTrait]])){
+            LOG("Attention: Using CAPPED NEFF for N and setting the sample prevalence to a balanced design (0.5).")
+            maxN<-max(y1[is.finite(N),]$N,na.rm = T)
+            y1[,NEFF_CAPPED:=shru::clipValues(NEFF,max = 1.1*eval(maxN), min = 0.5*eval(maxN))]
+            y1[,N:=NEFF_CAPPED]
+          }
         } else {
           LOG("Attention: Using NEFF (NOT CAPPED) for N and setting the sample prevalence to a balanced design (0.5).")
           y1[,N:=NEFF]

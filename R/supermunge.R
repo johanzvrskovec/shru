@@ -174,6 +174,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # imputeFrameLenCM=0.5 #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
 # imputeFromLD.validate.q=0.05
 # N=NULL
+# Neff=NULL
 # forceN=F
 # prop=NULL
 # OLS=NULL
@@ -237,7 +238,8 @@ supermunge <- function(
   imputeFrameLenBp=500000, #500000 for comparison with SSIMP and ImpG
   imputeFrameLenCM=0.5, #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
   imputeFromLD.validate.q=0, #Fraction of variants of the input variants with known effects that will be used for estimating RMSD values. Setting a non-zero fraction here will lead to previously genotyped variants also receiving imputed effect sizes, standard errors and imputation quality assessments. Whatever program reading the output needs to take this into account if you want to distinguish between originally genotyped effects and imputed effects. For example, you can test if the imputed effect and standard errors are different from what is displayed in the standard effect and standard error columns, which would indicate that the variant was previously genotyped and has received new values based on GWAS sumstat LDimp imputation.
-  N=NULL,
+  N=NULL, #set specific N for all variants if missing
+  Neff=NULL, #set specific Neff for all variants if missing
   forceN=F,
   prop=NULL,
   OLS=NULL,
@@ -341,7 +343,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.12\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.13\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -562,11 +564,12 @@ supermunge <- function(
       cat(paste("\n\nSupermunging\t",traitNames[iFile],"\n @ dataset", iFile,"\n"))
       cat("\nancestrySetting=",ancestrySetting[iFile])
       cat("\nsetNtoNEFF=",setNtoNEFF[iFile])
-      cat("\nN=",N[iFile])
-      cat("\nOLS=",OLS[iFile])
-      cat("\nlinprob=",linprob[iFile])
-      cat("\nse.logit=",se.logit[iFile])
-      cat("\nprop=",prop[iFile])
+      if(!is.null(N)) cat("\nN=",N[iFile])
+      if(!is.null(N)) cat("\nNeff=",Neff[iFile])
+      if(!is.null(OLS)) cat("\nOLS=",OLS[iFile])
+      if(!is.null(linprob)) cat("\nlinprob=",linprob[iFile])
+      if(!is.null(se.logit)) cat("\nse.logit=",se.logit[iFile])
+      if(!is.null(prop)) cat("\nprop=",prop[iFile])
       
       if(!is.null(ref) & !is.null(refFilePath)){
         cat("\n\nUsing variant reference:\n",refFilePath)
@@ -1411,6 +1414,31 @@ supermunge <- function(
       
       cat(".")
       
+      
+      #NEFF
+      if(!is.null(Neff) & length(Neff)>=iFile) {
+        if(!is.na(Neff[iFile])){
+          if(any(colnames(cSumstats)=="NEFF")){
+            cSumstats[,cond:=FALSE][!is.numeric(NEFF) | eval(as.numeric(Neff[iFile])) < NEFF, cond:=TRUE]
+            if(sum(cSumstats$cond)>0) {
+              cSumstats[cond==TRUE,NEFF:=eval(as.numeric(Neff[iFile]))]
+              cSumstats.meta<-rbind(cSumstats.meta,list("NEFF",paste("Set to",Neff[iFile],"for",sum(cSumstats$cond)," NA or > specified.")))
+            }
+            cSumstats[,cond:=NULL]
+          } else {
+            cSumstats[,NEFF:=eval(as.numeric(Neff[iFile]))]
+            cSumstats.meta<-rbind(cSumstats.meta,list("NEFF",paste("Set to",Neff[iFile])))
+            hasNEFF<-TRUE
+          }
+          
+          
+        }
+      }
+      
+      if(any(colnames(cSumstats)=="NEFF")){
+        cSumstats.meta<-rbind(cSumstats.meta,list("NEFF (median, min, max)",paste(median(cSumstats[is.finite(NEFF),]$NEFF, na.rm = T),", ",min(cSumstats[is.finite(NEFF),]$NEFF, na.rm = T),", ", max(cSumstats[is.finite(NEFF),]$NEFF, na.rm = T))))
+      }
+      
       ## Establish allele order from the reference
       if(!is.null(ref)){
         #cond.invertedAlleleOrder<-(cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF) #the same condition as in GenomicSEM munge.
@@ -2176,9 +2204,9 @@ supermunge <- function(
         )
         
         if(!any(colnames(cSumstats)=="N") & any(colnames(cSumstats)=="NEXP")) {
-            cSumstats[,N:=NEXP]
-            cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEXP"))
-          }
+          cSumstats[,N:=NEXP]
+          cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEXP"))
+        }
         
         ##https://doi.org/10.1016/j.biopsych.2022.05.029
         
@@ -2280,7 +2308,7 @@ supermunge <- function(
       }
       
       #NA values check
-      if(any(is.na(cSumstats))) cSumstats.warnings<-c(cSumstats.warnings,"\nNA values detected among results.\n")
+      if(any(is.na(cSumstats[,..cSumstats.keys]))) cSumstats.warnings<-c(cSumstats.warnings,"\nNA values detected among key columns!\n")
       
       # output columns
       output.colnames<- c("SNP")
@@ -2303,7 +2331,7 @@ supermunge <- function(
       if("N" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N")
       if("N_CAS" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CAS")
       if("N_CON" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"N_CON")
-      if("NEFF" %in% colnames(cSumstats) & (hasNEFF |  process)) output.colnames<- c(output.colnames,"NEFF") #only output NEFF when original NEFF or process==TRUE (backed out NEFF)
+      if("NEFF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"NEFF")
       if("DF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"DF")
       #if("L2_REF" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"L2_REF")
       if("LDIMP.K" %in% colnames(cSumstats)) output.colnames<- c(output.colnames,"LDIMP.K")
