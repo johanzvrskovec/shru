@@ -343,7 +343,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.4.13\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.5.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1526,7 +1526,7 @@ supermunge <- function(
       cat(".")
       
       
-      # P validity checks before the Z-score calculation
+      # P validity checks before EFFECT, SE and Z-score calculations
       ### Check the values of the P-column
       if(any(colnames(cSumstats)=="P")) {
         if((sum(cSumstats$P > 1, na.rm = T) + sum(cSumstats$P < 0,na.rm = T)) > 100){
@@ -1538,12 +1538,13 @@ supermunge <- function(
       # EFFECT and SE standardisations and corrections according to effect type (OLS, log OR or non log OR)
       ## adapted from the GenomicSEM sumstats-function
       
-      #produce the unstandardised regression beta from Z if no EFFECT present
+      #produce the unstandardised regression beta from Z if no EFFECT present - this is not expected to be very common!
       if(any(colnames(cSumstats)=="Z") && any(colnames(cSumstats)=="VSNP") && any(colnames(cSumstats)=="N") && !any(colnames(cSumstats)=="EFFECT")) {
         ## Compute BETA/EFFECT from Z if present
         cSumstats[,EFFECT:= Z/sqrt(N*VSNP)][,SE:=EFFECT/Z]
-        cSumstats[is.na(SE),SE:=1] #explicitly set NA SE to 1
-        cSumstats.meta<-rbind(cSumstats.meta,list("BETA","Calculated from Z"))
+        cSumstats[is.na(SE),SE:=1] #fallback! - explicitly set NA SE to 1!
+        cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","Estimated from Z, N, and VSNP (!)"))
+        cSumstats.warnings<-c(cSumstats.warnings,"The effect was estimated from a Z-score, using sample size and FRQ/MAF information, which may not be accurate if these are not representative.")
       }
       cat(".")
       
@@ -1558,11 +1559,28 @@ supermunge <- function(
             cat(".")
           }
           
-          ## Determine effect type, and set effect to log(EFFECT) if odds ratio
+          ## Determine effect type, set effect to log(EFFECT) if odds ratio, test scale of SE
+          sumstats.meta[iFile,c("effect_type")]<-"unknown" #fallback
+          sumstats.meta[iFile,c("se_type")]<-"unknown" #fallback
           if(round(median(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm=T),digits = 1) == 1) {
             ###is odds ratio
-            cSumstats[,EFFECT:=log(EFFECT)]
             sumstats.meta[iFile,c("effect_type")]<-"OR"
+            cSumstats[,P.SEtest:=pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4]
+            if(sum(cSumstats$P.SEtest.is.same.scale,na.rm = T)>0.75*nrow(cSumstats)){
+              #SE is of an OR
+              sumstats.meta[iFile,c("se_type")]<-"OR"
+            } else {
+              sumstats.meta[iFile,c("se_type")]<-"non_OR"
+            }
+            cSumstats[,EFFECT:=log(EFFECT)]
+            if(sumstats.meta[iFile,c("se_type")]!="OR"){
+              cSumstats[,P.SEtest:=pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale2:=abs(P.SEtest-P)<1e-4]
+              if(sum(cSumstats$P.SEtest.is.same.scale2,na.rm = T)>0.75*nrow(cSumstats)){
+                #SE is of an ln(OR)
+                sumstats.meta[iFile,c("se_type")]<-"ln_OR"
+              }
+            }
+            
             cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","OR  =>ln(OR)"))
             
             if(any(colnames(cSumstats)=="BETA")) {
@@ -1570,48 +1588,151 @@ supermunge <- function(
               sumstats.meta[iFile,c("effect_type_warning")]<-T
             }
             
+            #cleanup
+            cSumstats[,P.SEtest:=NULL][,P.SEtest.is.same.scale:=NULL][,P.SEtest.is.same.scale2:=NULL]
+            
           } else {
             ###is NOT odds ratio
             sumstats.meta[iFile,c("effect_type")]<-"non_OR"
+            cSumstats[,P.SEtest:=pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4]
+            if(sum(cSumstats$P.SEtest.is.same.scale,na.rm = T)>0.75*nrow(cSumstats)){
+              #SE is NOT of an OR
+              sumstats.meta[iFile,c("se_type")]<-"non_OR"
+            }
+            
             cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","NON OR"))
             if(any(colnames(cSumstats)=="OR")) {
               cSumstats.warnings<-c(cSumstats.warnings,"The effect format NOT being an ODDS RATIO may not compatible with the original variable naming scheme!")
               sumstats.meta[iFile,c("effect_type_warning")]<-T
             }
+            
+            #cleanup
+            cSumstats[,P.SEtest:=NULL][,P.SEtest.is.same.scale:=NULL]
           }
           cat(".")
           
-          ## Determine effect SE type, and standardise to log scale SE if necessary
-          sumstats.meta[iFile,c("se_type")]<-"unknown" #fallback
-          if(any(colnames(cSumstats)=="SE") && any(colnames(cSumstats)=="P")){
-            cSumstats[,P.SEtest:=pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4] #Effect is now in log-scale
-            if(sum(cSumstats$P.SEtest.is.same.scale,na.rm = T)<0.75*nrow(cSumstats)){
-              #transform to logit SE - from the Genomic SEM conversions
-              cSumstats[,SE:=(SE/exp(EFFECT))]
-              cSumstats.meta <- rbind(cSumstats.meta,list("SE","SE(OR) => SE(ln(OR))"))
-              sumstats.meta[iFile,c("se_type")]<-"OR"
-              if(sumstats.meta[iFile,c("effect_type")]!="OR"){
-                cSumstats.warnings<-c(cSumstats.warnings,"The SE was converted into the SE of a ln(OR), while the effect was not confirmed to be an OR. The effect may be a ln(OR) however, which is fine.")
-                sumstats.meta[iFile,c("se_type_warning")]<-T
-              }
-              #cleanup
-              cSumstats[,P.SEtest:=NULL][,P.SEtest.is.same.scale:=NULL]
-            } else {
-              cSumstats.meta <- rbind(cSumstats.meta,list("SE","scale as effect (OLS/ln(OR)/other)"))
-              sumstats.meta[iFile,c("se_type")]<-"non_OR"
-            }
-            cat(".")
+          
+          #Recommend parameter settings for Genomic SEM sumstats function
+          if(sumstats.meta[iFile,c("effect_type")]=="OR" | sumstats.meta[iFile,c("se_type")]=="OR"){
+            cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Probably FALSE"))
+          } else {
+            cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Unknown"))
           }
           
-          ## Compute Z score (standardised beta) - used for effect corrections further and is later corrected accordingly - assumes correct effects and SE
+          if(sumstats.meta[iFile,c("effect_type")]=="OR" & sumstats.meta[iFile,c("se_type")]=="OR"){
+            cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Probably FALSE"))
+          } else {
+            cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Unknown"))
+          }
+          
+          #TODO! Update this to make use of effective N for Genomic SEM!!
+          #standardise effect to exposure, as for Genomic SEM latent factor GWAS
+          if(standardiseEffectsToExposure & any(colnames(cSumstats)=="EFFECT")) {
+            cat("\nStandardising effect to exposure.")
+            ##standardise outcome standardised BETA to exposure as well (fully standardised)
+            ##correct binary trait regressions with a 'unit-variance-liability scaling'
+            
+            #quickfix backstop for missing N
+            if(any(colnames(cSumstats)=="N")){
+              if(any(is.na(cSumstats$N))){
+                mN<-mean(cSumstats[is.finite(N),]$N,na.rm=T)
+                cSumstats[is.na(get("N")), N:=mN] #eval() here?
+              }
+            }
+            
+            ## (Re-)Compute variance of individual variant effects according to 2pq, in case not already present (from processing step)
+            if(!any(colnames(cSumstats)=="VSNP")) cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
+            
+            if(OLS[iFile]){
+              #Has OLS unstandardised beta
+              cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","OLS"))
+              if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")) {
+                cSumstats[,EFFECT:=Z/sqrt(N*VSNP)] #standardisation
+                cSumstats[,SE:=abs(EFFECT/Z)] #standardisation as this is derived form the standardised EFFECT
+                cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z, N, UVL std => BETA,SE"))
+              } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
+              
+              
+            } else if(linprob[iFile]){
+              #Has effect based on a linear estimator for a binary outcome (rather than a logistic model)
+              cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Binary, linear"))
+              if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")){
+                if(is.null(prop[iFile]) | is.na(prop[iFile])) stop("\nCould not perform correction of linear BETA,SE to liability scale because of missing or invalid prop argument!\n")
+                cSumstats[,EFFECT:=Z/sqrt(prop[iFile]*(1-prop[iFile]) * N * VSNP)] #standardisation
+                cSumstats[,SE:=1/sqrt(prop[iFile]*(1-prop[iFile]) * N * VSNP)] #standardisation
+                cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z, N,propCaCo, UVL std => BETA,SE"))
+              } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
+              
+              cSumstats[,residualVarCorrectionTerm:=sqrt((EFFECT^2) + (pi^2)/3)]
+              cSumstats[,EFFECT:=EFFECT/residualVarCorrectionTerm] #residual variance correction
+              cSumstats[,SE:=cSumstats$SE/residualVarCorrectionTerm] #residual variance correction
+              
+            } else {
+              #Has effect based on a logistic estimator for a binary outcome, OR or logistic beta
+              cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Binary, logistic"))
+              if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")) {
+                cSumstats[,EFFECT:=Z/sqrt(N*VSNP)] #standardisation
+                cSumstats[,SE:=abs(EFFECT/Z)] #standardisation as this is derived form the standardised EFFECT
+                cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z, N, UVL std=> BETA,SE"))
+              } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
+              
+              cSumstats[,residualVarCorrectionTerm:=sqrt((EFFECT^2) + (pi^2)/3)]
+              cSumstats[,EFFECT:=EFFECT/residualVarCorrectionTerm] #residual variance correction
+              #cSumstats$SE <- cSumstats$SE/correctionTerm #residual variance correction
+              if(se.logit[iFile]){
+                cSumstats[,SE:=cSumstats$SE/residualVarCorrectionTerm] #residual variance correction
+                cSumstats.meta <- rbind(cSumstats.meta,list("SE","logit"))
+              } else {
+                #transform to logit SE 
+                cSumstats[,SE:=(SE/exp(EFFECT))/residualVarCorrectionTerm] #UV correction
+                cSumstats.meta <- rbind(cSumstats.meta,list("SE","SE(OR) => logit"))
+              }
+              
+            }
+            cat(".")
+            
+            ## Compute Z,P again to update it according to any corrections just done
+            if(any(colnames(cSumstats)=="SE")) {
+              cSumstats[,Z:=EFFECT/SE]
+              cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
+            }
+            cat("Done!\n")
+            
+          } else {
+            
+            if(sumstats.meta[iFile,c("effect_type")]=="OR") {
+              cSumstats[,EFFECT:=log(EFFECT)]
+              cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT","OR => ln(OR)"))
+            }
+            
+            if(any(colnames(cSumstats)=="SE")){ 
+              
+              if(sumstats.meta[iFile,c("se_type")]=="OR"){
+                #transform to logit SE - from the Genomic SEM conversions
+                cSumstats[,SE:=(SE/exp(EFFECT))]
+                cSumstats.meta <- rbind(cSumstats.meta,list("SE","SE(OR) => SE(ln(OR))"))
+                
+                if(sumstats.meta[iFile,c("effect_type")]!="OR"){
+                  cSumstats.warnings<-c(cSumstats.warnings,"The SE was converted into the SE of a ln(OR), while the effect was not confirmed to be an OR. The effect may be a ln(OR) however, which is fine.")
+                  sumstats.meta[iFile,c("se_type_warning")]<-T
+                }
+                
+              } else {
+                #cSumstats.meta <- rbind(cSumstats.meta,list("SE","scale as effect (OLS/ln(OR)/other)"))
+              }
+              cat(".")
+            }
+          }
+          
+          ## Compute Z score (standardised beta) - used for effect corrections further and is later corrected accordingly - assumes correct EFFECT and SE
           ## Also 
           if(any(colnames(cSumstats)=="Z")) cSumstats[,Z_ORIG:=Z] #save original Z-score
           if(any(colnames(cSumstats)=="P")) {
             cSumstats[,Z:=sign(EFFECT) * sqrt(qchisq(P,1,lower=F))]
-            cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from P and sign(EFFECT)"))
+            cSumstats.meta<-rbind(cSumstats.meta,list("Z","(Re)calculated from P and sign(EFFECT)"))
           } else if(any(colnames(cSumstats)=="SE")){
             cSumstats[,Z:=EFFECT/SE] #is this less reliable as we cannot know the scale of SE? Should be more reliable now.
-            cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from EFFECT and SE"))
+            cSumstats.meta<-rbind(cSumstats.meta,list("Z","(Re)calculated from EFFECT and SE"))
           } else {
             cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT calculated since no P or SE"))
           }
@@ -1630,18 +1751,7 @@ supermunge <- function(
             cat(".")
           }
           
-          #Recommend parameter settings for Genomic SEM sumstats function
-          if(sumstats.meta[iFile,c("effect_type")]=="OR" | sumstats.meta[iFile,c("se_type")]=="OR"){
-            cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Probably F"))
-          } else {
-            cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Maybe T"))
-          }
-          
-          if(sumstats.meta[iFile,c("effect_type")]=="OR" & sumstats.meta[iFile,c("se_type")]=="OR"){
-            cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Probably F"))
-          } else {
-            cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Maybe T"))
-          }
+         
           
         } else {
           #no finite EFFECT
@@ -1661,77 +1771,78 @@ supermunge <- function(
         minv<-min(cSumstats[is.finite(SE),]$SE, na.rm = T)^2
       }
       
-      #compare hypothesised inverted allele effects with non-inverted allele effects for validation
-      #use weighting because uncertain associations tend to skew the mean effect towards a negative value
+      
       if(is.null(changeEffectDirectionOnAlleleFlip)) changeEffectDirectionOnAlleleFlip<-T
       
-      if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="cond.invertedAlleleOrder")){
-        if(any(cSumstats$cond.invertedAlleleOrder) & any(is.finite(cSumstats$EFFECT)) & any(is.finite(cSumstats$SE))){
-          sumstats.meta[iFile,c("Inverted allele order variants")]<-sum(cSumstats$cond.invertedAlleleOrder)
-          
-          cSumstats[,WEFFECT:=EFFECT/(SE^2)]
-          
-          nFlipReference<-nrow(cSumstats[!(cond.invertedAlleleOrder),])
-          nFlipCandiate<-nrow(cSumstats[(cond.invertedAlleleOrder),])
-          
-          meffects.reference<-sum(cSumstats[is.finite(WEFFECT) & !(cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(1/(cSumstats[is.finite(SE) & !(cond.invertedAlleleOrder),]$SE^2),na.rm = T)
-          meffects.candidate<-sum(cSumstats[is.finite(WEFFECT) & (cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(1/(cSumstats[is.finite(SE) & (cond.invertedAlleleOrder),]$SE^2),na.rm = T)
-          
-          
-          meffects.candidate.inverted<-meffects.candidate*-1
-          meffects.reference.inverted<-meffects.reference*-1
-          
-          sdeffects.reference<-sd(cSumstats[is.finite(EFFECT) & !(cond.invertedAlleleOrder),]$EFFECT,na.rm = T)
-          sdeffects.candidate<-sd(cSumstats[is.finite(EFFECT) & (cond.invertedAlleleOrder),]$EFFECT,na.rm = T)
-          cSumstats.meta<-rbind(cSumstats.meta,list("Number variants, reference, candidate:",paste0(as.character(nFlipReference),",",as.character(nFlipCandiate))))
-          cSumstats.meta<-rbind(cSumstats.meta,list("Mean reference effect (sd)",paste0(as.character(round(meffects.reference,digits = 5))," (",round(sdeffects.reference,digits = 4),")")))
-          cSumstats.meta<-rbind(cSumstats.meta,list("Mean candidate effect (sd)",paste0(as.character(round(meffects.candidate,digits = 5))," (",round(sdeffects.candidate,digits = 4),")")))
-          
-          
-          sumstats.meta[iFile,c("Reference variants")]<-nFlipReference
-          sumstats.meta[iFile,c("Candidate variants")]<-nFlipCandiate
-          
-          sumstats.meta[iFile,c("Mean reference effect")]<-round(meffects.reference,digits = 5)
-          sumstats.meta[iFile,c("Mean reference effect sd")]<-round(sdeffects.reference,digits = 4)
-          sumstats.meta[iFile,c("Mean candidate effect")]<-round(meffects.candidate,digits = 4)
-          sumstats.meta[iFile,c("Mean candidate effect sd")]<-round(sdeffects.candidate,digits = 5)
-          
-          if(nFlipCandiate>nFlipReference){
-            cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","interpreting candidate variants as reference as they are more numerous"))
-          }
-          
-          if(is.finite(nFlipReference) & is.finite(nFlipCandiate) & is.finite(meffects.reference) & is.finite(meffects.candidate)) { #safety check so the conditions below do not crash in case of all reference/candidates
-            
-          #This is just for notifications, the real flip comes below!
-            if(
-              (nFlipCandiate <= nFlipReference & abs(meffects.candidate.inverted - meffects.reference) > (abs(meffects.candidate - meffects.reference) + 1*sdeffects.reference)) |
-              (nFlipCandiate > nFlipReference & abs(meffects.reference.inverted - meffects.candidate) > (abs(meffects.reference - meffects.candidate) + 1*sdeffects.candidate))
-              ){
-              cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","inverted > plain+1sd"))
-              sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-T
-              if(is.null(changeEffectDirectionOnAlleleFlip)){
-                changeEffectDirectionOnAlleleFlip<-F #inactivate the correction of effect direction on allele flip because of less credible new effect mean.
-              } else if(changeEffectDirectionOnAlleleFlip){
-                cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip specified, but the mean effect difference between plain and inverted variants is much larger than between plain and non-inverted, indicating that inverted effects may be invalid.")
-              }
-              
-            } else {
-              cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect, relationship","inverted < plain+1sd"))
-              sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-F
-              if(!is.null(changeEffectDirectionOnAlleleFlip)){
-                if(!changeEffectDirectionOnAlleleFlip) cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip inactivated, but the mean effect difference between untouched and inverted variants is much smaller than between untouched and non-inverted, indicating that inverted effects for these variants may still be valid.")
-              }
-            }
-          
-          }
-          
-        }
-      }
-      cat(".")
+      #compare hypothesised inverted allele effects with non-inverted allele effects for validation
+      #use weighting because uncertain associations tend to skew the mean effect towards a negative value
+      # if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="cond.invertedAlleleOrder")){
+      #   if(any(cSumstats$cond.invertedAlleleOrder) & any(is.finite(cSumstats$EFFECT)) & any(is.finite(cSumstats$SE))){
+      #     sumstats.meta[iFile,c("Inverted allele order variants")]<-sum(cSumstats$cond.invertedAlleleOrder)
+      #     
+      #     cSumstats[,WEFFECT:=EFFECT/(SE^2)]
+      #     
+      #     nFlipReference<-nrow(cSumstats[!(cond.invertedAlleleOrder),])
+      #     nFlipCandiate<-nrow(cSumstats[(cond.invertedAlleleOrder),])
+      #     
+      #     meffects.reference<-sum(cSumstats[is.finite(WEFFECT) & !(cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(1/(cSumstats[is.finite(SE) & !(cond.invertedAlleleOrder),]$SE^2),na.rm = T)
+      #     meffects.candidate<-sum(cSumstats[is.finite(WEFFECT) & (cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(1/(cSumstats[is.finite(SE) & (cond.invertedAlleleOrder),]$SE^2),na.rm = T)
+      #     
+      #     
+      #     meffects.candidate.inverted<-meffects.candidate*-1
+      #     meffects.reference.inverted<-meffects.reference*-1
+      #     
+      #     sdeffects.reference<-sd(cSumstats[is.finite(EFFECT) & !(cond.invertedAlleleOrder),]$EFFECT,na.rm = T)
+      #     sdeffects.candidate<-sd(cSumstats[is.finite(EFFECT) & (cond.invertedAlleleOrder),]$EFFECT,na.rm = T)
+      #     cSumstats.meta<-rbind(cSumstats.meta,list("Number variants, reference, candidate:",paste0(as.character(nFlipReference),",",as.character(nFlipCandiate))))
+      #     cSumstats.meta<-rbind(cSumstats.meta,list("Mean reference effect (sd)",paste0(as.character(round(meffects.reference,digits = 5))," (",round(sdeffects.reference,digits = 4),")")))
+      #     cSumstats.meta<-rbind(cSumstats.meta,list("Mean candidate effect (sd)",paste0(as.character(round(meffects.candidate,digits = 5))," (",round(sdeffects.candidate,digits = 4),")")))
+      #     
+      #     
+      #     sumstats.meta[iFile,c("Reference variants")]<-nFlipReference
+      #     sumstats.meta[iFile,c("Candidate variants")]<-nFlipCandiate
+      #     
+      #     sumstats.meta[iFile,c("Mean reference effect")]<-round(meffects.reference,digits = 5)
+      #     sumstats.meta[iFile,c("Mean reference effect sd")]<-round(sdeffects.reference,digits = 4)
+      #     sumstats.meta[iFile,c("Mean candidate effect")]<-round(meffects.candidate,digits = 4)
+      #     sumstats.meta[iFile,c("Mean candidate effect sd")]<-round(sdeffects.candidate,digits = 5)
+      #     
+      #     if(nFlipCandiate>nFlipReference){
+      #       cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","interpreting candidate variants as reference as they are more numerous"))
+      #     }
+      #     
+      #     if(is.finite(nFlipReference) & is.finite(nFlipCandiate) & is.finite(meffects.reference) & is.finite(meffects.candidate)) { #safety check so the conditions below do not crash in case of all reference/candidates
+      #       
+      #     #This is just for notifications, the real flip comes below!
+      #       if(
+      #         (nFlipCandiate <= nFlipReference & abs(meffects.candidate.inverted - meffects.reference) > (abs(meffects.candidate - meffects.reference) + 1*sdeffects.reference)) |
+      #         (nFlipCandiate > nFlipReference & abs(meffects.reference.inverted - meffects.candidate) > (abs(meffects.reference - meffects.candidate) + 1*sdeffects.candidate))
+      #         ){
+      #         cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","inverted > plain+1sd"))
+      #         sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-T
+      #         if(is.null(changeEffectDirectionOnAlleleFlip)){
+      #           changeEffectDirectionOnAlleleFlip<-F #inactivate the correction of effect direction on allele flip because of less credible new effect mean.
+      #         } else if(changeEffectDirectionOnAlleleFlip){
+      #           cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip specified, but the mean effect difference between plain and inverted variants is much larger than between plain and non-inverted, indicating that inverted effects may be invalid.")
+      #         }
+      #         
+      #       } else {
+      #         cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect, relationship","inverted < plain+1sd"))
+      #         sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-F
+      #         if(!is.null(changeEffectDirectionOnAlleleFlip)){
+      #           if(!changeEffectDirectionOnAlleleFlip) cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip inactivated, but the mean effect difference between untouched and inverted variants is much smaller than between untouched and non-inverted, indicating that inverted effects for these variants may still be valid.")
+      #         }
+      #       }
+      #     
+      #     }
+      #     
+      #   }
+      # }
+      # cat(".")
       
       ## EFFECT direction
       ##invert effect if inverted allele order
-      if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="cond.invertedAlleleOrder") & changeEffectDirectionOnAlleleFlip) {
+      if(any(colnames(cSumstats)=="EFFECT") && any(colnames(cSumstats)=="cond.invertedAlleleOrder") && changeEffectDirectionOnAlleleFlip) {
         if(any(cSumstats$cond.invertedAlleleOrder)) cSumstats[,EFFECT:=ifelse(cond.invertedAlleleOrder,(EFFECT*-1),EFFECT)]
         
         meffects.new <- NA_real_
@@ -1750,84 +1861,10 @@ supermunge <- function(
         as.character(sum(cSumstats$cond.invertedAlleleOrder))))
       
       
-      ## Compute Z score (standardised beta) and P or update it according to any corrections just done
+      ## (Re)compute Z score (standardised beta) and P or update it according to any corrections just done
       if(any(colnames(cSumstats)=="SE")) cSumstats[,Z:=EFFECT/SE] #EFFECT and SE should be unstandardised beta and its corresponding SE here!!!!
       if(any(colnames(cSumstats)=="Z")) cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
       cat(".")
-      
-      
-      if(standardiseEffectsToExposure & any(colnames(cSumstats)=="EFFECT")) {
-        cat("\nStandardising effect to exposure.")
-        ##standardise outcome standardised BETA to exposure as well (fully standardised)
-        ##correct binary trait regressions with a 'unit-variance-liability scaling'
-        
-        #quickfix backstop for missing N
-        if(any(colnames(cSumstats)=="N")){
-          if(any(is.na(cSumstats$N))){
-            mN<-mean(cSumstats[is.finite(N),]$N,na.rm=T)
-            cSumstats[is.na(get("N")), N:=mN] #eval() here?
-          }
-        }
-        
-        ## (Re-)Compute variance of individual variant effects according to 2pq, in case not already present (from processing step)
-        if(!any(colnames(cSumstats)=="VSNP")) cSumstats[,VSNP:=2*FRQ*(1-FRQ)]
-        
-        if(OLS[iFile]){
-          #Has OLS unstandardised beta
-          cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","OLS"))
-          if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")) {
-            cSumstats[,EFFECT:=Z/sqrt(N*VSNP)] #standardisation
-            cSumstats[,SE:=abs(EFFECT/Z)] #standardisation as this is derived form the standardised EFFECT
-            cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z, N, UVL std => BETA,SE"))
-          } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
-        
-          
-        } else if(linprob[iFile]){
-          #Has effect based on a linear estimator for a binary outcome (rather than a logistic model)
-          cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Binary, linear"))
-          if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")){
-            if(is.null(prop[iFile]) | is.na(prop[iFile])) stop("\nCould not perform correction of linear BETA,SE to liability scale because of missing or invalid prop argument!\n")
-            cSumstats[,EFFECT:=Z/sqrt(prop[iFile]*(1-prop[iFile]) * N * VSNP)] #standardisation
-            cSumstats[,SE:=1/sqrt(prop[iFile]*(1-prop[iFile]) * N * VSNP)] #standardisation
-            cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z, N,propCaCo, UVL std => BETA,SE"))
-          } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
-        
-          cSumstats[,residualVarCorrectionTerm:=sqrt((EFFECT^2) + (pi^2)/3)]
-          cSumstats[,EFFECT:=EFFECT/residualVarCorrectionTerm] #residual variance correction
-          cSumstats[,SE:=cSumstats$SE/residualVarCorrectionTerm] #residual variance correction
-         
-        } else {
-          #Has effect based on a logistic estimator for a binary outcome, OR or logistic beta
-          cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Binary, logistic"))
-          if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")) {
-            cSumstats[,EFFECT:=Z/sqrt(N*VSNP)] #standardisation
-            cSumstats[,SE:=abs(EFFECT/Z)] #standardisation as this is derived form the standardised EFFECT
-            cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z, N, UVL std=> BETA,SE"))
-          } else stop("\nCould not compute BETA,SE because of missing Z or N!\n")
-        
-          cSumstats[,residualVarCorrectionTerm:=sqrt((EFFECT^2) + (pi^2)/3)]
-          cSumstats[,EFFECT:=EFFECT/residualVarCorrectionTerm] #residual variance correction
-          #cSumstats$SE <- cSumstats$SE/correctionTerm #residual variance correction
-          if(se.logit[iFile]){
-            cSumstats[,SE:=cSumstats$SE/residualVarCorrectionTerm] #residual variance correction
-            cSumstats.meta <- rbind(cSumstats.meta,list("SE","logit"))
-          } else {
-            #transform to logit SE 
-            cSumstats[,SE:=(SE/exp(EFFECT))/residualVarCorrectionTerm] #UV correction
-            cSumstats.meta <- rbind(cSumstats.meta,list("SE","SE(OR) => logit"))
-          }
-          
-        }
-        cat(".")
-        
-        ## Compute Z,P again to update it according to any corrections just done
-        if(any(colnames(cSumstats)=="SE")) {
-          cSumstats[,Z:=EFFECT/SE]
-          cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
-        }
-        cat("Done!\n")
-        
-      }
       
       
       #impute effects and standard errors; LDimp - highly experimental
