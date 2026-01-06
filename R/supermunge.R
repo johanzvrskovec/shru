@@ -180,6 +180,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # OLS=NULL
 # linprob=NULL
 # se.logit=NULL
+# updateEffectMetaFromStatistics=TRUE
 # liftover=NULL
 # pathDirOutput=NULL
 # keepIndel=T
@@ -245,6 +246,7 @@ supermunge <- function(
   OLS=NULL,
   linprob=NULL,
   se.logit=NULL,
+  updateEffectMetaFromStatistics=TRUE,
   liftover=NULL,
   pathDirOutput=NULL,
   keepIndel=T,
@@ -561,11 +563,11 @@ supermunge <- function(
       }
       
       #print per-dataset info and setting
-      cat(paste("\n\nSupermunging\t",traitNames[iFile],"\n @ dataset", iFile,"\n"))
+      cat(paste("\n\n\nSupermunging\t",traitNames[iFile],"\n @ dataset", iFile,"\n"))
       cat("\nancestrySetting=",ancestrySetting[iFile])
       cat("\nsetNtoNEFF=",setNtoNEFF[iFile])
       if(!is.null(N)) cat("\nN=",N[iFile])
-      if(!is.null(N)) cat("\nNeff=",Neff[iFile])
+      if(!is.null(Neff)) cat("\nNeff=",Neff[iFile])
       if(!is.null(OLS)) cat("\nOLS=",OLS[iFile])
       if(!is.null(linprob)) cat("\nlinprob=",linprob[iFile])
       if(!is.null(se.logit)) cat("\nse.logit=",se.logit[iFile])
@@ -1559,7 +1561,7 @@ supermunge <- function(
             cat(".")
           }
           
-          ## Determine effect type, set effect to log(EFFECT) if odds ratio, test scale of SE
+          ## Determine effect type, test scale of SE
           sumstats.meta[iFile,c("effect_type")]<-"unknown" #fallback
           sumstats.meta[iFile,c("se_type")]<-"unknown" #fallback
           if(round(median(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm=T),digits = 1) == 1) {
@@ -1700,6 +1702,7 @@ supermunge <- function(
             
           } else {
             
+            #set effect to log(EFFECT) if odds ratio
             if(sumstats.meta[iFile,c("effect_type")]=="OR") {
               cSumstats[,EFFECT:=log(EFFECT)]
               cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT","OR => ln(OR)"))
@@ -1731,23 +1734,23 @@ supermunge <- function(
             cSumstats[,Z:=sign(EFFECT) * sqrt(qchisq(P,1,lower=F))]
             cSumstats.meta<-rbind(cSumstats.meta,list("Z","(Re)calculated from P and sign(EFFECT)"))
           } else if(any(colnames(cSumstats)=="SE")){
-            cSumstats[,Z:=EFFECT/SE] #is this less reliable as we cannot know the scale of SE? Should be more reliable now.
+            cSumstats[,Z:=EFFECT/SE] #is this less reliable as we cannot know the scale of SE? Should be more reliable now, after previous scale assessments and conversions of SE.
             cSumstats.meta<-rbind(cSumstats.meta,list("Z","(Re)calculated from EFFECT and SE"))
           } else {
-            cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT calculated since no P or SE"))
+            cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT (re)calculated since no P or SE"))
           }
           cat(".")
           
           ## Inspect new and old Z-values
-          if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="Z_ORIG")){
-            if(abs(mean(cSumstats[is.finite(Z),]$Z)-mean(cSumstats[is.finite(Z_ORIG),]$Z_ORIG,na.rm=T))>1) cSumstats.warnings<-c(cSumstats.warnings,"New Z differ from old by more than 1sd!")
+          if(any(colnames(cSumstats)=="Z") && any(colnames(cSumstats)=="Z_ORIG")){
+            if(abs(mean(cSumstats[is.finite(Z),]$Z)-mean(cSumstats[is.finite(Z_ORIG),]$Z_ORIG,na.rm=T))>1) cSumstats.warnings<-c(cSumstats.warnings,"New recalculated Z differ from old by more than 1sd!")
             cat(".")
           }
           
           #Re-compute SE!!! new
           if(any(colnames(cSumstats)=="Z")){
             cSumstats[,SE:=EFFECT/Z]
-            cSumstats.meta<-rbind(cSumstats.meta,list("SE","(Re-)calculated from new EFFECT and Z"))
+            cSumstats.meta<-rbind(cSumstats.meta,list("SE","(Re)calculated from EFFECT and Z"))
             cat(".")
           }
           
@@ -2316,9 +2319,9 @@ supermunge <- function(
       }
       
       #rename the ambiguous EFFECT column to BETA, remove OR (new), as it should be a regression beta at this point, IF PROCESSING ONLY
-      if(process & any(colnames(cSumstats)=="EFFECT")){
-        cSumstats[,BETA:=EFFECT]   #[,EFFECT:=NULL] #keep effect because it is used for constructing thecomposite table
-        if(any(colnames(cSumstats)=="OR")) cSumstats[,OR:=NULL]
+      if(any(colnames(cSumstats)=="EFFECT")){
+        cSumstats[,BETA:=EFFECT][,EFFECT:=NULL]
+        if(any(colnames(cSumstats)=="OR") && process) cSumstats[,OR:=NULL]
       }
       
       #set N to NEFF if specified
