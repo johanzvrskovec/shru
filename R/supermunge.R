@@ -284,32 +284,32 @@ supermunge <- function(
   
   timeStart <- Sys.time()
   
-  if(is.null(pathDirOutput) & writeOutput) {
+  if(is.invalid(pathDirOutput) & writeOutput) {
     pathDirOutput<-normalizePath("./",mustWork = T) 
-  } else if(is.null(pathDirOutput)) {
+  } else if(is.invalid(pathDirOutput)) {
     pathDirOutput<-normalizePath("./",mustWork = F) 
   }
   
   if(length(list_df)>0){
-    if(is.null(traitNames)){
+    if(is.invalid(traitNames)){
       if(is.data.frame(list_df)) list_df<-list(trait1=list_df)
       traitNames<-names(list_df)
     }
     
-    if(!is.null(mask)){
+    if(!is.invalid(mask)){
       list_df<-list_df[mask]
-      if(!is.null(traitNames)) traitNames<-traitNames[mask]
+      if(!is.invalid(traitNames)) traitNames<-traitNames[mask]
     }
     
     nDatasets <- length(list_df)
   } else {
-    if(is.null(traitNames)){
+    if(is.invalid(traitNames)){
       traitNames<-basename(unlist(filePaths))
     }
     
-    if(!is.null(mask)){
+    if(!is.invalid(mask)){
       filePaths<-filePaths[mask]
-      if(!is.null(traitNames)) traitNames<-traitNames[mask]
+      if(!is.invalid(traitNames)) traitNames<-traitNames[mask]
     }
     
     nDatasets <- length(filePaths)
@@ -320,26 +320,26 @@ supermunge <- function(
     ancestrySetting<-unlist(shru::padList(ancestrySetting,"ANY",nDatasets))
   }
   
-  if(is.null(setNtoNEFF)){
+  if(is.invalid(setNtoNEFF)){
     setNtoNEFF<-rep(F,nDatasets)
   }
   
   #settings similar to GenomicSEM sumstats function
   ## Considers everything as OLS datasets if nothing specified however
-  if(is.null(OLS)){
+  if(is.invalid(OLS)){
     OLS<-rep(TRUE,nDatasets)
   }
   
-  if(is.null(linprob)){
+  if(is.invalid(linprob)){
     linprob<-rep(FALSE,nDatasets)
   }
   
-  if(is.null(se.logit)){
+  if(is.invalid(se.logit)){
     se.logit<-rep(FALSE,nDatasets)
   }
   
-  if(is.null(liftover)){
-    liftover<-rep(!is.null(chainFilePath),nDatasets)
+  if(is.invalid(liftover)){
+    liftover<-rep(!is.invalid(chainFilePath),nDatasets)
   }
   
   #outputFormat case insensitivity
@@ -355,25 +355,25 @@ supermunge <- function(
   cat("\nprocess=",process)
   cat("\nimputeFromLD=",imputeFromLD)
   
-  if(imputeFromLD & is.null(imputeFrameLenCM)) cat("\nimputeFrameLenBp=",imputeFrameLenBp)
-  if(imputeFromLD & !is.null(imputeFrameLenCM)) cat("\nimputeFrameLenCM=",imputeFrameLenCM)
+  if(imputeFromLD & is.invalid(imputeFrameLenCM)) cat("\nimputeFrameLenBp=",imputeFrameLenBp)
+  if(imputeFromLD & !is.invalid(imputeFrameLenCM)) cat("\nimputeFrameLenCM=",imputeFrameLenCM)
   if(imputeFromLD & imputeFromLD.validate.q>0) cat("\nimputeFromLD.validate.q=",imputeFromLD.validate.q)
   cat("\nproduceCompositeTable=",produceCompositeTable)
   cat("\nstandardiseEffectsToExposure=",standardiseEffectsToExposure)
   cat("\nFilters: MAF>",filter.maf,"\tINFO>",filter.info,"\tMAC>",filter.mac,"\tOR>",filter.or)
-  if(imputeFromLD & !is.null(filter.maf.imputation)) cat("\tMAF(imputation)>",filter.maf.imputation)
+  if(imputeFromLD & !is.invalid(filter.maf.imputation)) cat("\tMAF(imputation)>",filter.maf.imputation)
   cat("\nFilters: FRQ.low<",filter.frq.lower,"\tFRQ.high>",filter.frq.upper)
-  if(!is.null(filter.chr)) cat("\nExclude chromosomes: ",filter.chr)
+  if(!is.invalid(filter.chr)) cat("\nExclude chromosomes: ",filter.chr)
   if(length(invertEffectDirectionOn)>0) cat("\ninvertEffectDirectionOn=", paste(invertEffectDirectionOn,sep = ","))
   cat("\npathDirOutput=",pathDirOutput)
   cat("\n--------------------------------\n")
   
   #read reference variant list
   ref<-NULL
-  if(!is.null(ref_df)){
+  if(!is.invalid(ref_df)){
     ref<-ref_df
     cat("\nUsing reference variants from provided dataframe.\n")
-  } else if(!is.null(refFilePath)){
+  } else if(!is.invalid(refFilePath)){
     cat(paste0("\nReading reference variant file..."))
     ref<-fread(file = refFilePath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
     #ref <- read.table(refFilePath,header=T, quote="\"",fill=T,na.string=c(".",NA,"NA",""))
@@ -387,7 +387,7 @@ supermunge <- function(
   
   #read SNP id synonyms
   idSynonyms<-NULL
-  if(!is.null(rsSynonymsFilePath)){
+  if(!is.invalid(rsSynonymsFilePath)){
     cat("\nReading variant ID synonyms...")
     
     #test type
@@ -430,7 +430,7 @@ supermunge <- function(
   
   #Read additional columns
   cAdditionalColumns<-as.data.frame(matrix(NA,nrow = 0,ncol = 0))
-  if(!is.null(additionalColumnsPath)){
+  if(!is.invalid(additionalColumnsPath)){
     cAdditionalColumns<-fread(file = additionalColumnsPath, na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, data.table = T, nThread = nThreads, showProgress = F)
     
     cAdditionalColumns.colnames<-shru::stdGwasColumnNames(colnames(cAdditionalColumns),missingEssentialColumnsStop = NULL, warnings = F)
@@ -451,10 +451,10 @@ supermunge <- function(
   }
   
   
-  if(!is.null(ldDirPath) & is.null(ref)) stop("You must have a specified reference to append LD scores to!")
+  if(!is.invalid(ldDirPath) & is.invalid(ref)) stop("You must have a specified reference to append LD scores to!")
   
   variantTable<-NULL
-  if(!is.null(ref)){
+  if(!is.invalid(ref)){
     # ref should be a data.table at this point
     
     # Column harmonisation
@@ -489,7 +489,7 @@ supermunge <- function(
     }
     
     #read and merge with ld scores from directory
-    if(!is.null(ldDirPath)){
+    if(!is.invalid(ldDirPath)){
       cat("\nReading LD-scores from specified directory...")
       ldscores<- do.call("rbind", lapply(list.files(path = ldDirPath, pattern = "\\.l2\\.ldscore\\.gz$"), function(i) {
         suppressMessages(fread(file = file.path(ldDirPath, i), na.strings =c(".",NA,"NA",""), encoding = "UTF-8",check.names = T, fill = T, blank.lines.skip = T, showProgress = F, nThread = nThreads, data.table=T))
@@ -541,7 +541,7 @@ supermunge <- function(
     }
   }
   
-  sumstats.meta<-data.table(name=traitNames,file_path=ifelse(is.null(filePaths),NA_character_,filePaths),n_snp_raw=NA_integer_,n_snp_res=NA_integer_)
+  sumstats.meta<-data.table(name=traitNames,file_path=ifelse(is.invalid(filePaths),NA_character_,filePaths),n_snp_raw=NA_integer_,n_snp_res=NA_integer_)
 
   
   for(iFile in 1:nDatasets){
@@ -558,7 +558,7 @@ supermunge <- function(
       
       #set changeEffectDirectionOnAlleleFlip -this has to be reset for each file/dataset
       changeEffectDirectionOnAlleleFlip<-NULL
-      if(!is.null(setChangeEffectDirectionOnAlleleFlip)){
+      if(!is.invalid(setChangeEffectDirectionOnAlleleFlip)){
         changeEffectDirectionOnAlleleFlip<-setChangeEffectDirectionOnAlleleFlip
       }
       
@@ -566,21 +566,21 @@ supermunge <- function(
       cat(paste("\n\n\nSupermunging\t",traitNames[iFile],"\n @ dataset", iFile,"\n"))
       cat("\nancestrySetting=",ancestrySetting[iFile])
       cat("\nsetNtoNEFF=",setNtoNEFF[iFile])
-      if(!is.null(N)) cat("\nN=",N[iFile])
-      if(!is.null(Neff)) cat("\nNeff=",Neff[iFile])
-      if(!is.null(OLS)) cat("\nOLS=",OLS[iFile])
-      if(!is.null(linprob)) cat("\nlinprob=",linprob[iFile])
-      if(!is.null(se.logit)) cat("\nse.logit=",se.logit[iFile])
-      if(!is.null(prop)) cat("\nprop=",prop[iFile])
+      if(!is.invalid(N)) cat("\nN=",N[iFile])
+      if(!is.invalid(Neff)) cat("\nNeff=",Neff[iFile])
+      if(!is.invalid(OLS)) cat("\nOLS=",OLS[iFile])
+      if(!is.invalid(linprob)) cat("\nlinprob=",linprob[iFile])
+      if(!is.invalid(se.logit)) cat("\nse.logit=",se.logit[iFile])
+      if(!is.invalid(prop)) cat("\nprop=",prop[iFile])
       
-      if(!is.null(ref) & !is.null(refFilePath)){
+      if(!is.invalid(ref) & !is.invalid(refFilePath)){
         cat("\n\nUsing variant reference:\n",refFilePath)
       }
       
       
       #unite is untested
       if(unite){
-        if(!is.null(list_df)){
+        if(!is.invalid(list_df)){
           cSumstats <- rbindlist(list_df,use.names = T,fill = T)
         } else {
           list_df<-c()
@@ -592,7 +592,7 @@ supermunge <- function(
           cSumstats <- rbindlist(list_df,use.names = T,fill = T)
         }
       } else {
-        if(!is.null(list_df)){
+        if(!is.invalid(list_df)){
           cSumstats <- list_df[[iFile]]
           setDT(as.data.frame(cSumstats)) #in case the provided data is not in DT format
         } else {
@@ -661,7 +661,7 @@ supermunge <- function(
       cSumstats.nSNP.raw<-nrow(cSumstats)
       sumstats.meta[iFile,c("n_snp_raw")]<-cSumstats.nSNP.raw
       cSumstats.meta<-rbind(cSumstats.meta,list("# Input variant rows",as.character(cSumstats.nSNP.raw)))
-      if(!is.null(ref)) {
+      if(!is.invalid(ref)) {
         cSumstats.meta<-rbind(cSumstats.meta,list("# Reference variants",as.character(nrow(ref))))
       }
       cat(".")
@@ -825,7 +825,7 @@ supermunge <- function(
       
       
       #check if the file is the same build as the reference if present
-      if(!is.null(ref) & any(colnames(ref)=="CHR") & any(colnames(ref)=="BP") & any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
+      if(!is.invalid(ref) & any(colnames(ref)=="CHR") & any(colnames(ref)=="BP") & any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
         cSumstatsBuildCheck<-cSumstats
         cSumstatsBuildCheck[ref, on=c(CHR='CHR' , BP='BP'), c('buildcheck') :=list(T)] #SNP is not included here as matches on coordinate is generally capturing the same SNPs, and we do not have to consider the reverse SNP
         cSumstatsBuildCheck.n <- nrow(cSumstatsBuildCheck[buildcheck==T,])
@@ -836,10 +836,10 @@ supermunge <- function(
       cat(".")
       
       #lift-over to new coordinates before using coordinates
-      if(!is.null(chainFilePath) & liftover[iFile] & any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
+      if(!is.invalid(chainFilePath) & liftover[iFile] & any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
         #chain file format reference: http://genome.ucsc.edu/goldenPath/help/chain.html
         
-        if(!is.null(ref)){
+        if(!is.invalid(ref)){
           if(cSumstatsBuildCheck.n/cSumstats.n>0.75) cSumstats.warnings<-c(cSumstats.warnings,paste0("Dataset an overlap of more than 75% in genetic coordinates with the used reference variants. Liftover may be unnecessary for this dataset."))
         }
         
@@ -946,7 +946,7 @@ supermunge <- function(
       #references
       #https://www.ncbi.nlm.nih.gov/grc/human/regions/MHC?asm=GRCh37
       #https://www.ncbi.nlm.nih.gov/grc/human/regions/MHC
-      if(!is.null(filter.mhc)){
+      if(!is.invalid(filter.mhc)){
         if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
           cSumstats.nSNP<-nrow(cSumstats)
           if(filter.mhc==37) cSumstats <- cSumstats[!is.na(CHR) & !is.na(BP) & CHR=="6" & BP>=28477797 & BP<=33448354, ] else if (filter.mhc==38) cSumstats <- cSumstats[!is.na(CHR) & !is.na(BP) & CHR=="6" & BP>=28510120 & BP<=33480577, ] else cSumstats.warnings<-c(cSumstats.warnings,"Invalid assembly version provided - no filtering of the MHC was done!")
@@ -958,7 +958,7 @@ supermunge <- function(
       cat(".")
       
       #remove custom regions according to specified dataframe
-      if(!is.null(filter.region.df)){
+      if(!is.invalid(filter.region.df)){
         if(any(colnames(cSumstats)=="CHR") & any(colnames(cSumstats)=="BP")){
           if(!(any(colnames(filter.region.df)=="CHR") & any(colnames(filter.region.df)=="BP" & any(colnames(filter.region.df)=="BP2")))) stop("Dataframe containing regions to be removed must contain the columns CHR, BP, and BP2!")
           setDT(filter.region.df)
@@ -989,7 +989,7 @@ supermunge <- function(
       cat(".")
       
       #update variant ID's from synonym list
-      if(!is.null(idSynonyms)){
+      if(!is.invalid(idSynonyms)){
         if(any("SNP"==colnames(idSynonyms)) & any("SYN"==colnames(idSynonyms))){
           #type 1
           cSumstats[idSynonyms,on=c(SNP="SYN"),c('SNP','synUpdate'):=list(i.SNP,1)]
@@ -1042,7 +1042,7 @@ supermunge <- function(
         ## Set missing/non-finite FRQ as NA - changed behaviour here - set FRQ NA and later to reference FRQ if possible when non finite
         if(any(colnames(cSumstats)=="FRQ")) {
           cSumstats.n<-nrow(cSumstats)
-          if(!is.null(ref)) {
+          if(!is.invalid(ref)) {
             cSumstats[!is.finite(FRQ),FRQ:=NA_real_]
           } else {
             cSumstats <- cSumstats[is.finite(FRQ),]
@@ -1062,7 +1062,7 @@ supermunge <- function(
       } #end of first processing block
       
       # Join/merge with reference
-      if(!is.null(ref) & !empty){
+      if(!is.invalid(ref) & !empty){
         #Aligning and validating with reference file
         cSumstats.n<-nrow(cSumstats)
         
@@ -1200,7 +1200,7 @@ supermunge <- function(
         
         
         #set cSumstatst to the merged version
-        if(is.null(cSumstats.merged.pos)){
+        if(is.invalid(cSumstats.merged.pos)){
           cSumstats<-cSumstats.merged.snp
           cSumstats.n<-nrow(cSumstats)
           if(cSumstats.n>0) {
@@ -1265,7 +1265,7 @@ supermunge <- function(
       if(any(colnames(cSumstats)=="A2")) cSumstats[,A2_ORIG:=A2]
       if(any(colnames(cSumstats)=="FRQ")) cSumstats[,FRQ_ORIG:=FRQ]
       
-      if(!is.null(ref)){
+      if(!is.invalid(ref)){
         
         ##Synchronise SNP,CHR,BP,FRQ with reference
         if(forceBPToReference & any(colnames(cSumstats)=="BP_REF")) cSumstats[,BP:=BP_REF]
@@ -1346,14 +1346,14 @@ supermunge <- function(
       cat(".")
       
       #QC of allele configuration, or harmonisation with reference if missing allele columns
-      if(!is.null(ref) & any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")){
+      if(!is.invalid(ref) & any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")){
         ## Remove SNPs where alleles are not matching at least one of the reference alleles
         cSumstats.n<-nrow(cSumstats)
         cond.removeNonmatching<-(cSumstats$A1 != (cSumstats$A1_REF) & cSumstats$A1 != (cSumstats$A2_REF)) & (cSumstats$A2 != (cSumstats$A1_REF)  & cSumstats$A2 != (cSumstats$A2_REF))
         cSumstats<-cSumstats[!cond.removeNonmatching, ]
         cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; A1 or A2 not matching any ref allele",as.character(sum(cond.removeNonmatching))))
         sumstats.meta[iFile,c("Removed, nonmatching ref alleles")]<-sum(cond.removeNonmatching)
-      } else if(!is.null(ref) & any(colnames(cSumstats)=="A1_REF") & any(colnames(cSumstats)=="A2_REF")){
+      } else if(!is.invalid(ref) & any(colnames(cSumstats)=="A1_REF") & any(colnames(cSumstats)=="A2_REF")){
         #the sumstats do not have A1 and A2
         cSumstats[,A1:=A1_REF][,A2:=A2_REF]
         cSumstats.meta<-rbind(cSumstats.meta,list("A1,A2","From reference"))
@@ -1373,7 +1373,7 @@ supermunge <- function(
       #   cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats$N, na.rm = T),", ",min(cSumstats$N, na.rm = T),", ", max(cSumstats$N, na.rm = T))))
       # }
       
-      if(!is.null(N) & length(N)>=iFile) {
+      if(!is.invalid(N) & length(N)>=iFile) {
         if(!is.na(N[iFile])){
           if(forceN && any(colnames(cSumstats)=="N")) {
             if(
@@ -1418,7 +1418,7 @@ supermunge <- function(
       
       
       #NEFF
-      if(!is.null(Neff) & length(Neff)>=iFile) {
+      if(!is.invalid(Neff) & length(Neff)>=iFile) {
         if(!is.na(Neff[iFile])){
           if(any(colnames(cSumstats)=="NEFF")){
             cSumstats[,cond:=FALSE][!is.numeric(NEFF) | eval(as.numeric(Neff[iFile])) < NEFF, cond:=TRUE]
@@ -1442,7 +1442,7 @@ supermunge <- function(
       }
       
       ## Establish allele order from the reference
-      if(!is.null(ref)){
+      if(!is.invalid(ref)){
         #cond.invertedAlleleOrder<-(cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF) #the same condition as in GenomicSEM munge.
         #cond.invertedAlleleOrder<-(cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF)
         #cond.invertedAlleleOrder<-((cSumstats$A2 != cSumstats$A2_REF & cSumstats$A1 == cSumstats$A2_REF) | (cSumstats$A1 != cSumstats$A1_REF & cSumstats$A2 == cSumstats$A1_REF)) #experimental - seems to work similar to the GenomicSEM implementation
@@ -1452,7 +1452,7 @@ supermunge <- function(
       cat(".")
       
       ## Invert alleles or harmonise (including their FRQ) to reference
-      if(!is.null(ref) & forceAllelesToReference){
+      if(!is.invalid(ref) & forceAllelesToReference){
         # Fix A1 and A2 to reflect the reference alleles
         cSumstats[,A1:=A1_REF]
         cSumstats[,A2:=A2_REF]
@@ -1553,7 +1553,7 @@ supermunge <- function(
       if(any(colnames(cSumstats)=="EFFECT")) {
         if(any(is.finite(cSumstats$EFFECT))) {
           ##invert overall effect if specified
-          if(!is.null(invertEffectDirectionOn)){
+          if(!is.invalid(invertEffectDirectionOn)){
             if(any(invertEffectDirectionOn==traitNames[iFile])){
               cSumstats[,EFFECT:=EFFECT*-1]
               cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","EFFECT*-1 (Inverted overall effect)"))
@@ -1659,7 +1659,7 @@ supermunge <- function(
               #Has effect based on a linear estimator for a binary outcome (rather than a logistic model)
               cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Binary, linear"))
               if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")){
-                if(is.null(prop[iFile]) | is.na(prop[iFile])) stop("\nCould not perform correction of linear BETA,SE to liability scale because of missing or invalid prop argument!\n")
+                if(is.invalid(prop[iFile]) | is.na(prop[iFile])) stop("\nCould not perform correction of linear BETA,SE to liability scale because of missing or invalid prop argument!\n")
                 cSumstats[,EFFECT:=Z/sqrt(prop[iFile]*(1-prop[iFile]) * N * VSNP)] #standardisation
                 cSumstats[,SE:=1/sqrt(prop[iFile]*(1-prop[iFile]) * N * VSNP)] #standardisation
                 cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z, N,propCaCo, UVL std => BETA,SE"))
@@ -1775,7 +1775,7 @@ supermunge <- function(
       }
       
       
-      if(is.null(changeEffectDirectionOnAlleleFlip)) changeEffectDirectionOnAlleleFlip<-T
+      if(is.invalid(changeEffectDirectionOnAlleleFlip)) changeEffectDirectionOnAlleleFlip<-T
       
       #compare hypothesised inverted allele effects with non-inverted allele effects for validation
       #use weighting because uncertain associations tend to skew the mean effect towards a negative value
@@ -1823,7 +1823,7 @@ supermunge <- function(
       #         ){
       #         cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","inverted > plain+1sd"))
       #         sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-T
-      #         if(is.null(changeEffectDirectionOnAlleleFlip)){
+      #         if(is.invalid(changeEffectDirectionOnAlleleFlip)){
       #           changeEffectDirectionOnAlleleFlip<-F #inactivate the correction of effect direction on allele flip because of less credible new effect mean.
       #         } else if(changeEffectDirectionOnAlleleFlip){
       #           cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip specified, but the mean effect difference between plain and inverted variants is much larger than between plain and non-inverted, indicating that inverted effects may be invalid.")
@@ -1832,7 +1832,7 @@ supermunge <- function(
       #       } else {
       #         cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect, relationship","inverted < plain+1sd"))
       #         sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-F
-      #         if(!is.null(changeEffectDirectionOnAlleleFlip)){
+      #         if(!is.invalid(changeEffectDirectionOnAlleleFlip)){
       #           if(!changeEffectDirectionOnAlleleFlip) cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip inactivated, but the mean effect difference between untouched and inverted variants is much smaller than between untouched and non-inverted, indicating that inverted effects for these variants may still be valid.")
       #         }
       #       }
@@ -1873,9 +1873,9 @@ supermunge <- function(
       #impute effects and standard errors; LDimp - highly experimental
       if(imputeFromLD){
         #impute betas and standard errors using LD
-        if(!(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="CHR") & ((!is.null(imputeFrameLenBp) & any(colnames(cSumstats)=="BP")) | (!is.null(imputeFrameLenCM) & any(colnames(cSumstats)=="CM"))))) stop("LD imputation is not possible without the columns EFFECT,SE,CHR,(BP or CM)!")
+        if(!(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="CHR") & ((!is.invalid(imputeFrameLenBp) & any(colnames(cSumstats)=="BP")) | (!is.invalid(imputeFrameLenCM) & any(colnames(cSumstats)=="CM"))))) stop("LD imputation is not possible without the columns EFFECT,SE,CHR,(BP or CM)!")
         
-        do.ldimp.cm<-!is.null(imputeFrameLenCM)
+        do.ldimp.cm<-!is.invalid(imputeFrameLenCM)
         
         frameLen<-ifelse(do.ldimp.cm,imputeFrameLenCM,imputeFrameLenBp)
         frameLenHalf<-frameLen/2
@@ -1929,7 +1929,7 @@ supermunge <- function(
        
         
         #remove non-trustworthy variants according to specified regions in the df
-        if(!is.null(filter.region.imputation.df)){
+        if(!is.invalid(filter.region.imputation.df)){
           if(!(any(colnames(filter.region.imputation.df)=="CHR") & any(colnames(filter.region.imputation.df)=="BP" & any(colnames(filter.region.imputation.df)=="BP2")))) stop("Dataframe containing regions to be excluded as imputation support must contain the columns CHR, BP, and BP2!")
           cSumstats.merged.snp.nSNP<-nrow(cSumstats.merged.snp)
           setDT(filter.region.imputation.df)
@@ -2120,7 +2120,7 @@ supermunge <- function(
       
       
       #Filter variants MAF<filter.maf
-      if(!is.null(filter.maf)){
+      if(!is.invalid(filter.maf)){
         if("FRQ" %in% names(cSumstats)){
           rm <- (!is.na(cSumstats$FRQ) & ((cSumstats$FRQ<filter.maf & cSumstats$FRQ<0.5) | (1-cSumstats$FRQ)<filter.maf))
           cSumstats <- cSumstats[!rm, ]
@@ -2132,7 +2132,7 @@ supermunge <- function(
       cat(".")
       
       #Filter variants FRQ<filter.frq.lower
-      if(!is.null(filter.frq.lower)){
+      if(!is.invalid(filter.frq.lower)){
         if("FRQ" %in% names(cSumstats)){
           rm <- (!is.na(cSumstats$FRQ) & cSumstats$FRQ<filter.frq.lower)
           cSumstats <- cSumstats[!rm, ]
@@ -2144,7 +2144,7 @@ supermunge <- function(
       cat(".")
       
       #Filter variants FRQ>filter.frq.upper
-      if(!is.null(filter.frq.upper)){
+      if(!is.invalid(filter.frq.upper)){
         if("FRQ" %in% names(cSumstats)){
           rm <- (!is.na(cSumstats$FRQ) & cSumstats$FRQ>filter.frq.upper)
           cSumstats <- cSumstats[!rm, ]
@@ -2156,7 +2156,7 @@ supermunge <- function(
       cat(".")
       
       #Filter variants MAC<filter.mac
-      if(!is.null(filter.mac)){
+      if(!is.invalid(filter.mac)){
         if("FRQ" %in% names(cSumstats) & "N" %in% names(cSumstats)){
           tempMAC<-ifelse(cSumstats$FRQ<0.5,cSumstats$FRQ*cSumstats$N,(1-cSumstats$FRQ)*cSumstats$N)
           rm <- (!is.na(cSumstats$FRQ) & !is.na(cSumstats$N) & tempMAC<filter.mac)
@@ -2169,7 +2169,7 @@ supermunge <- function(
       cat(".")
       
       #Filter variants INFO<filter.info
-      if(!is.null(filter.info)){
+      if(!is.invalid(filter.info)){
         if("INFO" %in% names(cSumstats)){
           rm <- (!is.na(cSumstats$INFO) & cSumstats$INFO<filter.info)
           cSumstats <- cSumstats[!rm, ]
@@ -2181,7 +2181,7 @@ supermunge <- function(
       cat(".")
       
       #Filter variants OR<filter.or
-      if(!is.null(filter.or)){
+      if(!is.invalid(filter.or)){
         if("OR" %in% names(cSumstats)){
           rm <- (!is.na(cSumstats$OR) & cSumstats$OR>filter.or)
           cSumstats <- cSumstats[!rm, ]

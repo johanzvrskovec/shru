@@ -26,3 +26,17 @@ replaceNa <- function(x,repl=0,includeNaN=TRUE){
   return(x)
 }
 
+#based on https://stackoverflow.com/questions/19655579/a-function-that-returns-true-on-na-null-nan-in-r
+#note - not vectorised; behaves as is.null()
+is.invalid <- function(x, false.triggers=FALSE){
+  if(is.function(x)) return(FALSE) # Some of the tests below trigger
+  # warnings when used on functions
+  return(
+    is.null(x) ||                # Actually this line is unnecessary since
+      length(x) == 0 ||            # length(NULL) = 0, but I like to be clear
+      all(is.na(x)) ||
+      all(x=="") ||
+      (false.triggers && all(!x))
+  )
+}
+
