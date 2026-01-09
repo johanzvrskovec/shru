@@ -21,10 +21,14 @@ stdGwasColumnNames <- function(
   c.BETA = c("BETA","B","EFFECT_BETA","EFFECT","EFFECTS","SIGNED_SUMSTAT","EST","GWAS_BETA","EFFECT_A1","EFFECTA1","EFFECT_NW","STDBETA")
   c.OR = c("OR","LOG_ODDS","ODDS-RATIO","ODDS_RATIO","ODDSRATIO","OR(MINALLELE)","OR.LOGISTIC","OR_RAN","OR(A1)","LOGOR")
   c.SE = c("SE","STDER","STDERR","STD","STANDARD_ERROR","OR_SE","STANDARDERROR", "STDERR_NW","META.SE","SE_DGC","SE.2GC","STDERRLOGOR")
+  c.SE.adj = paste0(c.SE,"_ADJ")
+  c.SE.unadj = paste0(c.SE,"_UNADJ")
   c.Z = c("Z","ZSCORE","Z-SCORE","ZSTAT","ZSTATISTIC","GC_ZSCORE","BETAZSCALE","TEST.STATISTIC","Z_ESTIMATE")
   c.INFO = c("INFO","IMPINFO","IMPQUALITY", "INFO.PLINK", "INFO_UKBB","INFO_UKB","MININFO")
   c.SINFO = c("SINFO")
   c.P = c("P","PVALUE","PVAL","P_VALUE","GC_PVALUE","P.2GC","P.VAL","GWAS_P","P-VALUE","P-VAL","FREQUENTIST_ADD_PVALUE","P.VALUE","P_VAL","SCAN-P","P.LMM","META.PVAL","P_RAN","P.ADD","P_BOLT_LMM","PVAL_ESTIMATE","WALD_P","P_WALD")
+  c.P.adj = paste0(c.SE,"_ADJ")
+  c.P.unadj = paste0(c.SE,"_UNADJ")
   c.NL10P = c("NL10P","NEGLOG10_PVAL") # -log10 p-value, used in the Pan UKB format
   c.N = c("N","NCOMPLETESAMPLES","TOTALSAMPLESIZE","TOTALN","TOTAL_N","N_COMPLETE_SAMPLES","N_TOTAL","N_SAMPLES","N_ANALYZED","NSAMPLES","SAMPLESIZE","SAMPLE_SIZE","TOTAL_SAMPLE_SIZE","TOTALSAMPLESIZE","SAMPLE.SIZE","N_SUM","SIZE")
   c.N_CAS = c("N_CAS","NCASE","N_CASE","N_CASES","NCAS","NCA","NCASES","CASES","CASES_N","FRQ_A")
@@ -73,9 +77,21 @@ stdGwasColumnNames <- function(
   columnNames[columnNames.upper %in% c.OR] <- c.OR[1] 
   columnNames[columnNames.upper %in% c.Z] <- c.Z[1] 
   columnNames[columnNames.upper %in% c.SE] <- c.SE[1]
+  columnNames[columnNames.upper %in% c.SE.adj] <- c.SE.adj[1]
+  columnNames[columnNames.upper %in% c.SE.unadj] <- c.SE.unadj[1]
+  if(any(columnNames==c.SE.unadj[1])){ #use unadjusted SE as SE
+    if(any(columnNames==c.SE[1])) columnNames[columnNames.upper %in% c.SE] <- c.SE.adj[1]
+    columnNames[columnNames.upper %in% c.SE.unadj] <- c.SE[1]
+  }
   columnNames[columnNames.upper %in% c.INFO] <- c.INFO[1]
   columnNames[columnNames.upper %in% c.SINFO] <- c.SINFO[1]
   columnNames[columnNames.upper %in% c.P] <- c.P[1]
+  columnNames[columnNames.upper %in% c.P.adj] <- c.P.adj[1]
+  columnNames[columnNames.upper %in% c.P.unadj] <- c.P.unadj[1]
+  if(any(columnNames==c.P.unadj[1])){ #use unadjusted P as P
+    if(any(columnNames==c.P[1])) columnNames[columnNames.upper %in% c.P] <- c.P.adj[1]
+    columnNames[columnNames.upper %in% c.P.unadj] <- c.P[1]
+  }
   columnNames[columnNames.upper %in% c.N] <- c.N[1]
   columnNames[columnNames.upper %in% c.N_CAS] <- c.N_CAS[1]
   columnNames[columnNames.upper %in% c.N_CON] <- c.N_CON[1]

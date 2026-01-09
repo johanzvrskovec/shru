@@ -345,7 +345,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.5.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.5.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1019,7 +1019,7 @@ supermunge <- function(
         cat("📛")
       }
       
-      if(process & !empty){
+      if(process && !empty){
         cat("\nProcessing.")
         # QC, and data management before merge with reference
         
@@ -1265,10 +1265,10 @@ supermunge <- function(
       if(any(colnames(cSumstats)=="A2")) cSumstats[,A2_ORIG:=A2]
       if(any(colnames(cSumstats)=="FRQ")) cSumstats[,FRQ_ORIG:=FRQ]
       
-      if(!is.invalid(ref)){
-        
-        ##Synchronise SNP,CHR,BP,FRQ with reference
-        if(forceBPToReference & any(colnames(cSumstats)=="BP_REF")) cSumstats[,BP:=BP_REF]
+      ##Synchronise SNP,CHR,BP,FRQ with reference
+      if(!is.invalid(ref) && forceBPToReference && any(colnames(cSumstats)=="BP_REF")) cSumstats[,BP:=BP_REF]
+      
+      if(!is.invalid(ref) && process){
         
         ## Add in chr and bp from ref if not present in datasets
         if(any(colnames(cSumstats)=="CHR")){
@@ -1346,14 +1346,14 @@ supermunge <- function(
       cat(".")
       
       #QC of allele configuration, or harmonisation with reference if missing allele columns
-      if(!is.invalid(ref) & any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")){
+      if(!is.invalid(ref) && process && any(colnames(cSumstats)=="A1") & any(colnames(cSumstats)=="A2")){
         ## Remove SNPs where alleles are not matching at least one of the reference alleles
         cSumstats.n<-nrow(cSumstats)
         cond.removeNonmatching<-(cSumstats$A1 != (cSumstats$A1_REF) & cSumstats$A1 != (cSumstats$A2_REF)) & (cSumstats$A2 != (cSumstats$A1_REF)  & cSumstats$A2 != (cSumstats$A2_REF))
         cSumstats<-cSumstats[!cond.removeNonmatching, ]
         cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; A1 or A2 not matching any ref allele",as.character(sum(cond.removeNonmatching))))
         sumstats.meta[iFile,c("Removed, nonmatching ref alleles")]<-sum(cond.removeNonmatching)
-      } else if(!is.invalid(ref) & any(colnames(cSumstats)=="A1_REF") & any(colnames(cSumstats)=="A2_REF")){
+      } else if(!is.invalid(ref) && process && any(colnames(cSumstats)=="A1_REF") & any(colnames(cSumstats)=="A2_REF")){
         #the sumstats do not have A1 and A2
         cSumstats[,A1:=A1_REF][,A2:=A2_REF]
         cSumstats.meta<-rbind(cSumstats.meta,list("A1,A2","From reference"))
@@ -1361,7 +1361,7 @@ supermunge <- function(
       cat(".")
       
       ## N
-      if(any(colnames(cSumstats)=="N_CAS") && any(colnames(cSumstats)=="N_CON")) {
+      if(process && any(colnames(cSumstats)=="N_CAS") && any(colnames(cSumstats)=="N_CON")) {
         ### Calculate total N from number of cases and number of controls if they are present, only for missing N.
         cSumstats.meta<-rbind(cSumstats.meta,list("N",paste("N_CAS + N_CON")))
         if(!any(colnames(cSumstats)=="N")) cSumstats[,N:=NA_integer_]
@@ -1373,7 +1373,7 @@ supermunge <- function(
       #   cSumstats.meta<-rbind(cSumstats.meta,list("N (median, min, max)",paste(median(cSumstats$N, na.rm = T),", ",min(cSumstats$N, na.rm = T),", ", max(cSumstats$N, na.rm = T))))
       # }
       
-      if(!is.invalid(N) & length(N)>=iFile) {
+      if(process && !is.invalid(N) & length(N)>=iFile) {
         if(!is.na(N[iFile])){
           if(forceN && any(colnames(cSumstats)=="N")) {
             if(
@@ -1399,7 +1399,7 @@ supermunge <- function(
           
           
         }
-      } else if(!(any(colnames(cSumstats)=="N"))) {
+      } else if(process && !(any(colnames(cSumstats)=="N"))) {
         if(any(colnames(cSumstats)=="NEFF")){
           cSumstats$N<-cSumstats$NEFF
           cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEFF"))
@@ -1418,7 +1418,7 @@ supermunge <- function(
       
       
       #NEFF
-      if(!is.invalid(Neff) & length(Neff)>=iFile) {
+      if(process && !is.invalid(Neff) & length(Neff)>=iFile) {
         if(!is.na(Neff[iFile])){
           if(any(colnames(cSumstats)=="NEFF")){
             cSumstats[,cond:=FALSE][!is.numeric(NEFF) | eval(as.numeric(Neff[iFile])) < NEFF, cond:=TRUE]
@@ -1460,7 +1460,7 @@ supermunge <- function(
           cSumstats[,FRQ:=FRQ_REF]
           cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Forced to reference FRQ/MAF"))
         }
-      } else if(any(colnames(cSumstats)=="cond.invertedAlleleOrder")) { ## Invert alleles  -FRQ is dealt with below
+      } else if(process && any(colnames(cSumstats)=="cond.invertedAlleleOrder")) { ## Invert alleles  -FRQ is dealt with below
         cSumstats[,A1:=ifelse(cond.invertedAlleleOrder, A2_ORIG, A1)]
         cSumstats[,A2:=ifelse(cond.invertedAlleleOrder, A1_ORIG, A2)]
       }
@@ -1493,7 +1493,7 @@ supermunge <- function(
           }
           
           ### Invert FRQ based on the previous reference matching
-          if(any(colnames(cSumstats)=="cond.invertedAlleleOrder") & !forceAllelesToReference) {
+          if(process && any(colnames(cSumstats)=="cond.invertedAlleleOrder") && !forceAllelesToReference) {
               cSumstats[cond.invertedAlleleOrder==T,FRQ:=1-FRQ]
               #cSumstats$FRQ<-alleleFRQ
               cSumstats.meta<-rbind(cSumstats.meta,list("FRQ","Fitted (flipped) according to reference allele order"))
@@ -1512,21 +1512,21 @@ supermunge <- function(
      
       
       #remove duplicate ID variants, ordered by ADBPADJ, -MAF, MERGEID - IMPORTANT!
-
-      cSumstats.n<-nrow(cSumstats)
-      if(any(colnames(cSumstats)=="ADBPADJ") & any(colnames(cSumstats)=="MAF")){
-        cSumstats<-cSumstats[order(ADBPADJ, -MAF, MERGEID),]
-      } else if(any(colnames(cSumstats)=="MAF")) {
-        cSumstats<-cSumstats[order(-MAF, MERGEID),]
-      } else {
-        cSumstats<-cSumstats[order(MERGEID),]
+      if(process){
+        cSumstats.n<-nrow(cSumstats)
+        if(any(colnames(cSumstats)=="ADBPADJ") & any(colnames(cSumstats)=="MAF")){
+          cSumstats<-cSumstats[order(ADBPADJ, -MAF, MERGEID),]
+        } else if(any(colnames(cSumstats)=="MAF")) {
+          cSumstats<-cSumstats[order(-MAF, MERGEID),]
+        } else {
+          cSumstats<-cSumstats[order(MERGEID),]
+        }
+        cSumstats.unique<-cSumstats[, .(MERGEID = head(MERGEID,1)), by = c("SNP")]
+        cSumstats<-cSumstats[cSumstats.unique, on=c(MERGEID=c("MERGEID"))]
+        cSumstats[,i.SNP:=NULL]
+        cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; duplicate variant ID",as.character(cSumstats.n-nrow(cSumstats))))
+        cat(".")
       }
-      cSumstats.unique<-cSumstats[, .(MERGEID = head(MERGEID,1)), by = c("SNP")]
-      cSumstats<-cSumstats[cSumstats.unique, on=c(MERGEID=c("MERGEID"))]
-      cSumstats[,i.SNP:=NULL]
-      cSumstats.meta<-rbind(cSumstats.meta,list("Removed variants; duplicate variant ID",as.character(cSumstats.n-nrow(cSumstats))))
-      cat(".")
-      
       
       # P validity checks before EFFECT, SE and Z-score calculations
       ### Check the values of the P-column
@@ -1541,7 +1541,7 @@ supermunge <- function(
       ## adapted from the GenomicSEM sumstats-function
       
       #produce the unstandardised regression beta from Z if no EFFECT present - this is not expected to be very common!
-      if(any(colnames(cSumstats)=="Z") && any(colnames(cSumstats)=="VSNP") && any(colnames(cSumstats)=="N") && !any(colnames(cSumstats)=="EFFECT")) {
+      if(process && any(colnames(cSumstats)=="Z") && any(colnames(cSumstats)=="VSNP") && any(colnames(cSumstats)=="N") && !any(colnames(cSumstats)=="EFFECT")) {
         ## Compute BETA/EFFECT from Z if present
         cSumstats[,EFFECT:= Z/sqrt(N*VSNP)][,SE:=EFFECT/Z]
         cSumstats[is.na(SE),SE:=1] #fallback! - explicitly set NA SE to 1!
@@ -1700,7 +1700,7 @@ supermunge <- function(
             }
             cat("Done!\n")
             
-          } else {
+          } else if(process){
             
             #set effect to log(EFFECT) if odds ratio
             if(sumstats.meta[iFile,c("effect_type")]=="OR") {
@@ -1728,32 +1728,32 @@ supermunge <- function(
           }
           
           ## Compute Z score (standardised beta) - used for effect corrections further and is later corrected accordingly - assumes correct EFFECT and SE
-          ## Also 
-          if(any(colnames(cSumstats)=="Z")) cSumstats[,Z_ORIG:=Z] #save original Z-score
-          if(any(colnames(cSumstats)=="P")) {
-            cSumstats[,Z:=sign(EFFECT) * sqrt(qchisq(P,1,lower=F))]
-            cSumstats.meta<-rbind(cSumstats.meta,list("Z","(Re)calculated from P and sign(EFFECT)"))
-          } else if(any(colnames(cSumstats)=="SE")){
-            cSumstats[,Z:=EFFECT/SE] #is this less reliable as we cannot know the scale of SE? Should be more reliable now, after previous scale assessments and conversions of SE.
-            cSumstats.meta<-rbind(cSumstats.meta,list("Z","(Re)calculated from EFFECT and SE"))
-          } else {
-            cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT (re)calculated since no P or SE"))
-          }
-          cat(".")
-          
-          ## Inspect new and old Z-values
-          if(any(colnames(cSumstats)=="Z") && any(colnames(cSumstats)=="Z_ORIG")){
-            if(abs(mean(cSumstats[is.finite(Z),]$Z)-mean(cSumstats[is.finite(Z_ORIG),]$Z_ORIG,na.rm=T))>1) cSumstats.warnings<-c(cSumstats.warnings,"New recalculated Z differ from old by more than 1sd!")
+          if(process){
+            if(any(colnames(cSumstats)=="Z")) cSumstats[,Z_ORIG:=Z] #save original Z-score
+            if(any(colnames(cSumstats)=="P")) {
+              cSumstats[,Z:=sign(EFFECT) * sqrt(qchisq(P,1,lower=F))]
+              cSumstats.meta<-rbind(cSumstats.meta,list("Z","(Re)calculated from P and sign(EFFECT)"))
+            } else if(any(colnames(cSumstats)=="SE")){
+              cSumstats[,Z:=EFFECT/SE] #is this less reliable as we cannot know the scale of SE? Should be more reliable now, after previous scale assessments and conversions of SE.
+              cSumstats.meta<-rbind(cSumstats.meta,list("Z","(Re)calculated from EFFECT and SE"))
+            } else {
+              cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT (re)calculated since no P or SE"))
+            }
             cat(".")
+            
+            ## Inspect new and old Z-values
+            if(any(colnames(cSumstats)=="Z") && any(colnames(cSumstats)=="Z_ORIG")){
+              if(abs(mean(cSumstats[is.finite(Z),]$Z)-mean(cSumstats[is.finite(Z_ORIG),]$Z_ORIG,na.rm=T))>1) cSumstats.warnings<-c(cSumstats.warnings,"New recalculated Z differ from old by more than 1sd!")
+              cat(".")
+            }
+            
+            #Re-compute SE!!! new
+            if(any(colnames(cSumstats)=="Z")){
+              cSumstats[,SE:=EFFECT/Z]
+              cSumstats.meta<-rbind(cSumstats.meta,list("SE","(Re)calculated from EFFECT and Z"))
+              cat(".")
+            }
           }
-          
-          #Re-compute SE!!! new
-          if(any(colnames(cSumstats)=="Z")){
-            cSumstats[,SE:=EFFECT/Z]
-            cSumstats.meta<-rbind(cSumstats.meta,list("SE","(Re)calculated from EFFECT and Z"))
-            cat(".")
-          }
-          
          
           
         } else {
@@ -1845,30 +1845,31 @@ supermunge <- function(
       
       ## EFFECT direction
       ##invert effect if inverted allele order
-      if(any(colnames(cSumstats)=="EFFECT") && any(colnames(cSumstats)=="cond.invertedAlleleOrder") && changeEffectDirectionOnAlleleFlip) {
-        if(any(cSumstats$cond.invertedAlleleOrder)) cSumstats[,EFFECT:=ifelse(cond.invertedAlleleOrder,(EFFECT*-1),EFFECT)]
+      if(process){
+        if(any(colnames(cSumstats)=="EFFECT") && any(colnames(cSumstats)=="cond.invertedAlleleOrder") && changeEffectDirectionOnAlleleFlip) {
+          if(any(cSumstats$cond.invertedAlleleOrder)) cSumstats[,EFFECT:=ifelse(cond.invertedAlleleOrder,(EFFECT*-1),EFFECT)]
+          
+          meffects.new <- NA_real_
+          if(any(is.finite(cSumstats$EFFECT))) meffects.new<-mean(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm = T)
+          
+          cSumstats.meta<-rbind(cSumstats.meta,list("New effect mean",as.character(round(meffects.new,digits = 5))))
+        }
+        sumstats.meta[iFile,c("changeEffectDirectionOnAlleleFlip")]<-changeEffectDirectionOnAlleleFlip
+        cat(".")
         
-        meffects.new <- NA_real_
-        if(any(is.finite(cSumstats$EFFECT))) meffects.new<-mean(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm = T)
         
-        cSumstats.meta<-rbind(cSumstats.meta,list("New effect mean",as.character(round(meffects.new,digits = 5))))
+        if(any(colnames(cSumstats)=="cond.invertedAlleleOrder")) cSumstats.meta<-rbind(cSumstats.meta,list(
+          paste0(
+            "Modified SNPs; inverted allele order [",ifelse(any(colnames(cSumstats)=="FRQ"),"FRQ",""),",",
+            ifelse(changeEffectDirectionOnAlleleFlip,"EFFECT",""),"]"),
+          as.character(sum(cSumstats$cond.invertedAlleleOrder))))
+        
+        
+        ## (Re)compute Z score (standardised beta) and P or update it according to any corrections just done
+        if(any(colnames(cSumstats)=="SE")) cSumstats[,Z:=EFFECT/SE] #EFFECT and SE should be unstandardised beta and its corresponding SE here!!!!
+        if(any(colnames(cSumstats)=="Z")) cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
+        cat(".")
       }
-      sumstats.meta[iFile,c("changeEffectDirectionOnAlleleFlip")]<-changeEffectDirectionOnAlleleFlip
-      cat(".")
-      
-      
-      if(any(colnames(cSumstats)=="cond.invertedAlleleOrder")) cSumstats.meta<-rbind(cSumstats.meta,list(
-        paste0(
-          "Modified SNPs; inverted allele order [",ifelse(any(colnames(cSumstats)=="FRQ"),"FRQ",""),",",
-          ifelse(changeEffectDirectionOnAlleleFlip,"EFFECT",""),"]"),
-        as.character(sum(cSumstats$cond.invertedAlleleOrder))))
-      
-      
-      ## (Re)compute Z score (standardised beta) and P or update it according to any corrections just done
-      if(any(colnames(cSumstats)=="SE")) cSumstats[,Z:=EFFECT/SE] #EFFECT and SE should be unstandardised beta and its corresponding SE here!!!!
-      if(any(colnames(cSumstats)=="Z")) cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
-      cat(".")
-      
       
       #impute effects and standard errors; LDimp - highly experimental
       if(imputeFromLD){
@@ -2223,7 +2224,7 @@ supermunge <- function(
       #Calculate Effective Sample Size as advised from from the Genomic SEM Wiki
       
       hasNEFF <- any(colnames(cSumstats)=="NEFF")
-      if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="VSNP")){
+      if(any(colnames(cSumstats)=="EFFECT") && any(colnames(cSumstats)=="SE") && any(colnames(cSumstats)=="VSNP")){
         
         
         ## https://doi.org/10.1016/j.biopsych.2022.05.029
@@ -2243,24 +2244,25 @@ supermunge <- function(
           )
         )
         
-        if(!any(colnames(cSumstats)=="N") & any(colnames(cSumstats)=="NEXP")) {
+        if(process && !any(colnames(cSumstats)=="N") & any(colnames(cSumstats)=="NEXP")) {
           cSumstats[,N:=NEXP]
           cSumstats.meta<-rbind(cSumstats.meta,list("N","<= NEXP"))
         }
         
         ##https://doi.org/10.1016/j.biopsych.2022.05.029
-        
-        if(any(colnames(cSumstats)=="NEFF")) { 
-          cSumstats.nNANEFF <- nrow(cSumstats[is.na(NEFF),])
-          cSumstats[is.na(NEFF),NEFF:=4/(VSNP*(SE^2))] #==(Z/EFFECT)^2)/VSNP
-        } else {
-          cSumstats.nNANEFF <- nrow(cSumstats)
-          cSumstats[,NEFF:=4/(VSNP*(SE^2))] #==(Z/EFFECT)^2)/VSNP
+        if(process){
+          if(any(colnames(cSumstats)=="NEFF")) { 
+            cSumstats.nNANEFF <- nrow(cSumstats[is.na(NEFF),])
+            cSumstats[is.na(NEFF),NEFF:=4/(VSNP*(SE^2))] #==(Z/EFFECT)^2)/VSNP
+          } else {
+            cSumstats.nNANEFF <- nrow(cSumstats)
+            cSumstats[,NEFF:=4/(VSNP*(SE^2))] #==(Z/EFFECT)^2)/VSNP
+          }
+          
+          if(cSumstats.nNANEFF>0) cSumstats.meta<-rbind(cSumstats.meta,list("NEFF <= VSNP & SE",cSumstats.nNANEFF))
         }
         
-        if(cSumstats.nNANEFF>0) cSumstats.meta<-rbind(cSumstats.meta,list("NEFF <= VSNP & SE",cSumstats.nNANEFF))
-        
-        if(any(colnames(cSumstats)=="N")){
+        if(any(colnames(cSumstats)=="N") && any(colnames(cSumstats)=="NEFF")){
           maxN<-max(cSumstats[is.finite(N),.(N)],na.rm = T)
           cSumstats[,NEFF_CAPPED:=shru::clipValues(NEFF,max = 1.1*eval(maxN), min = 0.5*eval(maxN))]
         }
@@ -2319,7 +2321,7 @@ supermunge <- function(
       }
       
       #rename the ambiguous EFFECT column to BETA, remove OR (new), as it should be a regression beta at this point, IF PROCESSING ONLY
-      if(any(colnames(cSumstats)=="EFFECT")){
+      if(process && any(colnames(cSumstats)=="EFFECT")){
         cSumstats[,BETA:=EFFECT][,EFFECT:=NULL]
         if(any(colnames(cSumstats)=="OR") && process) cSumstats[,OR:=NULL]
       }
