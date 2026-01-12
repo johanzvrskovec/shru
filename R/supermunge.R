@@ -1583,8 +1583,6 @@ supermunge <- function(
               }
             }
             
-            cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","OR  =>ln(OR)"))
-            
             if(any(colnames(cSumstats)=="BETA")) {
               cSumstats.warnings<-c(cSumstats.warnings,"The effect format being an ODDS RATIO may not be compatible with the original variable naming scheme!")
               sumstats.meta[iFile,c("effect_type_warning")]<-T
