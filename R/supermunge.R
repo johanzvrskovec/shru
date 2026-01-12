@@ -345,7 +345,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.5.2\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.5.3\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1536,6 +1536,22 @@ supermunge <- function(
         }
       }
       cat(".")
+      
+      #add Z and SE if missing
+      if(process){
+        if(any(colnames(cSumstats)=="P") && !any(colnames(cSumstats)=="Z")) {
+          cSumstats[,Z:=sign(EFFECT) * sqrt(qchisq(P,1,lower=F))]
+          cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from P and sign(EFFECT)"))
+          cat(".")
+        }
+        
+        if(any(colnames(cSumstats)=="Z" && !any(colnames(cSumstats)=="SE"))){
+          cSumstats[,SE:=EFFECT/Z]
+          cSumstats.meta<-rbind(cSumstats.meta,list("SE", "Calculated from EFFECT and Z(!)"))
+          cSumstats.warnings<-c(cSumstats.warnings,"The SE was estimated from the effect anf Z score. This may not be correct if the effect is of another scale than what was used for the Z score.")
+          cat(".")
+        }
+      }
       
       # EFFECT and SE standardisations and corrections according to effect type (OLS, log OR or non log OR)
       ## adapted from the GenomicSEM sumstats-function
