@@ -1545,7 +1545,7 @@ supermunge <- function(
           cat(".")
         }
         
-        if(any(colnames(cSumstats)=="Z" && !any(colnames(cSumstats)=="SE"))){
+        if(any(colnames(cSumstats)=="Z") && !any(colnames(cSumstats)=="SE")){
           cSumstats[,SE:=EFFECT/Z]
           cSumstats.meta<-rbind(cSumstats.meta,list("SE", "Calculated from EFFECT and Z(!)"))
           cSumstats.warnings<-c(cSumstats.warnings,"The SE was estimated from the effect anf Z score. This may not be correct if the effect is of another scale than what was used for the Z score.")
