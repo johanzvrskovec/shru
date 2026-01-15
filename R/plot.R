@@ -1,3 +1,53 @@
+#stolen from https://rpubs.com/danmirman/plotting_factor_analysis
+plot.patternLoadings<-function(mPatternCoefficientsSTDGenotype,mMeanRelativeVarianceExplainedPerFactor,mResidualVariancesSTDGenotype,newVariableNames=NULL){
+  # mPatternCoefficientsSTDGenotype<-parsedGenomicSEMResults.best5_12$patternCoefficientsSTDGenotype.matrix
+  # mMeanRelativeVarianceExplainedPerFactor<-parsedGenomicSEMResults.best5_12$meanRelativeVarianceExplainedPerFactor
+  # mResidualVariancesSTDGenotype<-parsedGenomicSEMResults.best5_12$residualVariancesSTDGenotype.matrix
+  # newVariableNames<-rownames(dfhNiceNameCodes)[dfhNiceNameCodes$Group!='External']
+
+  mPatternCoefficientsSTDGenotype<-as.data.frame(mPatternCoefficientsSTDGenotype)
+  
+  
+  colnames(mPatternCoefficientsSTDGenotype)<-paste0(colnames(mPatternCoefficientsSTDGenotype),"(mExp=",round(mMeanRelativeVarianceExplainedPerFactor,digits = 2),")")
+  mPatternCoefficientsSTDGenotype <- cbind(c(round(mResidualVariancesSTDGenotype,digits = 2)),mPatternCoefficientsSTDGenotype) #add disturbances
+  colnames(mPatternCoefficientsSTDGenotype)[1]<-"~Disturbance"
+  
+  
+  if(!is.null(newVariableNames)){
+    variableNamesToUse<-newVariableNames
+  } else {
+    variableNamesToUse<-rownames(mPatternCoefficientsSTDGenotype)
+  }
+  
+  variableNamesToUse<-paste0(variableNamesToUse," (Vexp=",round(1-mResidualVariancesSTDGenotype,digits = 2),")")
+  
+  mPatternCoefficientsSTDGenotype <- cbind(variableNamesToUse, mPatternCoefficientsSTDGenotype) #add variable names
+  colnames(mPatternCoefficientsSTDGenotype)[1]<-"var"
+  
+  
+  mPatternCoefficientsSTDGenotype<-mPatternCoefficientsSTDGenotype[order(rownames(mPatternCoefficientsSTDGenotype), decreasing = c(T),method = "radix"),]
+  
+  
+  #mPatternCoefficientsSTDGenotype$var <- as.factor(mPatternCoefficientsSTDGenotype$var)
+  mPatternCoefficientsSTDGenotype$var <- factor(mPatternCoefficientsSTDGenotype$var,levels = mPatternCoefficientsSTDGenotype$var) #set factor order
+  
+  df.l <- tidyr::pivot_longer(data = mPatternCoefficientsSTDGenotype,  -var)
+  
+  ggplot(df.l, aes(x = abs(value), y = var, fill=value)) +
+    facet_wrap(~ name, nrow=1) + #place the factors in separate facets
+    geom_bar(stat="identity") + #make the bars
+    #coord_flip() + #flip the axes so the test names can be horizontal - this is not needed anymore?
+    #define the fill color gradient: blue=positive, red=negative
+    scale_fill_gradient2(name = "Loading (Std. genotype)", 
+                         high = "darkorange3", mid = "white", low = "deepskyblue3", 
+                         midpoint=0, guide=F) +
+    ylab("Loading Strength") + #improve y-axis label
+    theme_bw() + #use a black-and0white theme with set font size
+    theme(text = element_text(size = 20))
+}
+
+
+
 #custom pattern loading plot 1
 plot.patternLoadings_old<-function(df,bar_aes,color1,color2){
 ggplot(
@@ -16,19 +66,6 @@ ggplot(
   theme_minimal()
 }
 
-#stolen from https://rpubs.com/danmirman/plotting_factor_analysis
-plot.patternLoadings<-function(){
-  ggplot(loadings.m, aes(Test, abs(Loading), fill=Loading)) + 
-    facet_wrap(~ Factor, nrow=1) + #place the factors in separate facets
-    geom_bar(stat="identity") + #make the bars
-    coord_flip() + #flip the axes so the test names can be horizontal  
-    #define the fill color gradient: blue=positive, red=negative
-    scale_fill_gradient2(name = "Loading", 
-                         high = "blue", mid = "white", low = "red", 
-                         midpoint=0, guide=F) +
-    ylab("Loading Strength") + #improve y-axis label
-    theme_bw(base_size=10) #use a black-and0white theme with set font size
-}
 
 
 #stolen from https://www.r-graph-gallery.com/101_Manhattan_plot.html
