@@ -1,5 +1,5 @@
 #stolen from https://rpubs.com/danmirman/plotting_factor_analysis
-plot.patternLoadings<-function(mPatternCoefficientsSTDGenotype,mMeanRelativeVarianceExplainedPerFactor,mResidualVariancesSTDGenotype,newVariableNames=NULL){
+plot.patternLoadings<-function(mPatternCoefficientsSTDGenotype,mMeanRelativeVarianceExplainedPerFactor,mResidualVariancesSTDGenotype,newVariableNames=NULL, element_text_size=7, facet_panel_spacing_lines=0.1){
   # mPatternCoefficientsSTDGenotype<-parsedGenomicSEMResults.best5_12$patternCoefficientsSTDGenotype.matrix
   # mMeanRelativeVarianceExplainedPerFactor<-parsedGenomicSEMResults.best5_12$meanRelativeVarianceExplainedPerFactor
   # mResidualVariancesSTDGenotype<-parsedGenomicSEMResults.best5_12$residualVariancesSTDGenotype.matrix
@@ -43,7 +43,8 @@ plot.patternLoadings<-function(mPatternCoefficientsSTDGenotype,mMeanRelativeVari
                          midpoint=0, guide=F) +
     ylab("Loading Strength") + #improve y-axis label
     theme_bw() + #use a black-and0white theme with set font size
-    theme(text = element_text(size = 20))
+    theme(text = element_text(size = element_text_size)) +
+    theme(panel.spacing.x=unit(facet_panel_spacing_lines, "lines"),panel.spacing.y=unit(facet_panel_spacing_lines, "lines"))
 }
 
 
