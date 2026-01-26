@@ -23,6 +23,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 #   pheno_data_m_edgi_corp=pheno_data_m_edgi_corp$corp.df,
 #   pheno_data_m_nbr_corp=pheno_data_m_nbr_corp$corp.df
 # )
+# metaAnalysisFormat = "ivw"
 # metaAnalyse = T
 # writeOutput = F
 # completeRefFromData = T
@@ -345,7 +346,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.5.3\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.5.4\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -547,7 +548,7 @@ supermunge <- function(
   for(iFile in 1:nDatasets){
     tryCatch({
       #for testing!
-      #iFile=2
+      #iFile=1
       timeStart.ds <- Sys.time()
       cSumstats.warnings<-list()
       
@@ -1537,35 +1538,33 @@ supermunge <- function(
       }
       cat(".")
       
-      #add Z and SE if missing
-      if(process){
-        if(any(colnames(cSumstats)=="P") && !any(colnames(cSumstats)=="Z")) {
-          cSumstats[,Z:=sign(EFFECT) * sqrt(qchisq(P,1,lower=F))]
-          cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from P and sign(EFFECT)"))
-          cat(".")
-        }
-        
-        if(any(colnames(cSumstats)=="Z") && !any(colnames(cSumstats)=="SE")){
-          cSumstats[,SE:=EFFECT/Z]
-          cSumstats.meta<-rbind(cSumstats.meta,list("SE", "Calculated from EFFECT and Z(!)"))
-          cSumstats.warnings<-c(cSumstats.warnings,"The SE was estimated from the effect anf Z score. This may not be correct if the effect is of another scale than what was used for the Z score.")
-          cat(".")
-        }
-      }
-      
-      # EFFECT and SE standardisations and corrections according to effect type (OLS, log OR or non log OR)
-      ## adapted from the GenomicSEM sumstats-function
-      
       #produce the unstandardised regression beta from Z if no EFFECT present - this is not expected to be very common!
       if(process && any(colnames(cSumstats)=="Z") && any(colnames(cSumstats)=="VSNP") && any(colnames(cSumstats)=="N") && !any(colnames(cSumstats)=="EFFECT")) {
         ## Compute BETA/EFFECT from Z if present
         cSumstats[,EFFECT:= Z/sqrt(N*VSNP)][,SE:=EFFECT/Z]
         cSumstats[is.na(SE),SE:=1] #fallback! - explicitly set NA SE to 1!
         cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","Estimated from Z, N, and VSNP (!)"))
-        cSumstats.warnings<-c(cSumstats.warnings,"The effect was estimated from a Z-score, using sample size and FRQ/MAF information, which may not be accurate if these are not representative.")
+        cSumstats.warnings<-c(cSumstats.warnings,"The effect and SE was estimated from a Z-score, using sample size and FRQ/MAF information, which may not be accurate if these are not representative.")
       }
       cat(".")
       
+      #add Z and SE if missing
+      
+      if(any(colnames(cSumstats)=="P") && any(colnames(cSumstats)=="EFFECT") && !any(colnames(cSumstats)=="Z")) {
+        cSumstats[,Z:=sign(EFFECT) * sqrt(qchisq(P,1,lower=F))]
+        cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from P and sign(EFFECT)"))
+        cat(".")
+      }
+
+      if(process && any(colnames(cSumstats)=="Z") && any(colnames(cSumstats)=="EFFECT") && !any(colnames(cSumstats)=="SE")){
+        cSumstats[,SE:=EFFECT/Z]
+        cSumstats.meta<-rbind(cSumstats.meta,list("SE", "Calculated from EFFECT and Z(!)"))
+        cSumstats.warnings<-c(cSumstats.warnings,"The SE was estimated from the effect anf Z score. This may not be correct if the effect is of another scale than what was used for the Z score.")
+        cat(".")
+      }
+      
+      # EFFECT and SE standardisations and corrections according to effect type (OLS, log OR or non log OR)
+      ## adapted from the GenomicSEM sumstats-function
       if(any(colnames(cSumstats)=="EFFECT")) {
         if(any(is.finite(cSumstats$EFFECT))) {
           ##invert overall effect if specified
