@@ -116,6 +116,7 @@ semplate$generateIndicatorLoadingPatterns<-function(searchBitValues=c(0), indica
 # orthogonal=FALSE
 # indicatorArgs=NULL
 # universalResidualLimitMin=0.001
+# universalIndicatorLoadingAbsoluteLimitMax=1
 # universalCorrelationLimitMax=NA
 
 #test
@@ -131,6 +132,7 @@ semplate$generateLavaanCFAModel<-function(
     orthogonal=FALSE,
     indicatorArgs=NULL,
     universalResidualLimitMin=0.001,
+    universalIndicatorLoadingAbsoluteLimitMax=1,
     universalCorrelationLimitMax=NA
     ){
   #allow_loading.table.indicator_factor<-cIndicatorLoadings
@@ -155,6 +157,8 @@ semplate$generateLavaanCFAModel<-function(
   if(is.null(indicatorArgs$code)){indicatorArgs$code=row.names(allow_loading.table.indicator_factor)}
   if(is.null(indicatorArgs$residualSizeLimitMax)){indicatorArgs$residualSizeLimitMax=NA_real_}
   if(is.null(indicatorArgs$residualLimitMin)){indicatorArgs$residualLimitMin=universalResidualLimitMin}
+  if(is.null(indicatorArgs$indicatorLoadingAbsoluteLimitMax)){indicatorArgs$indicatorLoadingAbsoluteLimitMax=universalIndicatorLoadingAbsoluteLimitMax}
+  
   
   indicatorArgs[which(is.na(indicatorArgs$residualLimitMin)),c("residualLimitMin")]<-universalResidualLimitMin
   
@@ -162,6 +166,8 @@ semplate$generateLavaanCFAModel<-function(
   
   indicatorResidualPatternCoefficientLabels=c()
   #indicatorResidualPatternCoefficientLabelDefinitions=c()
+  
+  cond.indicatorLoadingSizeLimit=""
   
   #factor loadings, factor variances
   for(iFactor in 1:nFactors){
@@ -201,7 +207,16 @@ semplate$generateLavaanCFAModel<-function(
       lds.factorSelf=paste0(lds.factorSelf,"
                             F",iFactor,"~~1*F",iFactor)
     }
+    #loading constraints - uses default parameter names
+    if(hasFactor==TRUE){
+      if(!is.na(indicatorArgs$indicatorLoadingAbsoluteLimitMax[iIndicator])){
+        cond.indicatorLoadingSizeLimit=paste0(cond.indicatorLoadingSizeLimit,'abs(label(F',iFactor,'=~',indicatorArgs$code[iIndicator],'))','<',indicatorArgs$indicatorLoadingAbsoluteLimitMax[iIndicator],'
+                            ')
+      }
+    }
   }
+  
+  cond=paste0(cond,cond.indicatorLoadingSizeLimit) #add in indicator loading size limit rules (from the previous factor-indicator loops) to general condition string
   
   for(iIndicator in 1:nIndicators){
     if(is.null(fixResidualVariance_v)){
