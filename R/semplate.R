@@ -194,18 +194,20 @@ semplate$generateLavaanCFAModel<-function(
         } else {
           #do not use fixed loadings
           if(hasFactor==TRUE)
-            vFixLoading="" else
-              vFixLoading="NA*"
+            vFixLoading=paste0("lf",iFactor,indicatorArgs$code[iIndicator]) else
+              vFixLoading=paste0("NA*lf",iFactor,indicatorArgs$code[iIndicator])
+            
+          #loading constraints - uses standardised
+          if(!is.na(indicatorArgs$indicatorLoadingAbsoluteLimitMax[iIndicator])){
+            cond.indicatorLoadingSizeLimit=paste0(cond.indicatorLoadingSizeLimit,'abs(lf',iFactor,indicatorArgs$code[iIndicator],')','<',indicatorArgs$indicatorLoadingAbsoluteLimitMax[iIndicator],'
+                        ')
+          }
         }
         
         lds.factor=paste0(lds.factor,vFixLoading,indicatorArgs$code[iIndicator])
         hasFactor=TRUE
         
-        #loading constraints - uses default parameter names
-        if(!is.na(indicatorArgs$indicatorLoadingAbsoluteLimitMax[iIndicator])){
-          cond.indicatorLoadingSizeLimit=paste0(cond.indicatorLoadingSizeLimit,'abs(label(F',iFactor,'=~',indicatorArgs$code[iIndicator],'))','<',indicatorArgs$indicatorLoadingAbsoluteLimitMax[iIndicator],'
-                          ')
-        }
+        
       }
     }
     if(hasFactor==TRUE){
@@ -624,10 +626,10 @@ semplate$parseGenomicSEMResultAsDOTDataframes <- function(resultDf = NULL) {
 }
 
 semplate$runPatternGenomicSEM <-function(indicatorLoadingPatternsDf, indexToRun, covstruct.mvLDSC, estimation = "ML", CFIcalc = FALSE, verbal=TRUE){
-  #indicatorLoadingPatternsDf<-indicatorLoadingPatternsAll
-  #indexToRun<-1
-  #covstruct.mvLDSC<-ldsc.1kg.ldscpp.results
-  #covstruct.mvLDSC<-ldsc.debug.results
+  # indicatorLoadingPatternsDf<-indicatorLoadingPatternsAll
+  # indexToRun<-1
+  # covstruct.mvLDSC<-ldsc.1kg.ldscpp.results
+  # #covstruct.mvLDSC<-ldsc.debug.results
   
   originalTraitNames<-colnames(covstruct.mvLDSC$S)
   newTraitNames<-paste0('t',originalTraitNames)
@@ -653,8 +655,8 @@ semplate$runPatternGenomicSEM <-function(indicatorLoadingPatternsDf, indexToRun,
       orthogonal = FALSE
       #universalCorrelationLimitMax = 0.3
     )
-  
-  # lmodelString<-"F1 =~ NA*tNA+tAN+tHO+tEM+tAG+tNEU
+  # 
+  # lmodelString<-"F1 =~ NA*ltNA*tNA+ltAN*tAN+tHO+tEM+tAG+tNEU
   # F2 =~ NA*tAN+tDE+tDI+tPS+tHO
   # F3 =~ NA*tDE+tEM+tEX+tOP
   # F4 =~ NA*tAN+tDE+tDI+tEM+tCO+tEX+tNEU
@@ -671,6 +673,10 @@ semplate$runPatternGenomicSEM <-function(indicatorLoadingPatternsDf, indexToRun,
   #                           F3~~1*F3
   #                           F4~~1*F4
   #                           
+  #                         abs(ltNA)<1
+  #                         abs(ltAN)<1
+  #                         
+  # 
   #                         tNA~~r20*tNA
   #                         tAN~~r21*tAN
   #                         tDE~~r22*tDE
@@ -683,7 +689,7 @@ semplate$runPatternGenomicSEM <-function(indicatorLoadingPatternsDf, indexToRun,
   #                         tCO~~r29*tCO
   #                         tOP~~r30*tOP
   #                         tNEU~~r31*tNEU
-  #                         
+  # 
   #                         r20>0.001
   #                                      r21>0.001
   #                                      r22>0.001
