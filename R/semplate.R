@@ -194,8 +194,8 @@ semplate$generateLavaanCFAModel<-function(
         } else {
           #do not use fixed loadings
           if(hasFactor==TRUE)
-            vFixLoading=paste0("lf",iFactor,indicatorArgs$code[iIndicator]) else
-              vFixLoading=paste0("NA*lf",iFactor,indicatorArgs$code[iIndicator])
+            vFixLoading=paste0("lf",iFactor,indicatorArgs$code[iIndicator],"*") else
+              vFixLoading=paste0("NA*lf",iFactor,indicatorArgs$code[iIndicator],"*")
             
           #loading constraints - uses standardised
           if(!is.na(indicatorArgs$indicatorLoadingAbsoluteLimitMax[iIndicator])){
