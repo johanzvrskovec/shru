@@ -200,6 +200,12 @@ semplate$generateLavaanCFAModel<-function(
         
         lds.factor=paste0(lds.factor,vFixLoading,indicatorArgs$code[iIndicator])
         hasFactor=TRUE
+        
+        #loading constraints - uses default parameter names
+        if(!is.na(indicatorArgs$indicatorLoadingAbsoluteLimitMax[iIndicator])){
+          cond.indicatorLoadingSizeLimit=paste0(cond.indicatorLoadingSizeLimit,'abs(label(F',iFactor,'=~',indicatorArgs$code[iIndicator],'))','<',indicatorArgs$indicatorLoadingAbsoluteLimitMax[iIndicator],'
+                          ')
+        }
       }
     }
     if(hasFactor==TRUE){
@@ -207,13 +213,8 @@ semplate$generateLavaanCFAModel<-function(
       lds.factorSelf=paste0(lds.factorSelf,"
                             F",iFactor,"~~1*F",iFactor)
     }
-    #loading constraints - uses default parameter names
-    if(hasFactor==TRUE){
-      if(!is.na(indicatorArgs$indicatorLoadingAbsoluteLimitMax[iIndicator])){
-        cond.indicatorLoadingSizeLimit=paste0(cond.indicatorLoadingSizeLimit,'abs(label(F',iFactor,'=~',indicatorArgs$code[iIndicator],'))','<',indicatorArgs$indicatorLoadingAbsoluteLimitMax[iIndicator],'
-                            ')
-      }
-    }
+    
+    
   }
   
   cond=paste0(cond,cond.indicatorLoadingSizeLimit) #add in indicator loading size limit rules (from the previous factor-indicator loops) to general condition string
