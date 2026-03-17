@@ -10,13 +10,26 @@ writeFile <- function(d,filePath,nThreads=5){
 return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t",col.names = T,nThread=nThreads))
 }
 
-#for tests
+# #for tests
 # library(R.utils)
 # library(data.table)
 # library(readr)
 
 
 #tests
+
+# #diff test
+# filePaths = list(
+#   "supermunge.mdd.adams.gz",
+#   "reference.1000G.maf.0.005.txt.gz",
+#   "MDD_UKB.full.gz"
+# )
+# #refFilePath="/Users/jakz/Documents/local_db/SHARED/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
+# process=F
+# test=T
+# diff=T
+# writeOutput = F
+
 
 # list_df = list(
 #   pheno_data_m_glad_corp=pheno_data_m_glad_corp$corp.df,
@@ -346,7 +359,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.5.4\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.5.5\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -382,7 +395,7 @@ supermunge <- function(
   }
   
   #set test regime - does not produce real data!
-  if(test){
+  if(test && !is.null(ref)){
     ref<-ref[1:(nrow(ref)/4)]
   }
   
@@ -548,7 +561,7 @@ supermunge <- function(
   for(iFile in 1:nDatasets){
     tryCatch({
       #for testing!
-      #iFile=1
+      #iFile=2
       timeStart.ds <- Sys.time()
       cSumstats.warnings<-list()
       
@@ -2524,17 +2537,62 @@ supermunge <- function(
       #remove intermediate results
       if(file.exists(file.path(pathDirOutput,paste0(traitNames[iFile],".LDIMP.TEMP.Rds")))) file.remove(file.path(pathDirOutput,paste0(traitNames[iFile],".LDIMP.TEMP.Rds")))
       
-      #untested!!! NOT COMPLETE!!
-      # if(diff){
-      #   if(iFile==1){
-      #     cat("\nStoring first dataset as reference for diff")
-      #     cSumstats.diffIndex <- cSumstats
-      #   } else {
-      #     cat("\nWriting diff from diff reference")
-      #     cSumstats.diff<-merge(cSumstats,cSumstats.diffIndex, by="SNP", all=T)
-      #     #NOT DONE!!!
-      #   }
-      # }
+      if(diff){
+        if(iFile==1){
+          cat("\nStoring first dataset as reference for diff")
+          cSumstats.diffIndex <- cSumstats
+        } else {
+          cat("\nWriting diff from diff reference")
+          cSumstats.diff<-merge(cSumstats,cSumstats.diffIndex, by="SNP", all=T)
+          
+          nA<-nrow(cSumstats.diffIndex)
+          cSumstats.meta<-rbind(cSumstats.meta,list("Diffstat: #total A",nA))
+          nDeltaAB<-nrow(cSumstats.diffIndex)-nrow(cSumstats)
+          cSumstats.meta<-rbind(cSumstats.meta,list("Diffstat: #difference A-B",nDeltaAB))
+          nTotal<-nrow(cSumstats.diff)
+          cSumstats.meta<-rbind(cSumstats.meta,list("Diffstat: #total join",nTotal))
+          
+          if(any(colnames(cSumstats.diff)=="A1.x") && any(colnames(cSumstats.diff)=="A1.y") && any(colnames(cSumstats.diff)=="A2.x") && any(colnames(cSumstats.diff)=="A2.y")) {
+            cSumstats.diff[!is.na(A1.x) & !is.na(A2.x) & is.na(A1.y) & is.na(A2.y), statExclusiveA:=TRUE]
+            nExclusiveA<-nrow(cSumstats.diff[statExclusiveA==TRUE,])
+            cSumstats.meta<-rbind(cSumstats.meta,list("Diffstat: #only in A",nExclusiveA))
+            
+            cSumstats.diff[!is.na(A1.y) & !is.na(A2.y) & is.na(A1.x) & is.na(A2.x), statExclusiveB:=TRUE]
+            nExclusiveB<-nrow(cSumstats.diff[statExclusiveB==TRUE,])
+            cSumstats.meta<-rbind(cSumstats.meta,list("Diffstat: #only in B",nExclusiveB))
+            
+            cSumstats.diff[A1.x==A1.y & A2.x==A2.y, statMatchingAllele:=TRUE]
+            nMatchingAllele<-nrow(cSumstats.diff[statMatchingAllele==TRUE,])
+            cSumstats.meta<-rbind(cSumstats.meta,list("Diffstat: #matching both alleles",nMatchingAllele))
+            
+            cSumstats.diff[A1.x==A1.y | A2.x==A2.y, statMatchingAnyAllele:=TRUE]
+            nMatchingAnyAllele<-nrow(cSumstats.diff[statMatchingAnyAllele==TRUE,])
+            cSumstats.meta<-rbind(cSumstats.meta,list("Diffstat: #matching any allele",nMatchingAnyAllele))
+            
+            cSumstats.diff[A1.x==A1.y | A2.x==A2.y | A1.x==A2.y | A2.x==A1.y, statMatchingAnyAlleleNO:=TRUE]
+            nMatchingAnyAlleleNO<-nrow(cSumstats.diff[statMatchingAnyAlleleNO==TRUE,])
+            cSumstats.meta<-rbind(cSumstats.meta,list("Diffstat: #matching any allele, no order",nMatchingAnyAlleleNO))
+          }
+
+          if(any(colnames(cSumstats.diff)=="BETA.x") && any(colnames(cSumstats.diff)=="BETA.y")) {
+            cSumstats.diff[sign(BETA.x)==sign(BETA.y) & abs(BETA.x-BETA.y)<10e-5, statMatchingBETA:=TRUE]
+            nMatchingBETA<-nrow(cSumstats.diff[statMatchingBETA==TRUE,])
+            cSumstats.meta<-rbind(cSumstats.meta,list("Diffstat: #matching BETA",nMatchingBETA))
+          }
+    
+          if(any(colnames(cSumstats.diff)=="Z.x") && any(colnames(cSumstats.diff)=="Z.y")) {
+            cSumstats.diff[sign(Z.x)==sign(Z.y) & abs(Z.x-Z.y)<10e-5, statMatchingZ:=TRUE]
+            nMatchingZ<-nrow(cSumstats.diff[statMatchingZ==TRUE,])
+            cSumstats.meta<-rbind(cSumstats.meta,list("Diffstat: #matching Z",nMatchingZ))
+          }
+    
+          if(any(colnames(cSumstats.diff)=="FRQ.x") && any(colnames(cSumstats.diff)=="FRQ.y")) {
+            cSumstats.diff[sign(FRQ.x)==sign(FRQ.y) & abs(FRQ.x-FRQ.y)<10e-4, statMatchingFRQ:=TRUE]
+            nMatchingFRQ<-nrow(cSumstats.diff[statMatchingFRQ==TRUE,])
+            cSumstats.meta<-rbind(cSumstats.meta,list("Diffstat: #matching FRQ",nMatchingFRQ))
+          }
+        }
+      }
       
       timeStop.ds <- Sys.time()
       timeDiff <- difftime(time1=timeStop.ds,time2=timeStart.ds,units="sec")
