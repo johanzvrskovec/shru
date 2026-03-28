@@ -16,8 +16,10 @@ stdGwasColumnNames <- function(
   c.A1 = c("A1","ALLELE1","ALLELE_1","A_1","A","ALLELE.1")
   c.A2 = c("A2","ALLELE2","ALLELE_2","A_2","ALLELE.2")
   c.A0 = c("A0","ALLELE0","ALLELE_0","A_0")
-  c.AEFFECT = unique(c("INC_ALLELE","EA","REF","A1_EFFECT","EFFECT_ALLELE","RISK_ALLELE","EFFECTALLELE","EFFECT_ALL","REFERENCE_ALLELE","REF_ALLELE","REFERENCEALLELE","EA","INC_ALLELE","CODED_ALLELE","TESTED_ALLELE","EFFECT.ALLELE..EA."))
-  c.ANOEFFECT = unique(c("OTHER_ALLELE","NON_EFFECT_ALLELE","DEC_ALLELE","OA","NEA","ALT","A1_OTHER","A2_OTHER","NONREF_ALLELE","NEFFECT_ALLELE","NEFFECTALLELE","NONEFFECT_ALLELE","OTHER_ALL","OTHERALLELE","NONEFFECTALLELE","ALT_ALLELE","NONCODED_ALLELE"))
+  c.AEFFECT = unique(c("EA","INC_ALLELE","A1_EFFECT","EFFECT_ALLELE","RISK_ALLELE","EFFECTALLELE","EFFECT_ALL","INC_ALLELE","CODED_ALLELE","TESTED_ALLELE","EFFECT.ALLELE..EA."))
+  c.ANOEFFECT = unique(c("NEA","OTHER_ALLELE","NON_EFFECT_ALLELE","DEC_ALLELE","OA","ALT","A1_OTHER","A2_OTHER","NEFFECT_ALLELE","NEFFECTALLELE","NONEFFECT_ALLELE","OTHER_ALL","OTHERALLELE","NONEFFECTALLELE","ALT_ALLELE","NONCODED_ALLELE"))
+  c.AREFERENCE = unique(c("REF","REFERENCE_ALLELE","REF_ALLELE","REFERENCEALLELE"))
+  c.ANOREFERENCE = unique(c("NOREF","NONREF","NONREFERENCE_ALLELE","NONREF_ALLELE","NONREFERENCEALLELE"))
   c.BETA = c("BETA","B","EFFECT_BETA","EFFECT","EFFECTS","SIGNED_SUMSTAT","EST","GWAS_BETA","EFFECT_A1","EFFECTA1","EFFECT_NW","STDBETA")
   c.OR = c("OR","LOG_ODDS","ODDS-RATIO","ODDS_RATIO","ODDSRATIO","OR(MINALLELE)","OR.LOGISTIC","OR_RAN","OR(A1)","LOGOR")
   c.SE = c("SE","STDER","STDERR","STD","STANDARD_ERROR","OR_SE","STANDARDERROR", "STDERR_NW","META.SE","SE_DGC","SE.2GC","STDERRLOGOR")
@@ -73,6 +75,17 @@ stdGwasColumnNames <- function(
   
   columnNames[columnNames.upper %in% c.AEFFECT] <- c.A1[1]
   columnNames[columnNames.upper %in% c.ANOEFFECT] <- c.A2[1]
+  
+  #this identifies the EA REF tradition first and then assumes the REF NOREF tradition
+  if(any(columnNames==c.A1[1]) && !any(columnNames==c.A2[1])){ #has effect allele
+    #EA REF configuration
+    columnNames[columnNames.upper %in% c.AREFERENCE] <- c.A2[1]
+  } else if(!any(columnNames==c.A1[1]) && !any(columnNames==c.A2[1])){
+    #REF NOREF configuration
+    columnNames[columnNames.upper %in% c.AREFERENCE] <- c.A1[1]
+    columnNames[columnNames.upper %in% c.ANOREFERENCE] <- c.A2[1]
+  }
+  
   columnNames[columnNames.upper %in% c.BETA] <- c.BETA[1]
   columnNames[columnNames.upper %in% c.OR] <- c.OR[1] 
   columnNames[columnNames.upper %in% c.Z] <- c.Z[1] 
