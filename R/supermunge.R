@@ -203,7 +203,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # doChrSplit=F
 # doStatistics=F
 # mask=NULL
-# missingEssentialColumnsStop=c("SNP","A1","A2")
+# missingEssentialColumnsStop=NULL #c("SNP","A1","A2")
 # maxSNPDistanceBpPadding=0
 # invertEffectDirectionOn=NULL
 # parse=T
@@ -269,7 +269,7 @@ supermunge <- function(
   doChrSplit=F,
   doStatistics=F,
   mask=NULL,
-  missingEssentialColumnsStop=c("SNP","A1","A2"),
+  missingEssentialColumnsStop=NULL, #c("SNP","A1","A2"),
   maxSNPDistanceBpPadding=5,
   invertEffectDirectionOn=NULL,
   parse=T, #run advanced parsing routines (for SNP and CHR columns) - may take a long time and is not 100% foolproof - check the results!
@@ -359,7 +359,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.6.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.6.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
