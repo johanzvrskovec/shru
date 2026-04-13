@@ -301,6 +301,8 @@ semplate$generateLavaanCFAModel<-function(
 
 #Most of the code here was probably stolen from this example here: https://rpubs.com/tjmahr/sem_diagrammer
 semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
+  #resultDf<-genomicSEMResult
+  
   paths <- resultDf %>%
     dplyr::select(lhs, op, rhs, Unstand_Est, Unstand_SE, STD_Genotype, STD_Genotype_SE, p_value)
   
@@ -338,15 +340,15 @@ semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
   # Edges, labeled by the factor loading estimates
   edges <- paths %>%
     dplyr::filter(op != "~1") %>%
-    dplyr::left_join(variable[,c("nodes","id")],by = c("lhs" = "nodes")) %>%
+    dplyr::left_join(variable[variable$type!="residual",c("nodes","id")],by = c("lhs" = "nodes")) %>%
     dplyr::mutate(from=id) %>%
     dplyr::select(-id) %>%
-    dplyr::left_join(variable[,c("nodes","id")],by = c("rhs" = "nodes")) %>%
+    dplyr::left_join(variable[variable$type!="residual",c("nodes","id")],by = c("rhs" = "nodes")) %>%
     dplyr::mutate(to=id) %>%
     dplyr::select(-id) %>%
     dplyr::filter(from %not_in% variable$id[which(variable$type=="residual")]) %>%
     dplyr::filter(to %not_in% variable$id[which(variable$type=="residual")]) %>%
-    dplyr::left_join(variable[which(variable$type=="residual"),c("nodes","id")],by = c("lhs" = "nodes")) %>%
+    dplyr::left_join(variable[variable$type=="residual",c("nodes","id")],by = c("lhs" = "nodes")) %>%
     dplyr::mutate(tofrom.residual=id) %>%
     dplyr::select(-id) #%>%
     #select(-Unstand_Est)
@@ -391,10 +393,9 @@ semplate$parseGenomicSEMResult <- function(resultDf = NULL) {
   
 }
 
-#test
-#resultDf<-p$CFA$models.selected[iSelected,]$gsemResults[[1]][[1]]$results
-
 semplate$parseGenomicSEMResultAsMatrices <- function(resultDf){
+  #resultDf<-genomicSEMResult
+  
   gsemResult<-semplate$parseGenomicSEMResult(resultDf)
   factors<-gsemResult$variable[which(gsemResult$variable$type=="latent"),]
   manifestVariables<-gsemResult$variable[which(gsemResult$variable$type=="manifest"),]
@@ -534,8 +535,240 @@ semplate$parseGenomicSEMResultAsMatrices <- function(resultDf){
     ))
 }
 
+#new DOT generating function
+#this tries to use lavaan variable names
+semplate$parseSEMMatricesAsDOTDataframes <- function(mLambda,mPsi,mTheta, mLambda.se=NULL, mPsi.se=NULL,mTheta.se=NULL) {
+  # mLambda<-lavTech(cSem,what = "est",T)$lambda[sortCodes,]
+  # mLambda.std<-lavTech(cSem,what = "std",T)$lambda[sortCodes,]
+  # mLambda.se<-lavTech(cSem,what = "se",T)$lambda[sortCodes,]
+  # mPsi<-lavTech(cSem,what = "est",T)$psi
+  # mPsi.se<-lavTech(cSem,what = "se",T)$psi
+  # mTheta<-lavTech(cSem,what = "est",T)$theta[sortCodes,sortCodes]
+  # mTheta.se<-lavTech(cSem,what = "se",T)$theta[sortCodes,sortCodes]
+  
+  if(is.null(mLambda.se)) {
+    mLambda.se<-mLambda
+    mLambda.se<-NA_real_
+  }
+  
+  if(is.null(mPsi.se)) {
+    mPsi.se<-mPsi
+    mPsi.se<-NA_real_
+  }
+  
+  if(is.null(mTheta.se)) {
+    mTheta.se<-mTheta
+    mTheta.se<-NA_real_
+  }
+  
+  lThetaDiagonal<-diag(mTheta,names = T)
+  lTheta.seDiagonal<-diag(mTheta.se,names = T)
+  
+  #gsemResult<-semplate$parseGenomicSEMResult(resultDf) #legacy
+  
+  #nodes
+  
+  latentRaw <- data.frame(
+    nodes=colnames(mLambda),
+    type='latent',
+    label=colnames(mLambda)
+    )
+  
+  manifestRaw <- data.frame(
+    nodes=rownames(mLambda),
+    type='manifest',
+    label=rownames(mLambda)
+  )
+  
+  residualRaw <- data.frame(
+    nodes=rownames(mLambda),
+    type='residual',
+    label = paste0("U(",rownames(mLambda),")") 
+  )
+  
+  # # Latent variables: left-hand side of "=~" paths
+  # latent <- gsemResult$variable[which(gsemResult$variable$type=="latent"),] %>%
+  #   mutate(
+  #     shape = "oval",
+  #     label = nodes,
+  #     fontname = 'Garamond',
+  #     fontsize = '10',
+  #     fixedsize = 'true',
+  #     width = '1.7',
+  #     fillcolor = 'moccasin',
+  #     rank = 'min'
+  #   )
+  # 
+  # # Manifest variables: not latent variables
+  # manifest <- gsemResult$variable[which(gsemResult$variable$type=="manifest"),] %>%
+  #   mutate(
+  #     shape = "circle", #since already not original measurements
+  #     label = nodes,
+  #     fontname = 'Garamond',
+  #     fontsize = '10',
+  #     fixedsize = 'true',
+  #     width = '0.8',
+  #     fillcolor = 'GhostWhite',
+  #     rank = '1'
+  #   )
+  # 
+  # # Residuals: "~~" paths with 
+  # residual <- gsemResult$variable[which(gsemResult$variable$type=="residual"),]  %>%
+  #   mutate(
+  #     shape = "circle",
+  #     label = paste0("U(",nodes,")"),
+  #     fontname = 'Garamond',
+  #     fontsize = '8',
+  #     fixedsize = 'true',
+  #     width = '0.6',
+  #     fillcolor = 'aliceblue',
+  #     rank = 'max'
+  #   )
+  
+  # Nodes are prepared
+  node_set <- combine_edfs(latentRaw, manifestRaw, residualRaw) #assigns id
+  
+  #edges
+  
+  mLambdaFrom <- mLambda
+  mLambdaFrom[,colnames(mLambda)]<-matrix(node_set[node_set$nodes %in% colnames(mLambda) & node_set$type == 'latent',]$id,ncol = ncol(mLambda), nrow(mLambda),byrow = TRUE)
+  
+  mLambdaTo <- mLambda
+  mLambdaTo[,colnames(mLambda)]<-matrix(node_set[node_set$nodes %in% rownames(mLambda) & node_set$type == 'manifest',]$id,ncol = ncol(mLambda), nrow(mLambda),byrow = FALSE)
+  
+  #mLambdaCross <- t(mLambda) %*% mLambda
+  
+  # dtMLambda<-as.data.frame(mLambda)
+  # setDT(dtMLambda)
+  
+  #this does not distinguish between factor loadings or regressions (yet)
+  loadingsRaw <- data.frame(
+    from=unlist(as.data.frame(mLambdaFrom)),
+    to=unlist(as.data.frame(mLambdaTo)),
+    type='loading',
+    dir="forward",
+    rel = "leading_to",
+    values = unlist(as.data.frame(mLambda)),
+    values.se = unlist(as.data.frame(mLambda.se))
+  )
+  
+  
+  # # factor loadings
+  # loadings <- gsemResult$loading[gsemResult$loading$type=="pattern",] %>%
+  #   mutate(type="loading", dir="forward", rel = "leading_to", minlen="5", headport="n", weight="2")
+  # 
+  # # Regressions: "~" lines
+  # regressions <- gsemResult$loading[which(gsemResult$loading$type=="regression"),] %>%
+  #   mutate(type="regression", dir="forward", rel = "leading_to", headport="n", weight="2")
+  
+  
+  mPsiFrom <- mPsi
+  mPsiFrom[,colnames(mLambda)]<-matrix(node_set[node_set$nodes %in% colnames(mLambda) & node_set$type == 'latent',]$id,ncol = ncol(mLambda), ncol(mLambda),byrow = TRUE)
+  
+  mPsiTo <- mPsi
+  mPsiTo[,colnames(mLambda)]<-matrix(node_set[node_set$nodes %in% colnames(mLambda) & node_set$type == 'latent',]$id,ncol = ncol(mLambda), ncol(mLambda),byrow = FALSE)
+  
+  covariancesRaw <- data.frame(
+    from=unlist(as.data.frame(mPsiFrom)),
+    to=unlist(as.data.frame(mPsiTo)),
+    type='covariance',
+    dir="both",
+    rel = "related",
+    values = unlist(as.data.frame(mPsi)),
+    values.se = unlist(as.data.frame(mPsi.se))
+  )
+  
+  
+  # # Covariances: ~~ for non manifest variable residuals
+  # covariances <- gsemResult$loading[which(gsemResult$loading$type=="covariance"),] %>%
+  #   mutate(type="covariance", rel = "related", dir="both")
+  # 
+  
+  lThetaDiagonalFrom<-lThetaDiagonal
+  lThetaDiagonalFrom<-node_set[node_set$type == 'residual',]$id
+  
+  lThetaDiagonalTo<-lThetaDiagonal
+  lThetaDiagonalTo<-node_set[node_set$type == 'manifest',]$id
+  
+  residualLoadingsRaw <- data.frame(
+    from=lThetaDiagonalFrom,
+    to=lThetaDiagonalTo,
+    type='residual_loading',
+    dir="forward",
+    rel = "related",
+    values = 1,
+    values.se = 0
+  )
+  
+  # # Residual loadings: ~~ for non manifest variable residuals
+  # residual_loadings <- gsemResult$loading[which(gsemResult$variable$type=="residual"),] %>%
+  #   mutate(type="residual_loading", rel = "related", dir="forward", from=tofrom.residual, label="1", headport="s", tailport="n")
+  # 
+  
+  residualSelfLoadingsRaw <- data.frame(
+    from=lThetaDiagonalFrom,
+    to=lThetaDiagonalFrom,
+    type='residual_self_loading',
+    dir="both",
+    rel = "related",
+    values = lThetaDiagonal,
+    values.se = lTheta.seDiagonal
+  )
+  
+  # # Residual self loadings: ~~ for non manifest variable residuals
+  # residual_self_loadings <- gsemResult$loading[which(gsemResult$variable$type=="residual"),] %>%
+  #   mutate(type="residual_loading", rel = "related", dir="both", from=tofrom.residual, to=tofrom.residual, headport="s", tailport="s")
+  
+  
+  edge_set <- combine_edfs(loadingsRaw, covariancesRaw, residualLoadingsRaw, residualSelfLoadingsRaw)
+  
+  #edge statistics
+  if(!all(is.na(mLambda.se))){
+    edge_set[,c("z")]<-ifelse(edge_set[,c("values.se")]>0,edge_set[,c("values")]/edge_set[,c("values.se")],NA_real_)
+    edge_set[,c("p")]<-2*pnorm(abs(edge_set[,c("z")]),lower.tail = FALSE)
+  }
+  
+  #edge labels
+  if(all(is.na(mLambda.se))){
+    edge_set[,c("label")]<-
+      paste0("",round(edge_set[,c("values")],2))
+  } else {
+    edge_set[,c("label")]<-
+      paste0("",round(edge_set[,c("values")],2),"(",round(edge_set[,c("values.se")],2),")")
+  }
+  
 
+  
+  # edge_set <- combine_edfs(loadings, regressions, covariances, residual_loadings, residual_self_loadings) %>% mutate(
+  #   values = round(STD_Genotype, 2),
+  #   values.se = round(STD_Genotype_SE, 2),
+  #   label = paste0(values," (",values.se,")")) %>%
+  #   mutate(
+  #     tofrom.residual=id, 
+  #     style = if_else(p_value<0.05, "solid","dashed")
+  #   )
+  
+  
+  
+  
+  
+  # # Set longer length between latent factors
+  # covariances <- covariances %>%
+  #   mutate(minlen = if_else( lhs %in% node_set$nodes[which(node_set$type=="latent")],"5","0.5"))
+  # 
+  # # Set variance port
+  # covariances[which(covariances$lhs==covariances$rhs),c("headport")]<-"n"
+  # covariances[which(covariances$lhs==covariances$rhs),c("tailport")]<-"n"
+  
+  
+  toReturn<-list(nodeDf=node_set, edgeDf=edge_set)
+  return(toReturn)
+  
+}
+
+#may have an error still. output seems off.
 semplate$parseGenomicSEMResultAsDOTDataframes <- function(resultDf = NULL) {
+  #resultDf<-genomicSEMResult
   
   gsemResult<-semplate$parseGenomicSEMResult(resultDf)
   
@@ -583,15 +816,15 @@ semplate$parseGenomicSEMResultAsDOTDataframes <- function(resultDf = NULL) {
   
   
   # factor loadings
-  loadings <- gsemResult$loading[which(gsemResult$variable$type=="pattern"),] %>%
+  loadings <- gsemResult$loading[gsemResult$loading$type=="pattern",] %>%
     mutate(type="loading", dir="forward", rel = "leading_to", minlen="5", headport="n", weight="2")
   
   # Regressions: "~" lines
-  regressions <- gsemResult$loading[which(gsemResult$variable$type=="regression"),] %>%
+  regressions <- gsemResult$loading[which(gsemResult$loading$type=="regression"),] %>%
     mutate(type="regression", dir="forward", rel = "leading_to", headport="n", weight="2")
   
   # Covariances: ~~ for non manifest variable residuals
-  covariances <- gsemResult$loading[which(gsemResult$variable$type=="covariance"),] %>%
+  covariances <- gsemResult$loading[which(gsemResult$loading$type=="covariance"),] %>%
     mutate(type="covariance", rel = "related", dir="both")
   
   # Set longer length between latent factors
@@ -743,14 +976,26 @@ semplate$runPatternGenomicSEM <-function(indicatorLoadingPatternsDf, indexToRun,
   
 }
 
-semplate$generateDOT <- function(nodeDf = NULL, edgeDf = NULL) {
+semplate$generateDOT <- function(nodeDf, edgeDf, filterLoadingSTDValueExcludeLT=0.4, filterLoadingPValueLT=0.05) {
+  
+  # nodeDf=parsedSEMResult$nodeDf
+  # edgeDf=parsedSEMResult$edgeDf
+  
+  # edgeDf[edgeDf$type=='loading' & !is.na(edgeDf$values) & is.finite(edgeDf$values) & edgeDf$values<filterLoadingSTDValueExcludeLT, c("type","from","to","label")]<-NA
+  # 
+  # edgeDf<-edgeDf[!is.na(edgeDf$type) & !is.na(edgeDf$from) & !is.na(edgeDf$to) & !is.na(edgeDf$label),]
+  # 
+  
+  
+
+  #landscape = 'true'
   out<-c("digraph {")
   out<-c(out,"graph [layout = 'dot',
        rankdir = 'TB',
        outputorder = 'nodesfirst',
        bgcolor = 'white',
        splines = 'line',
-       ranksep = '0.5',
+       ranksep = '1.5',
        nodesep = '0.3']
 
 node [fontname = 'Garamond',
@@ -761,12 +1006,60 @@ node [fontname = 'Garamond',
       style = 'filled',
       fillcolor = 'aliceblue',
       color = 'gray70',
-      fontcolor = 'gray50']
+      fontcolor = 'gray40']
 
 edge [fontname = 'Helvetica',
      fontsize = '8',
-     color = 'gray80',
+     color = 'black',
      arrowsize = '0.4']") 
+  
+  
+  
+  #cosmetics
+  setDT(nodeDf)
+  nodeDf[type=='latent',c("shape","width"):=list("oval","2.5")]
+  nodeDf[type=='manifest',c("shape","width"):=list("square","1.0")]
+  nodeDf[type=='residual',c("shape","width"):=list("circle","0.5")]
+  nodeDf<-as.data.frame(nodeDf)
+  
+  setDT(edgeDf)
+  edgeDf[type=='loading',c("headport","tailport"):=list("n","s")]
+  edgeDf[type=='covariance',c("headport","tailport"):=list("n","n")]
+  edgeDf[type=='residual_loading',c("headport","tailport"):=list("s","n")]
+  edgeDf[type=='residual_self_loading',c("headport","tailport"):=list("s","s")]
+  
+  edgeDf[,significantValue:=p<eval(filterLoadingPValueLT)]
+  edgeDf[!is.na(label),xlabel:=label][,label:=""]
+  edgeDf[!is.na(xlabel) & significantValue==TRUE,xlabel:=paste0(xlabel,"*")]
+  
+  #set initial included/excluded
+  edgeDf[,include:=TRUE]
+  edgeDf[is.na(values) | !is.finite(values) | values<filterLoadingSTDValueExcludeLT, c("include"):=list(FALSE)]
+  edgeDf[type=='residual_self_loading',include:=TRUE]
+
+  edgeDf[,suppress:=FALSE]
+  edgeDf[!is.na(values) & is.finite(values) & significantValue==FALSE, c("suppress"):=list(TRUE)]
+  
+  
+  edgeDfLoadings<-edgeDf[type=='loading',][,absValues:=abs(values)]
+  setorder(edgeDfLoadings, -significantValue, -values, na.last = TRUE)
+  
+  #make sure every factor has one loading
+  edgeDfLoadings_maxloadingFactor <- edgeDfLoadings[, .(id = head(.SD, 1)$id, values = head(.SD, 1)$values), by = from]
+  edgeDf[id %in% edgeDfLoadings_maxloadingFactor$id, include:=TRUE]
+  
+  
+  #make sure every indicator has one loading
+  edgeDfLoadings_maxloadingIndicator <- edgeDfLoadings[, .(id = head(.SD, 1)$id, values = head(.SD, 1)$values), by = to]
+  edgeDf[id %in% edgeDfLoadings_maxloadingIndicator$id, include:=TRUE]
+  
+  # 
+  # edgeDf[is.na(values) | !is.finite(values) | values<filterLoadingSTDValueExcludeLT, c("label","xlabel","color"):=list("",NA,"gray90")]
+  
+  
+  edgeDf[suppress==TRUE, c("style"):=list("dashed")]
+  
+  edgeDf<-as.data.frame(edgeDf)
   
   
   minRankNodes<-c()
@@ -779,6 +1072,9 @@ edge [fontname = 'Helvetica',
     for(iNode in 1 : nNode) {
       cNode<-nodeDf[iNode,]
       nodeString<-paste0("\'",cNode[c("id")],"\'"," [")
+      
+      if("id" %in% colnames(cNode) && !is.na(cNode[c("id")]))
+        nodeString<-paste0(nodeString,"id=","\'",cNode[c("id")],"\'",",")
       
       if("label" %in% colnames(cNode) && !is.na(cNode[c("label")]))
         nodeString<-paste0(nodeString,"label=","\'",cNode[c("label")],"\'",",")
@@ -836,6 +1132,9 @@ edge [fontname = 'Helvetica',
     nEdge<-nrow(edgeDf)
     for(iEdge in 1 : nEdge) {
       cEdge<-edgeDf[iEdge,]
+      
+      if(cEdge$include==FALSE) next #skip edge on instruction
+      
       edgeString<-paste0("\'",cEdge[c("from")],"\'","->","\'",cEdge[c("to")],"\'"," [")
       
       if("id" %in% colnames(cEdge) && !is.na(cEdge[c("id")]))
@@ -849,6 +1148,9 @@ edge [fontname = 'Helvetica',
       
       if("label" %in% colnames(cEdge) && !is.na(cEdge[c("label")]))
         edgeString<-paste0(edgeString,"label=","\'",cEdge[c("label")],"\'",",")
+      
+      if("xlabel" %in% colnames(cEdge) && !is.na(cEdge[c("xlabel")]))
+        edgeString<-paste0(edgeString,"xlabel=","\'",cEdge[c("xlabel")],"\'",",")
       
       if("style" %in% colnames(cEdge) && !is.na(cEdge[c("style")]))
         edgeString<-paste0(edgeString,"style=","\'",cEdge[c("style")],"\'",",")
@@ -907,7 +1209,32 @@ edge [fontname = 'Helvetica',
   return(out.string)
 }
 
+semplate$parseAndPrintSEMResult <- function(mLambda,mPsi,mTheta, argStd=FALSE, mLambda.se=NULL,mPsi.se=NULL,mTheta.se=NULL, dotFilePath=NULL, doPrint=TRUE){
+  # mLambda<-lavTech(cSem,what = "est",T)$lambda[sortCodes,]
+  # mLambda.se<-lavTech(cSem,what = "se",T)$lambda[sortCodes,]
+  # mPsi<-lavTech(cSem,what = "est",T)$psi
+  # mPsi.se<-lavTech(cSem,what = "se",T)$psi
+  # mTheta<-lavTech(cSem,what = "est",T)$theta[sortCodes,sortCodes]
+  # mTheta.se<-lavTech(cSem,what = "se",T)$theta[sortCodes,sortCodes]
+  # dotFilePath<-"generated.dot"
+  
+  parsedSEMResult<-semplate$parseSEMMatricesAsDOTDataframes(mLambda,mPsi,mTheta,mLambda.se = mLambda.se,mPsi.se = mPsi.se, mTheta.se = mTheta.se)
+  dot<-semplate$generateDOT(nodeDf=parsedSEMResult$nodeDf, edgeDf=parsedSEMResult$edgeDf)
+  
+  if(!is.null(dotFilePath)){
+    dotFile <- file(dotFilePath,open = "w",encoding = "UTF-8")
+    write(dot,file = dotFile)
+    close(dotFile)
+  }
+  #grViz(diagram = "generated.dot")
+  #grViz(diagram = "test.dot")
+  if(doPrint) grViz(dot)
+  return(dot)
+}
+
+#broken due to broken parseGenomicSEMResultAsDOTDataframes
 semplate$parseAndPrintGenomicSEMResult <- function(resultDf = NULL){
+  #resultDf<-genomicSEMResult
   parsedSEMResult<-semplate$parseGenomicSEMResultAsDOTDataframes(resultDf)
   dot<-semplate$generateDOT(nodeDf=parsedSEMResult$nodeDf, edgeDf=parsedSEMResult$edgeDf)
   grViz(dot)
