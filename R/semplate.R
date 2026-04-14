@@ -1209,7 +1209,13 @@ edge [fontname = 'Helvetica',
   return(out.string)
 }
 
-semplate$parseAndPrintSEMResult <- function(mLambda,mPsi,mTheta, argStd=FALSE, mLambda.se=NULL,mPsi.se=NULL,mTheta.se=NULL, dotFilePath=NULL, doPrint=TRUE){
+
+#requires
+# library(DiagrammeR)
+# library(DiagrammeRsvg)
+# library(rsvg)
+# library(xml2)
+semplate$parseAndPrintSEMResult <- function(mLambda,mPsi,mTheta, mLambda.se=NULL,mPsi.se=NULL,mTheta.se=NULL, dotFilePath=NULL, vectorFilePath=NULL, rasterFilePath=NULL, doPrint=TRUE, newIndicatorSortOrderCodes=NULL){
   # mLambda<-lavTech(cSem,what = "est",T)$lambda[sortCodes,]
   # mLambda.se<-lavTech(cSem,what = "se",T)$lambda[sortCodes,]
   # mPsi<-lavTech(cSem,what = "est",T)$psi
@@ -1217,6 +1223,18 @@ semplate$parseAndPrintSEMResult <- function(mLambda,mPsi,mTheta, argStd=FALSE, m
   # mTheta<-lavTech(cSem,what = "est",T)$theta[sortCodes,sortCodes]
   # mTheta.se<-lavTech(cSem,what = "se",T)$theta[sortCodes,sortCodes]
   # dotFilePath<-"generated.dot"
+  # vectorFilePath<-"generated.svg"
+  # rasterFilePath = "generated.png"
+  
+  if(!is.null(newIndicatorSortOrderCodes)){
+    mLambda<-mLambda[newIndicatorSortOrderCodes,]
+    mLambda.se<-mLambda.se[newIndicatorSortOrderCodes,]
+
+    mTheta<-mTheta[newIndicatorSortOrderCodes,newIndicatorSortOrderCodes]
+    mTheta.se<-mTheta.se[newIndicatorSortOrderCodes,newIndicatorSortOrderCodes]
+  }
+  
+  
   
   parsedSEMResult<-semplate$parseSEMMatricesAsDOTDataframes(mLambda,mPsi,mTheta,mLambda.se = mLambda.se,mPsi.se = mPsi.se, mTheta.se = mTheta.se)
   dot<-semplate$generateDOT(nodeDf=parsedSEMResult$nodeDf, edgeDf=parsedSEMResult$edgeDf)
@@ -1228,8 +1246,31 @@ semplate$parseAndPrintSEMResult <- function(mLambda,mPsi,mTheta, argStd=FALSE, m
   }
   #grViz(diagram = "generated.dot")
   #grViz(diagram = "test.dot")
-  if(doPrint) grViz(dot)
+  graphWidget<-grViz(dot)
+  
+  if(doPrint) graphWidget
+  if(!is.null(rasterFilePath)){
+    export_svg(graphWidget) %>% charToRaw %>% rsvg_png(rasterFilePath)
+  }
+  if(!is.null(vectorFilePath)){
+    export_svg(graphWidget) %>% read_xml() %>% write_xml(vectorFilePath) #not sure this works correctly
+  }
+  
   return(dot)
+}
+
+#wrapper for a lavaan object
+semplate$parseAndPrintSEMResultLavaan <- function(lavaanResultObject, dotFilePath=NULL, vectorFilePath=NULL, rasterFilePath=NULL, doPrint=TRUE, newIndicatorSortOrderCodes=NULL) {
+  
+  mLambda<-lavTech(cSem,what = "est",T)$lambda
+  mLambda.se<-lavTech(cSem,what = "se",T)$lambda
+  mPsi<-lavTech(cSem,what = "est",T)$psi
+  mPsi.se<-lavTech(cSem,what = "se",T)$psi
+  mTheta<-lavTech(cSem,what = "est",T)$theta
+  mTheta.se<-lavTech(cSem,what = "se",T)$theta
+  
+  return(semplate$parseAndPrintSEMResult(mLambda,mPsi,mTheta, mLambda.se=mLambda.se,mPsi.se=mPsi.se,mTheta.se=mTheta.se, dotFilePath=dotFilePath, vectorFilePath=vectorFilePath, rasterFilePath=rasterFilePath, doPrint=doPrint, newIndicatorSortOrderCodes=newIndicatorSortOrderCodes))
+  
 }
 
 #broken due to broken parseGenomicSEMResultAsDOTDataframes
