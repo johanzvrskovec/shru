@@ -734,7 +734,7 @@ semplate$parseSEMMatricesAsDOTDataframes <- function(mLambda,mPsi,mTheta, mLambd
       paste0("",round(edge_set[,c("values")],2))
   } else {
     edge_set[,c("label")]<-
-      paste0("",round(edge_set[,c("values")],2),"(",round(edge_set[,c("values.se")],2),")")
+      paste0("",round(edge_set[,c("values")],2)," (",round(edge_set[,c("values.se")],2),")")
   }
   
 
@@ -976,7 +976,7 @@ semplate$runPatternGenomicSEM <-function(indicatorLoadingPatternsDf, indexToRun,
   
 }
 
-semplate$generateDOT <- function(nodeDf, edgeDf, filterLoadingSTDValueExcludeLT=0.4, filterLoadingPValueLT=0.05) {
+semplate$generateDOT <- function(nodeDf, edgeDf, filterLoadingSTDValueHideLT=0.4, filterLoadingSTDValueExcludeLT=0.0, filterLoadingPValueLT=0.05, allowExclude=FALSE, labelStyle="label") {
   
   # nodeDf=parsedSEMResult$nodeDf
   # edgeDf=parsedSEMResult$edgeDf
@@ -989,53 +989,137 @@ semplate$generateDOT <- function(nodeDf, edgeDf, filterLoadingSTDValueExcludeLT=
   
 
   #landscape = 'true'
+  #splines = 'line',
+  #splines = 'spline', #this leads to oom issues
+  #outputorder = 'edgesfirst',
   out<-c("digraph {")
-  out<-c(out,"graph [layout = 'dot',
+  out<-c(out,"graph [layout = 'neato',
        rankdir = 'TB',
        outputorder = 'nodesfirst',
        bgcolor = 'white',
-       splines = 'line',
-       ranksep = '1.5',
+       splines = 'spline',
+       ranksep = '3.0',
        nodesep = '0.3']
 
 node [fontname = 'Garamond',
-      fontsize = '10',
+      fontsize = '30',
       shape = 'circle',
       fixedsize = 'true',
       width = '0.5',
+      penwidth = '7.0',
       style = 'filled',
       fillcolor = 'aliceblue',
       color = 'gray70',
-      fontcolor = 'gray40']
+      fontcolor = 'gray20']
 
 edge [fontname = 'Helvetica',
-     fontsize = '8',
+     fontsize = '30',
      color = 'black',
-     arrowsize = '0.4']") 
+     minlen = '1.0',
+     len = '2.0',
+     penwidth = '4.0',
+     arrowsize = '0.5']") 
   
   
   
   #cosmetics
   setDT(nodeDf)
-  nodeDf[type=='latent',c("shape","width"):=list("oval","2.5")]
-  nodeDf[type=='manifest',c("shape","width"):=list("square","1.0")]
-  nodeDf[type=='residual',c("shape","width"):=list("circle","0.5")]
+  nodeDf[type=='latent',c("shape","width","height"):=list("oval","6.0","2.0")]
+  nodeDf[type=='manifest',c("shape","width","height"):=list("square","2.0","2.0")]
+  nodeDf[type=='residual',c("shape","width"):=list("circle","1.0")]
+  
+  #node layout - latent factor layout 1 - only works with neato and fdp
+  ##source: https://observablehq.com/@magjac/placing-graphviz-nodes-in-fixed-positions
+  layoutLF1_lfN<-nrow(nodeDf[type=='latent',])
+  layoutLF1_iN<-nrow(nodeDf[type=='manifest',])
+  
+  layoutLF1_lfWidth<-6
+  layoutLF1_lfHeight<-2
+  
+  layoutLF1_iWidthHeight<-2
+  layoutLF1_rWidthHeight<-1
+  
+  layoutLF1_lfDeltaXRelW<-1.1
+  layoutLF1_lfDeltaYRelH<-0.4
+  
+  layoutLF1_iDeltaXRelW<-1.6
+  
+  layoutLF1_iRanksepYRelH<-(-5.0)
+  
+  layoutLF1_rRanksepYRelH<-(-3.0)
+  
+  
+  nodeDf[type=='latent',latentIndex:=(.I-1)]
+  nodeDf[type=='manifest',indicatorIndex:=(.I-1)]
+  nodeDf[type=='residual',residualIndex:=(.I-1)]
+  
+  nodeDf[type=='latent',layoutXPosUnscaled:=(latentIndex*eval(layoutLF1_lfWidth)*eval(layoutLF1_lfDeltaXRelW))]
+  nodeDf[type=='latent',layoutYPosUnscaled:=0]
+  #nodeDf[type=='latent',layoutYPosUnscaled:=((layoutLF1_lfN-abs(latentIndex-(layoutLF1_lfN-1)/2))*eval(layoutLF1_lfHeight)*eval(layoutLF1_lfDeltaYRelH))] #curved layout
+  
+  nodeDf[type=='manifest',layoutXPosUnscaled:=(indicatorIndex*eval(layoutLF1_iWidthHeight)*eval(layoutLF1_iDeltaXRelW))]
+  nodeDf[type=='manifest',layoutYPosUnscaled:=eval(layoutLF1_iWidthHeight)*eval(layoutLF1_iRanksepYRelH)]
+  
+  nodeDf[type=='residual',layoutXPosUnscaled:=(residualIndex*eval(layoutLF1_iWidthHeight)*eval(layoutLF1_iDeltaXRelW))] #should be same as indicators, in the same order
+  nodeDf[type=='residual',layoutYPosUnscaled:=eval(layoutLF1_iWidthHeight)*eval(layoutLF1_iRanksepYRelH) + eval(layoutLF1_rWidthHeight)*eval(layoutLF1_rRanksepYRelH)]
+  
+  layoutWidth<-max(nodeDf$layoutXPosUnscaled)
+  lfWidth<-max(nodeDf[type=='latent',]$layoutXPosUnscaled)
+  iWidth<-max(nodeDf[type=='manifest',]$layoutXPosUnscaled)
+  
+  nodeDf[type=='latent',layoutXPos:=layoutXPosUnscaled-eval(lfWidth/2)]
+  nodeDf[type=='manifest' | type=='residual',layoutXPos:=layoutXPosUnscaled-eval(iWidth/2)]
+  
+  nodeDf[!is.na(layoutXPosUnscaled) & !is.na(layoutYPosUnscaled),pos:=paste0("",round(layoutXPos,2),",",round(layoutYPosUnscaled,2),"!")]
+  
   nodeDf<-as.data.frame(nodeDf)
   
   setDT(edgeDf)
-  edgeDf[type=='loading',c("headport","tailport"):=list("n","s")]
-  edgeDf[type=='covariance',c("headport","tailport"):=list("n","n")]
-  edgeDf[type=='residual_loading',c("headport","tailport"):=list("s","n")]
-  edgeDf[type=='residual_self_loading',c("headport","tailport"):=list("s","s")]
+  edgeDf[type=='loading',c("headport","tailport","minlen"):=list("n","s","2")]
+  edgeDf[type=='covariance',c("headport","tailport","minlen"):=list("n","n","2")]
+  edgeDf[type=='covariance' & from==to,c("headport","tailport","minlen"):=list("n","n","0")] #variances
+  edgeDf[type=='residual_loading',c("headport","tailport","minlen"):=list("s","n","1")]
+  edgeDf[type=='residual_self_loading',c("headport","tailport","minlen"):=list("s","s","1")]
+  
+  edgeDf[(type=='loading' | type=='covariance') & values>0 & from!=to,c("color"):=list("red")]
+  edgeDf[(type=='loading' | type=='covariance') & values<0 & from!=to,c("color"):=list("blue")]
   
   edgeDf[,significantValue:=p<eval(filterLoadingPValueLT)]
-  edgeDf[!is.na(label),xlabel:=label][,label:=""]
-  edgeDf[!is.na(xlabel) & significantValue==TRUE,xlabel:=paste0(xlabel,"*")]
+  
+  edgeDf[!is.na(label) & significantValue==TRUE,label:=paste0(label,"*")]
+  
+  if(!any(colnames(edgeDf)=="xlabel")) edgeDf[,c("xlabel"):=list(NA_character_)]
+  if(labelStyle=="xlabel") {
+    edgeDf[!is.na(label),xlabel:=label][,label:=NA]
+  } else if(labelStyle=="headlabel"){
+    edgeDf[!is.na(label),c("headlabel","labeldistance"):=list(label,'10.0')][,label:=NA]
+    edgeDf[type=='covariance' & from!=to & !is.na(labeldistance),c("labeldistance"):=list("20.0")]
+  }
+  
+  edgeDf[,penwidthScale:=abs(values)*10]
+  edgeDf[is.finite(values), c("penwidth"):=list(paste0("",round(penwidthScale,1)))]
+  #edgeDf[(type=='loading' | type=='covariance') & from!=to & !is.na(values), c("penwidth"):=list(paste0("",round(penwidthScale,1)))]
+  
+  # edgeDf[(type=='loading' | type=='covariance') & from!=to & !is.na(values) & abs(values)<0.05,c("penwidth"):=list("1.0")]
+  # edgeDf[(type=='loading' | type=='covariance') & from!=to & !is.na(values) & abs(values)>=0.05,c("penwidth"):=list("2.0")]
+  # edgeDf[(type=='loading' | type=='covariance') & from!=to & !is.na(values) & abs(values)>0.25,c("penwidth"):=list("3.0")]
+  # edgeDf[(type=='loading' | type=='covariance') & from!=to & !is.na(values) & abs(values)>0.5,c("penwidth"):=list("4.0")]
+  # edgeDf[(type=='loading' | type=='covariance') & from!=to & !is.na(values) & abs(values)>0.75,c("penwidth"):=list("5.0")]
+  # edgeDf[(type=='loading' | type=='covariance') & from!=to & !is.na(values) & abs(values)>0.9,c("penwidth"):=list("6.0")]
+ 
+  #do not use
+  #edgeDf[,constraint:='false'] #make nodes not change place due to edges
   
   #set initial included/excluded
   edgeDf[,include:=TRUE]
-  edgeDf[is.na(values) | !is.finite(values) | values<filterLoadingSTDValueExcludeLT, c("include"):=list(FALSE)]
-  edgeDf[type=='residual_self_loading',include:=TRUE]
+  if(allowExclude){
+    edgeDf[is.na(values) | !is.finite(values) | values<filterLoadingSTDValueExcludeLT, c("include"):=list(FALSE)]
+    edgeDf[type=='residual_self_loading',include:=TRUE]
+  }
+  
+  #set initial hidden
+  edgeDf[,hide:=FALSE]
+  edgeDf[is.na(values) | !is.finite(values) | values<filterLoadingSTDValueHideLT & from!=to, c("hide"):=list(TRUE)]
 
   edgeDf[,suppress:=FALSE]
   edgeDf[!is.na(values) & is.finite(values) & significantValue==FALSE, c("suppress"):=list(TRUE)]
@@ -1046,20 +1130,32 @@ edge [fontname = 'Helvetica',
   
   #make sure every factor has one loading
   edgeDfLoadings_maxloadingFactor <- edgeDfLoadings[, .(id = head(.SD, 1)$id, values = head(.SD, 1)$values), by = from]
-  edgeDf[id %in% edgeDfLoadings_maxloadingFactor$id, include:=TRUE]
+  edgeDf[id %in% edgeDfLoadings_maxloadingFactor$id, c("include","hide"):=list(TRUE,FALSE)]
   
   
   #make sure every indicator has one loading
   edgeDfLoadings_maxloadingIndicator <- edgeDfLoadings[, .(id = head(.SD, 1)$id, values = head(.SD, 1)$values), by = to]
-  edgeDf[id %in% edgeDfLoadings_maxloadingIndicator$id, include:=TRUE]
+  edgeDf[id %in% edgeDfLoadings_maxloadingIndicator$id, c("include","hide"):=list(TRUE,FALSE)]
+  
+  
+  
+  
+  #suppressed style
+  edgeDf[suppress==TRUE, c("style"):=list("dashed")]
+  
+  #hidden style - overrides suppressed style
+  #edgeDf[hide==TRUE, c("penwidth","label","xlabel","headlabel","color"):=list("1.0","",NA,"","gray90")]
+  edgeDf[hide==TRUE, c("style","label","xlabel","headlabel"):=list("invis",NA,NA,NA)]
+  
   
   # 
   # edgeDf[is.na(values) | !is.finite(values) | values<filterLoadingSTDValueExcludeLT, c("label","xlabel","color"):=list("",NA,"gray90")]
   
-  
-  edgeDf[suppress==TRUE, c("style"):=list("dashed")]
+  #setorder(edgeDf, -hide, significantValue, values, na.last = FALSE) #order for rendering
   
   edgeDf<-as.data.frame(edgeDf)
+  
+  
   
   
   minRankNodes<-c()
@@ -1097,6 +1193,9 @@ edge [fontname = 'Helvetica',
       if("width" %in% colnames(cNode) && !is.na(cNode[c("width")]))
         nodeString<-paste0(nodeString,"width=","\'",cNode[c("width")],"\'",",")
       
+      if("height" %in% colnames(cNode) && !is.na(cNode[c("height")]))
+        nodeString<-paste0(nodeString,"height=","\'",cNode[c("height")],"\'",",")
+      
       if("color" %in% colnames(cNode) && !is.na(cNode[c("color")]))
         nodeString<-paste0(nodeString,"color=","\'",cNode[c("color")],"\'",",")
       
@@ -1105,6 +1204,9 @@ edge [fontname = 'Helvetica',
       
       if("fillcolor" %in% colnames(cNode) && !is.na(cNode[c("fillcolor")]))
         nodeString<-paste0(nodeString,"fillcolor=","\'",cNode[c("fillcolor")],"\'",",")
+      
+      if("pos" %in% colnames(cNode) && !is.na(cNode[c("pos")]))
+        nodeString<-paste0(nodeString,"pos=","\'",cNode[c("pos")],"\'",",")
       
       
       nodeString<-paste0(nodeString,"]")
@@ -1152,6 +1254,12 @@ edge [fontname = 'Helvetica',
       if("xlabel" %in% colnames(cEdge) && !is.na(cEdge[c("xlabel")]))
         edgeString<-paste0(edgeString,"xlabel=","\'",cEdge[c("xlabel")],"\'",",")
       
+      if("headlabel" %in% colnames(cEdge) && !is.na(cEdge[c("headlabel")]))
+        edgeString<-paste0(edgeString,"headlabel=","\'",cEdge[c("headlabel")],"\'",",")
+      
+      if("labeldistance" %in% colnames(cEdge) && !is.na(cEdge[c("labeldistance")]))
+        edgeString<-paste0(edgeString,"labeldistance=","\'",cEdge[c("labeldistance")],"\'",",")
+      
       if("style" %in% colnames(cEdge) && !is.na(cEdge[c("style")]))
         edgeString<-paste0(edgeString,"style=","\'",cEdge[c("style")],"\'",",")
       
@@ -1184,6 +1292,9 @@ edge [fontname = 'Helvetica',
       
       if("tailport" %in% colnames(cEdge) && !is.na(cEdge[c("tailport")]))
         edgeString<-paste0(edgeString,"tailport=","\'",cEdge[c("tailport")],"\'",",")
+      
+      if("constraint" %in% colnames(cEdge) && !is.na(cEdge[c("constraint")]))
+        edgeString<-paste0(edgeString,"constraint=","\'",cEdge[c("constraint")],"\'",",")
       
       
       edgeString<-paste0(edgeString,"]")
@@ -1268,6 +1379,38 @@ semplate$parseAndPrintSEMResultLavaan <- function(lavaanResultObject, dotFilePat
   mPsi.se<-lavTech(cSem,what = "se",T)$psi
   mTheta<-lavTech(cSem,what = "est",T)$theta
   mTheta.se<-lavTech(cSem,what = "se",T)$theta
+  
+  return(semplate$parseAndPrintSEMResult(mLambda,mPsi,mTheta, mLambda.se=mLambda.se,mPsi.se=mPsi.se,mTheta.se=mTheta.se, dotFilePath=dotFilePath, vectorFilePath=vectorFilePath, rasterFilePath=rasterFilePath, doPrint=doPrint, newIndicatorSortOrderCodes=newIndicatorSortOrderCodes))
+  
+}
+
+#wrapper for a parsed Genomic SEM matrix object
+semplate$parseAndPrintSEMResultGSEMMatrix <- function(parsedGenomicSEMMatrices, dotFilePath=NULL, vectorFilePath=NULL, rasterFilePath=NULL, doPrint=TRUE, newIndicatorSortOrderCodes=NULL, useSTD=TRUE) {
+  #parsedGenomicSEMMatrices<-parsedGenomicSEMResults.best6_12
+  
+  if(useSTD){
+    mLambda<-parsedGenomicSEMMatrices$patternCoefficientsSTDGenotype.matrix
+    mLambda.se<-parsedGenomicSEMMatrices$patternCoefficientsSTDGenotype.SE.matrix
+    mPsi<-parsedGenomicSEMMatrices$covariancesSTDGenotype.matrix
+    mPsi.se<-parsedGenomicSEMMatrices$covariancesSTDGenotype.SE.matrix
+    mTheta<-matrix(data=0,nrow = nrow(mLambda),ncol = nrow(mLambda))
+    diag(mTheta)<-parsedGenomicSEMMatrices$residualVariancesSTDGenotype.matrix[,1]
+    rownames(mTheta)<-colnames(mTheta)<-rownames(mLambda)
+    mTheta.se<-matrix(data=0,nrow = nrow(mLambda),ncol = nrow(mLambda))
+    diag(mTheta.se)<-parsedGenomicSEMMatrices$residualVariancesSTDGenotype.SE.matrix[,1]
+    rownames(mTheta.se)<-colnames(mTheta.se)<-rownames(mLambda)
+  } else {
+    mLambda<-parsedGenomicSEMMatrices$patternCoefficients.matrix
+    mLambda.se<-parsedGenomicSEMMatrices$patternCoefficients.SE.matrix
+    mPsi<-parsedGenomicSEMMatrices$covariances.matrix
+    mPsi.se<-parsedGenomicSEMMatrices$covariances.SE.matrix
+    mTheta<-matrix(data=0,nrow = nrow(mLambda),ncol = nrow(mLambda))
+    diag(mTheta)<-parsedGenomicSEMMatrices$residualVariances.matrix[,1]
+    rownames(mTheta)<-colnames(mTheta)<-rownames(mLambda)
+    mTheta.se<-matrix(data=0,nrow = nrow(mLambda),ncol = nrow(mLambda))
+    diag(mTheta.se)<-parsedGenomicSEMMatrices$residualVariances.SE.matrix[,1]
+    rownames(mTheta.se)<-colnames(mTheta.se)<-rownames(mLambda)
+  }
   
   return(semplate$parseAndPrintSEMResult(mLambda,mPsi,mTheta, mLambda.se=mLambda.se,mPsi.se=mPsi.se,mTheta.se=mTheta.se, dotFilePath=dotFilePath, vectorFilePath=vectorFilePath, rasterFilePath=rasterFilePath, doPrint=doPrint, newIndicatorSortOrderCodes=newIndicatorSortOrderCodes))
   
