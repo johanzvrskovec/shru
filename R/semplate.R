@@ -976,7 +976,7 @@ semplate$runPatternGenomicSEM <-function(indicatorLoadingPatternsDf, indexToRun,
   
 }
 
-semplate$generateDOT <- function(nodeDf, edgeDf, filterLoadingSTDValueHideLT=0.4, filterLoadingSTDValueExcludeLT=0.0, filterLoadingPValueLT=0.05, allowExclude=FALSE, labelStyle="xlabel") {
+semplate$generateDOT <- function(nodeDf, edgeDf, filterLoadingSTDValueHideLT=0.4, filterLoadingSTDValueExcludeLT=0.0, filterLoadingPValueLT=0.05, allowExclude=FALSE, labelStyle="headlabel") {
   
   # nodeDf=parsedSEMResult$nodeDf
   # edgeDf=parsedSEMResult$edgeDf
@@ -1120,7 +1120,14 @@ edge [fontname = 'Helvetica',
   if(labelStyle=="xlabel") {
     edgeDf[!is.na(label),xlabel:=label][,label:=NA]
   } else if(labelStyle=="headlabel"){
-    edgeDf[!is.na(label),c("headlabel","labeldistance"):=list(label,'10.0')][,label:=NA]
+    edgeDf[!is.na(label),c("headlabel","labeldistance"):=list(label,'5.0')][,label:=NA] #legacy labeldistance
+    edgeDfLabeldistance<-edgeDf[type=='loading' & !is.na(headlabel) & !is.na(values),]
+    setorder(edgeDfLabeldistance, to, -values, na.last = TRUE)
+    edgeDfLabeldistance[,labeldistanceIndex:=.I]
+    edgeDf[edgeDfLabeldistance, on=c("id"), c("labeldistanceIndex"):=list(i.labeldistanceIndex)]
+    
+    edgeDf[!is.na(labeldistanceIndex) & labeldistanceIndex %% 2 == 1,c("labeldistance"):=list("15.0")] #even loadings get the larger value
+    
     edgeDf[type=='covariance' & from!=to & !is.na(labeldistance),c("labeldistance"):=list("20.0")]
   }
   
