@@ -976,7 +976,7 @@ semplate$runPatternGenomicSEM <-function(indicatorLoadingPatternsDf, indexToRun,
   
 }
 
-semplate$generateDOT <- function(nodeDf, edgeDf, filterLoadingSTDValueHideLT=0.4, filterLoadingSTDValueExcludeLT=0.0, filterLoadingPValueLT=0.05, allowExclude=FALSE, labelStyle="label") {
+semplate$generateDOT <- function(nodeDf, edgeDf, filterLoadingSTDValueHideLT=0.4, filterLoadingSTDValueExcludeLT=0.0, filterLoadingPValueLT=0.05, allowExclude=FALSE, labelStyle="xlabel") {
   
   # nodeDf=parsedSEMResult$nodeDf
   # edgeDf=parsedSEMResult$edgeDf
@@ -1021,12 +1021,20 @@ edge [fontname = 'Helvetica',
      arrowsize = '0.5']") 
   
   
+  setDT(nodeDf)
+  setDT(edgeDf)
   
   #cosmetics
-  setDT(nodeDf)
   nodeDf[type=='latent',c("shape","width","height"):=list("oval","6.0","2.0")]
   nodeDf[type=='manifest',c("shape","width","height"):=list("square","2.0","2.0")]
   nodeDf[type=='residual',c("shape","width"):=list("circle","1.0")]
+  
+  #add dummy nodes for covariances
+  maxExistingNodeId<-max(nodeDf$id)
+  nodeDfCovariance<-edgeDf[type=='covariance' & from!=to,.(type,from,to,values,values.se,p,label)][,id:=.I+eval(maxExistingNodeId)][,nodes:=paste0("cov",id)]
+  nodeDf<-rbindlist(list(nodeDf,nodeDfCovariance),use.names = TRUE, fill = TRUE)
+  nodeDf[type=='covariance',c("shape","width","fillcolor","penwidth"):=list("circle","1.0","white","0.0")]
+  
   
   #node layout - latent factor layout 1 - only works with neato and fdp
   ##source: https://observablehq.com/@magjac/placing-graphviz-nodes-in-fixed-positions
@@ -1042,7 +1050,9 @@ edge [fontname = 'Helvetica',
   layoutLF1_lfDeltaXRelW<-1.1
   layoutLF1_lfDeltaYRelH<-0.4
   
-  layoutLF1_iDeltaXRelW<-1.6
+  layoutLF1_iDeltaXRelW<-1.8
+  
+  layoutLF1_rfDeltaYRelLFH<-0.2
   
   layoutLF1_iRanksepYRelH<-(-5.0)
   
@@ -1057,6 +1067,13 @@ edge [fontname = 'Helvetica',
   nodeDf[type=='latent',layoutYPosUnscaled:=0]
   #nodeDf[type=='latent',layoutYPosUnscaled:=((layoutLF1_lfN-abs(latentIndex-(layoutLF1_lfN-1)/2))*eval(layoutLF1_lfHeight)*eval(layoutLF1_lfDeltaYRelH))] #curved layout
   
+  nodeDfInfo<-nodeDf
+  colnames(nodeDfInfo)<-paste0(colnames(nodeDfInfo),"_info")
+  nodeDf[nodeDfInfo,on=.(from=id_info),layoutXPosFrom:=i.layoutXPosUnscaled_info]
+  nodeDf[nodeDfInfo,on=.(to=id_info),layoutXPosTo:=i.layoutXPosUnscaled_info]
+  nodeDf[type=='covariance',layoutXPosUnscaled:=(layoutXPosFrom+layoutXPosTo)/2]
+  nodeDf[type=='covariance',layoutYPosUnscaled:=abs(layoutXPosFrom-layoutXPosTo)*eval(layoutLF1_rfDeltaYRelLFH)]
+  
   nodeDf[type=='manifest',layoutXPosUnscaled:=(indicatorIndex*eval(layoutLF1_iWidthHeight)*eval(layoutLF1_iDeltaXRelW))]
   nodeDf[type=='manifest',layoutYPosUnscaled:=eval(layoutLF1_iWidthHeight)*eval(layoutLF1_iRanksepYRelH)]
   
@@ -1067,26 +1084,37 @@ edge [fontname = 'Helvetica',
   lfWidth<-max(nodeDf[type=='latent',]$layoutXPosUnscaled)
   iWidth<-max(nodeDf[type=='manifest',]$layoutXPosUnscaled)
   
-  nodeDf[type=='latent',layoutXPos:=layoutXPosUnscaled-eval(lfWidth/2)]
+  nodeDf[type=='latent' | type=='covariance',layoutXPos:=layoutXPosUnscaled-eval(lfWidth/2)]
   nodeDf[type=='manifest' | type=='residual',layoutXPos:=layoutXPosUnscaled-eval(iWidth/2)]
   
   nodeDf[!is.na(layoutXPosUnscaled) & !is.na(layoutYPosUnscaled),pos:=paste0("",round(layoutXPos,2),",",round(layoutYPosUnscaled,2),"!")]
   
-  nodeDf<-as.data.frame(nodeDf)
   
-  setDT(edgeDf)
+  
   edgeDf[type=='loading',c("headport","tailport","minlen"):=list("n","s","2")]
   edgeDf[type=='covariance',c("headport","tailport","minlen"):=list("n","n","2")]
-  edgeDf[type=='covariance' & from==to,c("headport","tailport","minlen"):=list("n","n","0")] #variances
+  edgeDf[type=='covariance' & from==to,c("headport","tailport","minlen"):=list("n","n","1")] #variances
   edgeDf[type=='residual_loading',c("headport","tailport","minlen"):=list("s","n","1")]
   edgeDf[type=='residual_self_loading',c("headport","tailport","minlen"):=list("s","s","1")]
   
-  edgeDf[(type=='loading' | type=='covariance') & values>0 & from!=to,c("color"):=list("red")]
-  edgeDf[(type=='loading' | type=='covariance') & values<0 & from!=to,c("color"):=list("blue")]
+  #add dummy edges for covariances
+  maxExistingEdgeId<-max(edgeDf$id)
+  edgeDfCovariance_left<-nodeDf[type=='covariance',.(values, values.se, p, dummyNodeId=id, dummyNodeFrom=from, dummyNodeTo=to)][,type:="dummy_covariance_left"]
+  edgeDfCovariance_right<-nodeDf[type=='covariance',.(values, values.se, p, dummyNodeId=id, dummyNodeFrom=from, dummyNodeTo=to)][,type:="dummy_covariance_right"]
+  edgeDfCovariance<-rbindlist(list(edgeDfCovariance_left,edgeDfCovariance_right),use.names = TRUE, fill = TRUE)[,id:=.I+eval(maxExistingEdgeId)]
+  
+  edgeDf<-rbindlist(list(edgeDf,edgeDfCovariance),use.names = TRUE, fill = TRUE)
+  edgeDf[type=='dummy_covariance_left', c("dir","rel","headport","tailport","minlen","from","to"):=list("forward","related","n","w","2",dummyNodeId,ifelse(dummyNodeFrom<dummyNodeTo,dummyNodeFrom,dummyNodeTo))]
+  edgeDf[type=='dummy_covariance_right', c("dir","rel","headport","tailport","minlen","from","to"):=list("forward","related","n","e","2",dummyNodeId,ifelse(dummyNodeFrom>dummyNodeTo,dummyNodeFrom,dummyNodeTo))]
+  
+  edgeDf[(type=='loading' | type=='covariance' | type=='dummy_covariance_left' | type=='dummy_covariance_right') & values>0 & from!=to,c("color"):=list("red")]
+  edgeDf[(type=='loading' | type=='covariance' | type=='dummy_covariance_left' | type=='dummy_covariance_right') & values<0 & from!=to,c("color"):=list("blue")]
   
   edgeDf[,significantValue:=p<eval(filterLoadingPValueLT)]
+  nodeDf[,significantValue:=p<eval(filterLoadingPValueLT)]
   
   edgeDf[!is.na(label) & significantValue==TRUE,label:=paste0(label,"*")]
+  nodeDf[!is.na(label) & significantValue==TRUE,label:=paste0(label,"*")]
   
   if(!any(colnames(edgeDf)=="xlabel")) edgeDf[,c("xlabel"):=list(NA_character_)]
   if(labelStyle=="xlabel") {
@@ -1099,13 +1127,6 @@ edge [fontname = 'Helvetica',
   edgeDf[,penwidthScale:=abs(values)*10]
   edgeDf[is.finite(values), c("penwidth"):=list(paste0("",round(penwidthScale,1)))]
   #edgeDf[(type=='loading' | type=='covariance') & from!=to & !is.na(values), c("penwidth"):=list(paste0("",round(penwidthScale,1)))]
-  
-  # edgeDf[(type=='loading' | type=='covariance') & from!=to & !is.na(values) & abs(values)<0.05,c("penwidth"):=list("1.0")]
-  # edgeDf[(type=='loading' | type=='covariance') & from!=to & !is.na(values) & abs(values)>=0.05,c("penwidth"):=list("2.0")]
-  # edgeDf[(type=='loading' | type=='covariance') & from!=to & !is.na(values) & abs(values)>0.25,c("penwidth"):=list("3.0")]
-  # edgeDf[(type=='loading' | type=='covariance') & from!=to & !is.na(values) & abs(values)>0.5,c("penwidth"):=list("4.0")]
-  # edgeDf[(type=='loading' | type=='covariance') & from!=to & !is.na(values) & abs(values)>0.75,c("penwidth"):=list("5.0")]
-  # edgeDf[(type=='loading' | type=='covariance') & from!=to & !is.na(values) & abs(values)>0.9,c("penwidth"):=list("6.0")]
  
   #do not use
   #edgeDf[,constraint:='false'] #make nodes not change place due to edges
@@ -1117,9 +1138,13 @@ edge [fontname = 'Helvetica',
     edgeDf[type=='residual_self_loading',include:=TRUE]
   }
   
+  edgeDf[type=='covariance' & from!=to, include:=FALSE] #exclude legacy covariance edges as we are using dummy covariances
+  
   #set initial hidden
   edgeDf[,hide:=FALSE]
+  nodeDf[,hide:=FALSE]
   edgeDf[is.na(values) | !is.finite(values) | values<filterLoadingSTDValueHideLT & from!=to, c("hide"):=list(TRUE)]
+  nodeDf[type=='covariance' & from!=to & (is.na(values) | !is.finite(values) | values<filterLoadingSTDValueHideLT), c("hide"):=list(TRUE)]
 
   edgeDf[,suppress:=FALSE]
   edgeDf[!is.na(values) & is.finite(values) & significantValue==FALSE, c("suppress"):=list(TRUE)]
@@ -1146,6 +1171,7 @@ edge [fontname = 'Helvetica',
   #hidden style - overrides suppressed style
   #edgeDf[hide==TRUE, c("penwidth","label","xlabel","headlabel","color"):=list("1.0","",NA,"","gray90")]
   edgeDf[hide==TRUE, c("style","label","xlabel","headlabel"):=list("invis",NA,NA,NA)]
+  nodeDf[hide==TRUE, c("style","label","xlabel"):=list("invis",NA,NA)]
   
   
   # 
@@ -1153,6 +1179,7 @@ edge [fontname = 'Helvetica',
   
   #setorder(edgeDf, -hide, significantValue, values, na.last = FALSE) #order for rendering
   
+  nodeDf<-as.data.frame(nodeDf)
   edgeDf<-as.data.frame(edgeDf)
   
   
@@ -1204,6 +1231,9 @@ edge [fontname = 'Helvetica',
       
       if("fillcolor" %in% colnames(cNode) && !is.na(cNode[c("fillcolor")]))
         nodeString<-paste0(nodeString,"fillcolor=","\'",cNode[c("fillcolor")],"\'",",")
+      
+      if("penwidth" %in% colnames(cNode) && !is.na(cNode[c("penwidth")]))
+        nodeString<-paste0(nodeString,"penwidth=","\'",cNode[c("penwidth")],"\'",",")
       
       if("pos" %in% colnames(cNode) && !is.na(cNode[c("pos")]))
         nodeString<-paste0(nodeString,"pos=","\'",cNode[c("pos")],"\'",",")
