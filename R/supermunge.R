@@ -359,7 +359,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.6.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.6.3\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1595,7 +1595,7 @@ supermunge <- function(
           if(round(median(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm=T),digits = 1) == 1) {
             ###is odds ratio
             sumstats.meta[iFile,c("effect_type")]<-"OR"
-            cSumstats[,P.SEtest:=pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4]
+            cSumstats[,P.SEtest:=2*pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4] #JZ: edited to 2*
             if(sum(cSumstats$P.SEtest.is.same.scale,na.rm = T)>0.75*nrow(cSumstats)){
               #SE is of an OR
               sumstats.meta[iFile,c("se_type")]<-"OR"
@@ -1604,7 +1604,7 @@ supermunge <- function(
             }
             cSumstats[,EFFECT:=log(EFFECT)]
             if(sumstats.meta[iFile,c("se_type")]!="OR"){
-              cSumstats[,P.SEtest:=pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale2:=abs(P.SEtest-P)<1e-4]
+              cSumstats[,P.SEtest:=2*pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale2:=abs(P.SEtest-P)<1e-4] #JZ: edited to 2*
               if(sum(cSumstats$P.SEtest.is.same.scale2,na.rm = T)>0.75*nrow(cSumstats)){
                 #SE is of an ln(OR)
                 sumstats.meta[iFile,c("se_type")]<-"ln_OR"
@@ -1622,7 +1622,7 @@ supermunge <- function(
           } else {
             ###is NOT odds ratio
             sumstats.meta[iFile,c("effect_type")]<-"non_OR"
-            cSumstats[,P.SEtest:=pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4]
+            cSumstats[,P.SEtest:=2*pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4] #JZ: edited to 2*
             if(sum(cSumstats$P.SEtest.is.same.scale,na.rm = T)>0.75*nrow(cSumstats)){
               #SE is NOT of an OR
               sumstats.meta[iFile,c("se_type")]<-"non_OR"

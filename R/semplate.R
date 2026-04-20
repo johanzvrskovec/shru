@@ -537,7 +537,7 @@ semplate$parseGenomicSEMResultAsMatrices <- function(resultDf){
 
 #new DOT generating function
 #this tries to use lavaan variable names
-semplate$parseSEMMatricesAsDOTDataframes <- function(mLambda,mPsi,mTheta, mLambda.se=NULL, mPsi.se=NULL,mTheta.se=NULL) {
+semplate$parseSEMMatricesAsDOTDataframes <- function(mLambda,mPsi,mTheta, mLambda.se=NULL, mPsi.se=NULL,mTheta.se=NULL, mLambda.p=NULL, mTheta.p=NULL, mPsi.p=NULL) {
   # mLambda<-lavTech(cSem,what = "est",T)$lambda[sortCodes,]
   # mLambda.std<-lavTech(cSem,what = "std",T)$lambda[sortCodes,]
   # mLambda.se<-lavTech(cSem,what = "se",T)$lambda[sortCodes,]
@@ -722,14 +722,30 @@ semplate$parseSEMMatricesAsDOTDataframes <- function(mLambda,mPsi,mTheta, mLambd
   
   edge_set <- combine_edfs(loadingsRaw, covariancesRaw, residualLoadingsRaw, residualSelfLoadingsRaw)
   
-  #edge statistics
-  if(!all(is.na(mLambda.se))){
+  edge_set$z<-NA_real_
+  edge_set$p<-NA_real_
+  
+  #edge statistics - p-values
+  if(!is.null(mLambda.p)){
+    mLambda.z<-sign(mLambda)*qnorm(p = mLambda.p/2, lower.tail = FALSE)
+    edge_set[edge_set$type=="loading",c("z")]<-unlist(as.data.frame(mLambda.z))
+    edge_set[edge_set$type=="loading",c("p")]<-unlist(as.data.frame(mLambda.p))
+    
+    mPsi.z<-sign(mPsi)*qnorm(p = mPsi.p/2, lower.tail = FALSE)
+    edge_set[edge_set$type=="covariance",c("z")]<-unlist(as.data.frame(mPsi.z))
+    edge_set[edge_set$type=="covariance",c("p")]<-unlist(as.data.frame(mPsi.p))
+    
+    mTheta.z<-sign(mTheta)*qnorm(p = mTheta.p/2, lower.tail = FALSE)
+    edge_set[edge_set$type=="residual_self_loading",c("z")]<-diag(mTheta.z)
+    edge_set[edge_set$type=="residual_self_loading",c("p")]<-diag(mTheta.p)
+    
+  } else if(!all(is.na(mLambda.se))){ #inferred from values and SE
     edge_set[,c("z")]<-ifelse(edge_set[,c("values.se")]>0,edge_set[,c("values")]/edge_set[,c("values.se")],NA_real_)
     edge_set[,c("p")]<-2*pnorm(abs(edge_set[,c("z")]),lower.tail = FALSE)
   }
   
   #edge labels
-  if(all(is.na(mLambda.se))){
+  if(all(is.na(edge_set$p))){
     edge_set[,c("label")]<-
       paste0("",round(edge_set[,c("values")],2))
   } else {
@@ -976,7 +992,7 @@ semplate$runPatternGenomicSEM <-function(indicatorLoadingPatternsDf, indexToRun,
   
 }
 
-semplate$generateDOT <- function(nodeDf, edgeDf, filterLoadingSTDValueHideLT=0.4, filterLoadingSTDValueExcludeLT=0.0, filterLoadingPValueLT=0.05, allowExclude=FALSE, labelStyle="headlabel") {
+semplate$generateDOT <- function(nodeDf, edgeDf, filterLoadingSTDValueHideLT=0.4, filterLoadingSTDValueExcludeLT=0.0, filterLoadingPValueLT=0.05, allowExclude=FALSE, labelStyle="headlabel", penwidthScaleFactor=20) {
   
   # nodeDf=parsedSEMResult$nodeDf
   # edgeDf=parsedSEMResult$edgeDf
@@ -1131,7 +1147,7 @@ edge [fontname = 'Helvetica',
     edgeDf[type=='covariance' & from!=to & !is.na(labeldistance),c("labeldistance"):=list("20.0")]
   }
   
-  edgeDf[,penwidthScale:=abs(values)*10]
+  edgeDf[,penwidthScale:=abs(values)*penwidthScaleFactor]
   edgeDf[is.finite(values), c("penwidth"):=list(paste0("",round(penwidthScale,1)))]
   #edgeDf[(type=='loading' | type=='covariance') & from!=to & !is.na(values), c("penwidth"):=list(paste0("",round(penwidthScale,1)))]
  
@@ -1363,7 +1379,7 @@ edge [fontname = 'Helvetica',
 # library(DiagrammeRsvg)
 # library(rsvg)
 # library(xml2)
-semplate$parseAndPrintSEMResult <- function(mLambda,mPsi,mTheta, mLambda.se=NULL,mPsi.se=NULL,mTheta.se=NULL, dotFilePath=NULL, vectorFilePath=NULL, rasterFilePath=NULL, doPrint=TRUE, newIndicatorSortOrderCodes=NULL){
+semplate$parseAndPrintSEMResult <- function(mLambda,mPsi,mTheta, mLambda.se=NULL,mPsi.se=NULL,mTheta.se=NULL,  mLambda.p=NULL,mPsi.p=NULL,mTheta.p=NULL, dotFilePath=NULL, vectorFilePath=NULL, rasterFilePath=NULL, doPrint=TRUE, newIndicatorSortOrderCodes=NULL){
   # mLambda<-lavTech(cSem,what = "est",T)$lambda[sortCodes,]
   # mLambda.se<-lavTech(cSem,what = "se",T)$lambda[sortCodes,]
   # mPsi<-lavTech(cSem,what = "est",T)$psi
@@ -1373,18 +1389,22 @@ semplate$parseAndPrintSEMResult <- function(mLambda,mPsi,mTheta, mLambda.se=NULL
   # dotFilePath<-"generated.dot"
   # vectorFilePath<-"generated.svg"
   # rasterFilePath = "generated.png"
+  # newIndicatorSortOrderCodes<-sortCodes
   
   if(!is.null(newIndicatorSortOrderCodes)){
     mLambda<-mLambda[newIndicatorSortOrderCodes,]
     mLambda.se<-mLambda.se[newIndicatorSortOrderCodes,]
+    mLambda.p<-mLambda.p[newIndicatorSortOrderCodes,]
 
     mTheta<-mTheta[newIndicatorSortOrderCodes,newIndicatorSortOrderCodes]
     mTheta.se<-mTheta.se[newIndicatorSortOrderCodes,newIndicatorSortOrderCodes]
+    mTheta.p<-mTheta.se[newIndicatorSortOrderCodes,newIndicatorSortOrderCodes]
   }
   
   
   
-  parsedSEMResult<-semplate$parseSEMMatricesAsDOTDataframes(mLambda,mPsi,mTheta,mLambda.se = mLambda.se,mPsi.se = mPsi.se, mTheta.se = mTheta.se)
+  parsedSEMResult<-semplate$parseSEMMatricesAsDOTDataframes(mLambda,mPsi,mTheta,mLambda.se = mLambda.se,mPsi.se = mPsi.se, mTheta.se = mTheta.se, mLambda.p=mLambda.p, mPsi.p=mPsi.p, mTheta.p=mTheta.p)
+  #parsedSEMResult<-semplate$parseSEMMatricesAsDOTDataframes(mLambda,mPsi,mTheta,mLambda.se = mLambda.se,mPsi.se = mPsi.se, mTheta.se = mTheta.se)
   dot<-semplate$generateDOT(nodeDf=parsedSEMResult$nodeDf, edgeDf=parsedSEMResult$edgeDf)
   
   if(!is.null(dotFilePath)){
@@ -1408,16 +1428,49 @@ semplate$parseAndPrintSEMResult <- function(mLambda,mPsi,mTheta, mLambda.se=NULL
 }
 
 #wrapper for a lavaan object
-semplate$parseAndPrintSEMResultLavaan <- function(lavaanResultObject, dotFilePath=NULL, vectorFilePath=NULL, rasterFilePath=NULL, doPrint=TRUE, newIndicatorSortOrderCodes=NULL) {
+semplate$parseAndPrintSEMResultLavaan <- function(lavaanResultObject, dotFilePath=NULL, vectorFilePath=NULL, rasterFilePath=NULL, doPrint=TRUE, newIndicatorSortOrderCodes=NULL, useSTD=TRUE) {
+  #lavaanResultObject<-cSem
+  #lavaanResultObject<-tSEMRes
   
-  mLambda<-lavTech(cSem,what = "est",T)$lambda
-  mLambda.se<-lavTech(cSem,what = "se",T)$lambda
-  mPsi<-lavTech(cSem,what = "est",T)$psi
-  mPsi.se<-lavTech(cSem,what = "se",T)$psi
-  mTheta<-lavTech(cSem,what = "est",T)$theta
-  mTheta.se<-lavTech(cSem,what = "se",T)$theta
+  mLambda<-lavTech(lavaanResultObject,what = "est",T)$lambda
+  mLambda.std<-lavTech(lavaanResultObject,what = "std",T)$lambda
+  mLambda.se<-lavTech(lavaanResultObject,what = "se",T)$lambda
+  mLambda.z<-mLambda/mLambda.se
+  mLambda.p<-2*pnorm(abs(mLambda.z),lower.tail = FALSE)
   
-  return(semplate$parseAndPrintSEMResult(mLambda,mPsi,mTheta, mLambda.se=mLambda.se,mPsi.se=mPsi.se,mTheta.se=mTheta.se, dotFilePath=dotFilePath, vectorFilePath=vectorFilePath, rasterFilePath=rasterFilePath, doPrint=doPrint, newIndicatorSortOrderCodes=newIndicatorSortOrderCodes))
+  mPsi<-lavTech(lavaanResultObject,what = "est",T)$psi
+  mPsi.std<-lavTech(lavaanResultObject,what = "std",T)$psi
+  mPsi.se<-lavTech(lavaanResultObject,what = "se",T)$psi
+  mPsi.z<-mPsi/mPsi.se
+  mPsi.p<-2*pnorm(abs(mPsi.z),lower.tail = FALSE)
+  
+  mTheta<-lavTech(lavaanResultObject,what = "est",T)$theta
+  mTheta.std<-lavTech(lavaanResultObject,what = "std",T)$theta
+  mTheta.se<-lavTech(lavaanResultObject,what = "se",T)$theta
+  mTheta.z<-mTheta/mTheta.se
+  mTheta.p<-2*pnorm(abs(mTheta.z),lower.tail = FALSE)
+  
+  #View(mLambda.std)
+  #View(mLambda*ratio.standardisation)
+  
+  if(useSTD){
+    mLambda.se.std<-(mLambda/mLambda.std)*mLambda.se
+    mLambda.se.std[!is.finite(mLambda.se.std)]<-0
+    mPsi.se.std<-(mPsi/mPsi.std)*mPsi.se
+    mPsi.se.std[!is.finite(mPsi.se.std)]<-0
+    mTheta.se.std<-(mTheta/mTheta.std)*mTheta.se
+    mTheta.se.std[!is.finite(mTheta.se.std)]<-0
+    
+    #set original to STD versions
+    mLambda<-mLambda.std
+    mLambda.se<-mLambda.se.std
+    mPsi<-mPsi.std
+    mPsi.se<-mPsi.se.std
+    mTheta<-mTheta.std
+    mTheta.se<-mTheta.se.std
+  }
+  
+  return(semplate$parseAndPrintSEMResult(mLambda,mPsi,mTheta, mLambda.se=mLambda.se,mPsi.se=mPsi.se,mTheta.se=mTheta.se,mLambda.p = mLambda.p, mPsi.p = mPsi.p, mTheta.p = mTheta.p, dotFilePath=dotFilePath, vectorFilePath=vectorFilePath, rasterFilePath=rasterFilePath, doPrint=doPrint, newIndicatorSortOrderCodes=newIndicatorSortOrderCodes))
   
 }
 
@@ -1428,28 +1481,38 @@ semplate$parseAndPrintSEMResultGSEMMatrix <- function(parsedGenomicSEMMatrices, 
   if(useSTD){
     mLambda<-parsedGenomicSEMMatrices$patternCoefficientsSTDGenotype.matrix
     mLambda.se<-parsedGenomicSEMMatrices$patternCoefficientsSTDGenotype.SE.matrix
+    mLambda.p<-parsedGenomicSEMMatrices$patternCoefficients.p.matrix
     mPsi<-parsedGenomicSEMMatrices$covariancesSTDGenotype.matrix
     mPsi.se<-parsedGenomicSEMMatrices$covariancesSTDGenotype.SE.matrix
+    mPsi.p<-parsedGenomicSEMMatrices$covariancesSTDGenotype.p.matrix
     mTheta<-matrix(data=0,nrow = nrow(mLambda),ncol = nrow(mLambda))
     diag(mTheta)<-parsedGenomicSEMMatrices$residualVariancesSTDGenotype.matrix[,1]
     rownames(mTheta)<-colnames(mTheta)<-rownames(mLambda)
     mTheta.se<-matrix(data=0,nrow = nrow(mLambda),ncol = nrow(mLambda))
     diag(mTheta.se)<-parsedGenomicSEMMatrices$residualVariancesSTDGenotype.SE.matrix[,1]
     rownames(mTheta.se)<-colnames(mTheta.se)<-rownames(mLambda)
+    mTheta.p<-matrix(data=0,nrow = nrow(mLambda),ncol = nrow(mLambda))
+    diag(mTheta.p)<-parsedGenomicSEMMatrices$residualVariances.p.matrix
+    rownames(mTheta.p)<-colnames(mTheta.p)<-rownames(mLambda)
   } else {
     mLambda<-parsedGenomicSEMMatrices$patternCoefficients.matrix
     mLambda.se<-parsedGenomicSEMMatrices$patternCoefficients.SE.matrix
+    mLambda.p<-parsedGenomicSEMMatrices$patternCoefficients.p.matrix
     mPsi<-parsedGenomicSEMMatrices$covariances.matrix
     mPsi.se<-parsedGenomicSEMMatrices$covariances.SE.matrix
+    mPsi.p<-parsedGenomicSEMMatrices$covariancesSTDGenotype.p.matrix
     mTheta<-matrix(data=0,nrow = nrow(mLambda),ncol = nrow(mLambda))
     diag(mTheta)<-parsedGenomicSEMMatrices$residualVariances.matrix[,1]
     rownames(mTheta)<-colnames(mTheta)<-rownames(mLambda)
     mTheta.se<-matrix(data=0,nrow = nrow(mLambda),ncol = nrow(mLambda))
     diag(mTheta.se)<-parsedGenomicSEMMatrices$residualVariances.SE.matrix[,1]
     rownames(mTheta.se)<-colnames(mTheta.se)<-rownames(mLambda)
+    mTheta.p<-matrix(data=0,nrow = nrow(mLambda),ncol = nrow(mLambda))
+    diag(mTheta.p)<-parsedGenomicSEMMatrices$residualVariances.p.matrix
+    rownames(mTheta.p)<-colnames(mTheta.p)<-rownames(mLambda)
   }
   
-  return(semplate$parseAndPrintSEMResult(mLambda,mPsi,mTheta, mLambda.se=mLambda.se,mPsi.se=mPsi.se,mTheta.se=mTheta.se, dotFilePath=dotFilePath, vectorFilePath=vectorFilePath, rasterFilePath=rasterFilePath, doPrint=doPrint, newIndicatorSortOrderCodes=newIndicatorSortOrderCodes))
+  return(semplate$parseAndPrintSEMResult(mLambda,mPsi,mTheta, mLambda.se=mLambda.se,mPsi.se=mPsi.se,mTheta.se=mTheta.se, mLambda.p=mLambda.p, mPsi.p=mPsi.p, mTheta.p=mTheta.p, dotFilePath=dotFilePath, vectorFilePath=vectorFilePath, rasterFilePath=rasterFilePath, doPrint=doPrint, newIndicatorSortOrderCodes=newIndicatorSortOrderCodes))
   
 }
 
