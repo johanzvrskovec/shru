@@ -1008,6 +1008,7 @@ semplate$generateDOT <- function(nodeDf, edgeDf, filterLoadingSTDValueHideLT=0.4
   #splines = 'line',
   #splines = 'spline', #this leads to oom issues
   #outputorder = 'edgesfirst',
+  #outputorder = 'nodesfirst',
   out<-c("digraph {")
   out<-c(out,"graph [layout = 'neato',
        rankdir = 'TB',
@@ -1157,7 +1158,7 @@ edge [fontname = 'Helvetica',
   #set initial included/excluded
   edgeDf[,include:=TRUE]
   if(allowExclude){
-    edgeDf[is.na(values) | !is.finite(values) | values<filterLoadingSTDValueExcludeLT, c("include"):=list(FALSE)]
+    edgeDf[is.na(values) | !is.finite(values) | abs(values)<filterLoadingSTDValueExcludeLT, c("include"):=list(FALSE)]
     edgeDf[type=='residual_self_loading',include:=TRUE]
   }
   
@@ -1166,15 +1167,15 @@ edge [fontname = 'Helvetica',
   #set initial hidden
   edgeDf[,hide:=FALSE]
   nodeDf[,hide:=FALSE]
-  edgeDf[is.na(values) | !is.finite(values) | values<filterLoadingSTDValueHideLT & from!=to, c("hide"):=list(TRUE)]
-  nodeDf[type=='covariance' & from!=to & (is.na(values) | !is.finite(values) | values<filterLoadingSTDValueHideLT), c("hide"):=list(TRUE)]
+  edgeDf[is.na(values) | !is.finite(values) | abs(values)<filterLoadingSTDValueHideLT & from!=to, c("hide"):=list(TRUE)]
+  nodeDf[type=='covariance' & from!=to & (is.na(values) | !is.finite(values) | abs(values)<filterLoadingSTDValueHideLT), c("hide"):=list(TRUE)]
 
   edgeDf[,suppress:=FALSE]
   edgeDf[!is.na(values) & is.finite(values) & significantValue==FALSE, c("suppress"):=list(TRUE)]
   
   
   edgeDfLoadings<-edgeDf[type=='loading',][,absValues:=abs(values)]
-  setorder(edgeDfLoadings, -significantValue, -values, na.last = TRUE)
+  setorder(edgeDfLoadings, -significantValue, -absValues, na.last = TRUE)
   
   #make sure every factor has one loading
   edgeDfLoadings_maxloadingFactor <- edgeDfLoadings[, .(id = head(.SD, 1)$id, values = head(.SD, 1)$values), by = from]
@@ -1516,13 +1517,84 @@ semplate$parseAndPrintSEMResultGSEMMatrix <- function(parsedGenomicSEMMatrices, 
   
 }
 
-#broken due to broken parseGenomicSEMResultAsDOTDataframes
-semplate$parseAndPrintGenomicSEMResult <- function(resultDf = NULL){
-  #resultDf<-genomicSEMResult
-  parsedSEMResult<-semplate$parseGenomicSEMResultAsDOTDataframes(resultDf)
-  dot<-semplate$generateDOT(nodeDf=parsedSEMResult$nodeDf, edgeDf=parsedSEMResult$edgeDf)
-  grViz(dot)
-  return(dot)
+# #broken due to broken parseGenomicSEMResultAsDOTDataframes
+# semplate$parseAndPrintGenomicSEMResult <- function(resultDf = NULL){
+#   #resultDf<-genomicSEMResult
+#   parsedSEMResult<-semplate$parseGenomicSEMResultAsDOTDataframes(resultDf)
+#   dot<-semplate$generateDOT(nodeDf=parsedSEMResult$nodeDf, edgeDf=parsedSEMResult$edgeDf)
+#   grViz(dot)
+#   return(dot)
+# }
+
+
+semplate$factorCongruence <- function(mTheta1, mTheta2){
+  #mTheta1<-lavTech(lavaanResults.best5_12,what = "std",T)$lambda
+  #mTheta1<-parsedGenomicSEMResults.best5_12$patternCoefficientsSTDGenotype.matrix
+  #mTheta1<-lavTech(lavaanResults.best6_12,what = "std",T)$lambda
+  #mTheta2<-parsedGenomicSEMResults.best5_12$patternCoefficientsSTDGenotype.matrix
+  #mTheta2<-parsedGenomicSEMResults.best6_12$patternCoefficientsSTDGenotype.matrix
+  
+  #set all 0 to NA
+  mTheta1[mTheta1==0]<-NA
+  mTheta2[mTheta2==0]<-NA
+  
+  mCongruence<-matrix(data = NA, ncol=ncol(mTheta1), nrow=ncol(mTheta2))
+  colnames(mCongruence)<-colnames(mTheta1)
+  rownames(mCongruence)<-colnames(mTheta2)
+  mMatches<-matrix(data = NA, ncol=ncol(mTheta1), nrow=ncol(mTheta2))
+  colnames(mMatches)<-colnames(mTheta1)
+  rownames(mMatches)<-colnames(mTheta2)
+  indicatorsToUse<-rownames(mTheta1)[rownames(mTheta1) %in% rownames(mTheta2)]
+  mTheta1.sel<-mTheta1[indicatorsToUse,]
+  mTheta2.sel<-mTheta2[indicatorsToUse,]
+  
+  mTheta1.isNa<-is.na(mTheta1) | mTheta1==0
+  mTheta1.isNotNaSum<-colSums(!mTheta1.isNa,na.rm = TRUE)
+  mTheta2.isNa<-is.na(mTheta2) | mTheta2==0
+  mTheta2.isNotNaSum<-colSums(!mTheta2.isNa,na.rm = TRUE)
+  
+  mTheta1Theta2.isNotNaAvg<-as.data.frame((matrix(mTheta1.isNotNaSum, ncol=ncol(mTheta1), nrow = ncol(mTheta2),byrow = T) + matrix(mTheta2.isNotNaSum, ncol=ncol(mTheta1), nrow = ncol(mTheta2),byrow = F,dimnames = list(rownames=colnames(mTheta2),colnames=colnames(mTheta1))))/2)
+  
+  for(iOne in 1:ncol(mTheta1)){
+    #iOne<-2
+    
+    #only considers the subset of overlapping indicators
+    lOne<-mTheta1.sel[,iOne]
+    mOne<-as.data.frame(matrix(lOne,ncol=ncol(mTheta2), nrow=nrow(mTheta1.sel), byrow = FALSE)) #the columns are set to match Theta2 dimensions!
+    colnames(mOne)<-colnames(mTheta2.sel)
+    rownames(mOne)<-rownames(mTheta1.sel)
+    mOne.isNa<-is.na(mOne)
+    
+    
+    #mOne.rank<-lapply(abs(mOne), FUN = function(x){rank(x,ties.method = 'min')}) #not done!!!
+    cWeights<-colSums(rbind(colSums(abs(mOne),na.rm = TRUE),colSums(abs(mTheta2.sel),na.rm = TRUE)), na.rm=TRUE)/2
+    
+    diffPositive<-mOne-mTheta2.sel
+    diffNegative<-mOne+mTheta2.sel
+    isNa<-is.na(diffPositive)
+    
+    isNotNaSum<-colSums(!isNa,na.rm = TRUE)
+    diffPositiveWeights<-colSums(abs(diffPositive),na.rm = TRUE)/cWeights
+    diffPositiveWeights[isNotNaSum==0]<-NA
+    diffNegativeWeights<-colSums(abs(diffNegative),na.rm = TRUE)/cWeights
+    diffNegativeWeights[isNotNaSum==0]<-NA
+    
+    
+    if(sum(diffPositiveWeights,na.rm = TRUE)<sum(diffNegativeWeights,na.rm=TRUE)){
+      diffWeightsConsensus<-diffPositiveWeights
+    } else {
+      diffWeightsConsensus<-diffNegativeWeights
+    }
+    # diffPositiveNegativeWeights <- rbind(diffPositiveWeights,diffNegativeWeights)
+    # diffWeightsConsensus<-apply(diffPositiveNegativeWeights, MARGIN = 2, FUN = min)
+
+    mCongruence[,iOne]<-1-diffWeightsConsensus
+    mMatches[,iOne]<-isNotNaSum
+    
+  }
+  
+  return(list(mCongruence=mCongruence, mCongruence.STD=(mMatches/mTheta1Theta2.isNotNaAvg)*mCongruence, mMatches=mMatches, mMatchesAvg=mMatches/2, mNotNaAvg=mTheta1Theta2.isNotNaAvg,mMatchesAvgRatio=mMatches/(2*mTheta1Theta2.isNotNaAvg)))
+  
 }
 
 semplate$reliability.H <- function(factorLoadingsVector, singleVariableValues=F){
