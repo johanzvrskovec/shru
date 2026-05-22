@@ -359,7 +359,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.6.3\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.6.4\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
