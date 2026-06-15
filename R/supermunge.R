@@ -683,16 +683,16 @@ supermunge <- function(
         FORMAT.indices<-which(colnames(cSumstats)=="FORMAT")
         FORMAT.index <- FORMAT.indices[length(FORMAT.indices)] #last
         
-        if(!is.na(FORMAT.index) && FORMAT.index>1 && length(colnames(cSumstats))>FORMAT.index){
-          colnameVALUES<-colnames(cSumstats)[FORMAT.index+1] #assume column with values after FORMAT
-          cSumstats$FORMAT.split<-strsplit(cSumstats$FORMAT, split = ":",fixed = T)
-          cSumstats$VALUES.split<-strsplit(as.data.frame(cSumstats)[,c(colnameVALUES)], split = ":",fixed = T)
-          # cSumstats[,ES:=NULL]
-          # cSumstats[,ES:=(VALUES.split[1])]
-          # cSumstats[,ES:=FORMAT.split=='ES']
-          # cSumstats[,ES:=(VALUES.split[FORMAT.split=='ES'])]
-          #TODO WIP! HERE!!!!
-        }
+        # if(!is.na(FORMAT.index) && FORMAT.index>1 && length(colnames(cSumstats))>FORMAT.index){
+        #   colnameVALUES<-colnames(cSumstats)[FORMAT.index+1] #assume column with values after FORMAT
+        #   cSumstats$FORMAT.split<-strsplit(cSumstats$FORMAT, split = ":",fixed = T)
+        #   cSumstats$VALUES.split<-strsplit(as.data.frame(cSumstats)[,c(colnameVALUES)], split = ":",fixed = T)
+        #   cSumstats[,ES:=NULL]
+        #   cSumstats[,ES:=(VALUES.split[1])]
+        #   cSumstats[,ES:=FORMAT.split=='ES']
+        #   cSumstats[,ES:=(VALUES.split[FORMAT.split=='ES'])]
+        #   #TODO WIP! HERE!!!!
+        # }
         
       }
       
