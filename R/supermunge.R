@@ -51,9 +51,9 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # test=T
 
 # 
-# filePaths = "~/Downloads/bmi.giant-ukbb.meta-analysis.combined.23May2018.txt.gz"
-# refFilePath = "/Users/jakz/Documents/local_db/SHARED/data/variant_lists/reference.1000G.maf.0.005.txt.gz"
-# traitNames = c("BODYTEST")
+# filePaths = "~/Downloads/daner_AN.MAF1.INFO6.gz"
+# refFilePath = "/Users/jakz/Documents/local_db/SHARED/data/variant_lists/1kgp3.bX.eur.l2.jz2023.gz"
+# traitNames = c("ANTEST")
 # #invertEffectDirectionOn = c("ptsd.afr")
 # test = TRUE
 # #ancestrySetting = c("EUR")
@@ -359,7 +359,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.6.4\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.7.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -561,14 +561,16 @@ supermunge <- function(
   for(iFile in 1:nDatasets){
     tryCatch({
       #for testing!
-      #iFile=2
+      #iFile=1
       timeStart.ds <- Sys.time()
       cSumstats.warnings<-list()
+      cSumstats.meta<-data.table(message=NA_character_,display=NA_character_)
       
       #temporary variables which has to be reset for each file/dataset
       hasN<-F
       hasNEFF<-F
       empty<-F
+      isVCF<-F
       
       #set changeEffectDirectionOnAlleleFlip -this has to be reset for each file/dataset
       changeEffectDirectionOnAlleleFlip<-NULL
@@ -628,6 +630,8 @@ supermunge <- function(
               #fallback
               if(ncol(cSumstats)<5) {
                 cat("\nFalling back on alternate file reading routine...(i.e. assuming vcf format)")
+                isVCF<-T
+                
                 if(nrow(cSumstats)>1000){
                   cSumstats <- NULL
                   #cSumstats <- read.table(cFilePath,header=F, quote="\"",fill=T,na.string=c(".",NA,"NA",""),nrows = 1000, comment.char = '')
@@ -670,7 +674,27 @@ supermunge <- function(
         cSumstats<-cSumstats[1:4000000,]
       }
       
-      cSumstats.meta<-data.table(message=NA_character_,display=NA_character_)
+      #readVCF type columns
+      #TODO - VCF format check ex. fileformat=VCFv4.2 
+      if(isVCF){
+        #assume possible GWAS VCF format
+        #https://github.com/MRCIEU/gwas-vcf-specification
+        
+        FORMAT.indices<-which(colnames(cSumstats)=="FORMAT")
+        FORMAT.index <- FORMAT.indices[length(FORMAT.indices)] #last
+        
+        if(!is.na(FORMAT.index) && FORMAT.index>1 && length(colnames(cSumstats))>FORMAT.index){
+          colnameVALUES<-colnames(cSumstats)[FORMAT.index+1] #assume column with values after FORMAT
+          cSumstats$FORMAT.split<-strsplit(cSumstats$FORMAT, split = ":",fixed = T)
+          cSumstats$VALUES.split<-strsplit(as.data.frame(cSumstats)[,c(colnameVALUES)], split = ":",fixed = T)
+          # cSumstats[,ES:=NULL]
+          # cSumstats[,ES:=(VALUES.split[1])]
+          # cSumstats[,ES:=FORMAT.split=='ES']
+          # cSumstats[,ES:=(VALUES.split[FORMAT.split=='ES'])]
+          #TODO WIP! HERE!!!!
+        }
+        
+      }
       
       cSumstats.nSNP.raw<-nrow(cSumstats)
       sumstats.meta[iFile,c("n_snp_raw")]<-cSumstats.nSNP.raw
@@ -1602,7 +1626,12 @@ supermunge <- function(
             } else {
               sumstats.meta[iFile,c("se_type")]<-"non_OR"
             }
-            cSumstats[,EFFECT:=log(EFFECT)]
+            
+            #cSumstats[,EFFECT_ORIG:=EFFECT] #save original - not needed actually
+            cSumstats[,EFFECT:=log(EFFECT)] #normal calculation
+            
+            #cSumstats[!is.finite(EFFECT),] #check
+            
             if(sumstats.meta[iFile,c("se_type")]!="OR"){
               cSumstats[,P.SEtest:=2*pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale2:=abs(P.SEtest-P)<1e-4] #JZ: edited to 2*
               if(sum(cSumstats$P.SEtest.is.same.scale2,na.rm = T)>0.75*nrow(cSumstats)){
@@ -1730,7 +1759,7 @@ supermunge <- function(
             
             #set effect to log(EFFECT) if odds ratio
             if(sumstats.meta[iFile,c("effect_type")]=="OR") {
-              cSumstats[,EFFECT:=log(EFFECT)]
+              #cSumstats[,EFFECT:=log(EFFECT)] #this was actually performed earlier for the tests
               cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT","OR => ln(OR)"))
             }
             
@@ -1766,6 +1795,9 @@ supermunge <- function(
               cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT (re)calculated since no P or SE"))
             }
             cat(".")
+            
+            #check
+            #View(cSumstats[!is.finite(Z),c("SNP","EFFECT","SE","Z","P")])
             
             ## Inspect new and old Z-values
             if(any(colnames(cSumstats)=="Z") && any(colnames(cSumstats)=="Z_ORIG")){

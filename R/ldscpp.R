@@ -138,6 +138,19 @@ ldscpp <- function(
 #   library(data.table)
 #   library(readr)
   
+  # test, special traits
+  # traits = gwas.meta.sel.specialTest$filePath2
+  # sample.prev = gwas.meta.sel.specialTest$samplePrevalence
+  # population.prev = gwas.meta.sel.specialTest$populationPrevalence
+  # ld = ld_path
+  # trait.names = gwas.meta.sel.specialTest$code
+  # preweight.INFO =F
+  # preweight.SINFO = F
+  # filter.info = 0.6
+  # filter.maf = 0.01
+  # resamplingMethod = "vbcs"
+  # blocksizeCM = NA
+  
   #test for dr dev
   # traits = gwas.meta.sel$filePath
   # sample.prev = gwas.meta.sel$samplePrevalence
@@ -593,8 +606,11 @@ ldscpp <- function(
       
       #mod addition
       #added filters to accommodate strangely parsed sumstats
-      if(any(colnames(y1)=="BETA") & any(colnames(y1)=="SE")) y1<-y1[!is.na(SNP) & is.finite(BETA) & is.finite(SE),]
+      y1.nrow<- nrow(y1)
+      y1<-y1[!is.na(SNP),] #assume SNP column
+      #if(any(colnames(y1)=="BETA") & any(colnames(y1)=="SE")) y1<-y1[is.finite(BETA) & is.finite(SE),] #let's not filter on these as they are not actualy used for anything yet
       if(any(colnames(y1)=="Z")) y1<-y1[is.finite(Z),]
+      LOG("Out of ", y1.nrow, " SNPs, ", nrow(y1), " remain after removing non-finite Z-values.")
       
       #mod addition, harmonise character case
       y1$SNP<-tolower(as.character(y1$SNP))
@@ -1186,11 +1202,9 @@ ldscpp <- function(
       y1 <- all_y[[j]]
       y1$chi1 <- y1$Z^2
       
-      #moved here as they are the same for j
+      #moved here as they are the same for j (==k), sampple.prev can have been updated by the neff/balanced sample instructions earlier
       samp.prev <- as.numeric(sample.prev[j])
       pop.prev <- as.numeric(population.prev[j])
-      
-     
       
       for(k in j:length(traits)){
         #k<-2
