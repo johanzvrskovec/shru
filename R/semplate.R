@@ -132,7 +132,7 @@ semplate$generateLavaanCFAModel<-function(
     orthogonal=FALSE,
     indicatorArgs=NULL,
     universalResidualLimitMin=0.001,
-    universalIndicatorLoadingAbsoluteLimitMax=1,
+    universalIndicatorLoadingAbsoluteLimitMax=NA, #set to 1 to limit the loadings from inflating
     universalCorrelationLimitMax=NA
     ){
   #allow_loading.table.indicator_factor<-cIndicatorLoadings
