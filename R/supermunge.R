@@ -213,6 +213,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # outputFormat="default"
 # metaAnalysisFormat="ivw" #n
 # metaAnalysisMinSE = 0.000000001
+# settingLargeZvalue = 40
 # sortOutput=T
 # filter.info=NULL
 # filter.or=NULL
@@ -279,6 +280,7 @@ supermunge <- function(
   outputFormat="default", #default,ldsc,cojo
   metaAnalysisFormat="ivw", #ivw - inverse variance weighting, ivwpop - inverse variance weighting with meta-analysed population variance, or n - sample size weighting (with meta-analysed population variance).
   metaAnalysisMinSE = 0.000000001, #minimum SE, anything below this will be set to this value
+  settingLargeZvalue = 40,
   sortOutput=T,
   filter.info=NULL,
   filter.or=NULL,
@@ -359,7 +361,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.7.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.7.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1586,10 +1588,13 @@ supermunge <- function(
       cat(".")
       
       #add Z and SE if missing
-      
       if(any(colnames(cSumstats)=="P") && any(colnames(cSumstats)=="EFFECT") && !any(colnames(cSumstats)=="Z")) {
         cSumstats[,Z:=sign(EFFECT) * sqrt(qchisq(P,1,lower=F))]
         cSumstats.meta<-rbind(cSumstats.meta,list("Z","Calculated from P and sign(EFFECT)"))
+        if(any(!is.finite(cSumstats$Z))){
+          cSumstats.warnings<-c(cSumstats.warnings,"Some Z values were approximated using an arbitrary setting of Z=40, assuming a zero p-value.")
+          cSumstats[!is.finite(Z),Z:=sign(EFFECT) * eval(settingLargeZvalue)]
+        }
         cat(".")
       }
 
@@ -1749,6 +1754,7 @@ supermunge <- function(
             cat(".")
             
             ## Compute Z,P again to update it according to any corrections just done
+            ## this assumes the current calculations are correct before the following final Z score adjustments
             if(any(colnames(cSumstats)=="SE")) {
               cSumstats[,Z:=EFFECT/SE]
               cSumstats[,P:=2*pnorm(q = abs(Z),mean = 0, sd = 1, lower.tail = F)]
@@ -1782,10 +1788,10 @@ supermunge <- function(
             }
           }
           
-          ## Compute Z score (standardised beta) - used for effect corrections further and is later corrected accordingly - assumes correct EFFECT and SE
+          ## Compute Z score (standardised beta) after effect edits - used for effect corrections further and is later corrected accordingly - assumes correct EFFECT and SE
           if(process){
             if(any(colnames(cSumstats)=="Z")) cSumstats[,Z_ORIG:=Z] #save original Z-score
-            if(any(colnames(cSumstats)=="P")) {
+            if(any(colnames(cSumstats)=="P")) { #we still trust P over any custom conversions
               cSumstats[,Z:=sign(EFFECT) * sqrt(qchisq(P,1,lower=F))]
               cSumstats.meta<-rbind(cSumstats.meta,list("Z","(Re)calculated from P and sign(EFFECT)"))
             } else if(any(colnames(cSumstats)=="SE")){
@@ -1794,6 +1800,22 @@ supermunge <- function(
             } else {
               cSumstats.meta<-rbind(cSumstats.meta,list("Z","NOT (re)calculated since no P or SE"))
             }
+            
+            if(any(!is.finite(cSumstats$Z & is.finite(cSumstats$Z_ORIG)))){
+              cSumstats.warnings<-c(cSumstats.warnings,"Some Z values could not be updated from processed effect values as this would lead to non-finite values. Z was then inferred from an earlier estimate.")
+              cSumstats[!is.finite(Z) & is.finite(Z_ORIG),Z:=Z_ORIG]
+            }
+            
+            if(any(colnames(cSumstats)=="P") && any(colnames(cSumstats)=="SE") && any(!is.finite(cSumstats$Z))){
+              cSumstats.warnings<-c(cSumstats.warnings,"Some Z values could still not be updated from processed effect values as this would lead to non-finite values. Z was then inferred from EFFECT and SE.")
+              cSumstats[!is.finite(Z), Z:=EFFECT/SE]
+            }
+            
+            #fallback
+            if(any(!is.finite(cSumstats$Z))){
+              cSumstats.warnings<-c(cSumstats.warnings,"Some Z values were approximated using an arbitrary setting of Z=40, assuming a zero p-value.")
+              cSumstats[!is.finite(Z),Z:=sign(EFFECT) * eval(settingLargeZvalue)]
+            }
             cat(".")
             
             #check
@@ -1801,11 +1823,11 @@ supermunge <- function(
             
             ## Inspect new and old Z-values
             if(any(colnames(cSumstats)=="Z") && any(colnames(cSumstats)=="Z_ORIG")){
-              if(abs(mean(cSumstats[is.finite(Z),]$Z)-mean(cSumstats[is.finite(Z_ORIG),]$Z_ORIG,na.rm=T))>1) cSumstats.warnings<-c(cSumstats.warnings,"New recalculated Z differ from old by more than 1sd!")
+              if(abs(mean(cSumstats[is.finite(Z) & is.finite(Z_ORIG),]$Z)-mean(cSumstats[is.finite(Z) & is.finite(Z_ORIG),]$Z_ORIG,na.rm=T))>1) cSumstats.warnings<-c(cSumstats.warnings,"New recalculated Z differ from old by more than 1sd!")
               cat(".")
             }
             
-            #Re-compute SE!!! new
+            #Re-compute SE!!! This is to make SE always correspond to the given effect and Z/P. This overwrites any previous attempts at scale conversion and should be more reliable (if Z/P reliable).
             if(any(colnames(cSumstats)=="Z")){
               cSumstats[,SE:=EFFECT/Z]
               cSumstats.meta<-rbind(cSumstats.meta,list("SE","(Re)calculated from EFFECT and Z"))
