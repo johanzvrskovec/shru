@@ -186,7 +186,7 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 # filter.maf.imputation=0.01
 # imputeFrameLenBp=500000 #500000 for comparison with SSIMP and ImpG
 # imputeFrameLenCM=0.5 #frame size in cM, will override the bp frame length - set to NULL if you want to use the bp-window argument
-# imputeFromLD.validate.q=0.05
+# imputeFromLD.validate.q=0
 # N=NULL
 # Neff=NULL
 # forceN=F
@@ -257,7 +257,7 @@ supermunge <- function(
   N=NULL, #set specific N for all variants if missing
   Neff=NULL, #set specific Neff for all variants if missing
   forceN=F,
-  prop=NULL,
+  prop=NULL, #set together with standardiseEffectsToExposure
   OLS=NULL,
   linprob=NULL,
   se.logit=NULL,
@@ -275,7 +275,7 @@ supermunge <- function(
   invertEffectDirectionOn=NULL,
   parse=T, #run advanced parsing routines (for SNP and CHR columns) - may take a long time and is not 100% foolproof - check the results!
   process=T, #apply 'lossy' procedures apart from the explicit filters (incuding reference merging)
-  standardiseEffectsToExposure=F,
+  standardiseEffectsToExposure=F, #note that you will need the prop argument set giving the proportion of cases and controls
   writeOutput=T,
   outputFormat="default", #default,ldsc,cojo
   metaAnalysisFormat="ivw", #ivw - inverse variance weighting, ivwpop - inverse variance weighting with meta-analysed population variance, or n - sample size weighting (with meta-analysed population variance).
@@ -361,7 +361,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.7.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.8.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -1677,18 +1677,33 @@ supermunge <- function(
           #Recommend parameter settings for Genomic SEM sumstats function
           if(sumstats.meta[iFile,c("effect_type")]=="OR" | sumstats.meta[iFile,c("se_type")]=="OR"){
             cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Probably FALSE"))
+            if(is.na(OLS[iFile]) || updateEffectMetaFromStatistics) OLS[iFile]<-FALSE
           } else {
             cSumstats.meta<-rbind(cSumstats.meta,list("OLS","Unknown"))
+            if(is.na(OLS[iFile]) || updateEffectMetaFromStatistics) OLS[iFile]<-TRUE
           }
+          
           
           if(sumstats.meta[iFile,c("effect_type")]=="OR" & sumstats.meta[iFile,c("se_type")]=="OR"){
+            cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","FALSE"))
+            if(is.na(se.logit[iFile]) || updateEffectMetaFromStatistics) se.logit[iFile]<-FALSE
+            if(is.na(linprob[iFile]) || updateEffectMetaFromStatistics) linprob[iFile]<-FALSE
+          } else if(sumstats.meta[iFile,c("effect_type")]=="OR" & sumstats.meta[iFile,c("se_type")]=="ln_OR"){
+            cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","TRUE"))
+            if(is.na(se.logit[iFile]) || updateEffectMetaFromStatistics) se.logit[iFile]<-TRUE
+            if(is.na(linprob[iFile]) || updateEffectMetaFromStatistics) linprob[iFile]<-FALSE
+          } else if(sumstats.meta[iFile,c("effect_type")]=="OR" & sumstats.meta[iFile,c("se_type")]=="non_OR"){
             cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Probably FALSE"))
+            if(is.na(se.logit[iFile]) || updateEffectMetaFromStatistics) se.logit[iFile]<-FALSE
+            if(is.na(linprob[iFile]) || updateEffectMetaFromStatistics) linprob[iFile]<-TRUE
           } else {
             cSumstats.meta<-rbind(cSumstats.meta,list("se.logit","Unknown"))
+            if(is.na(se.logit[iFile])) se.logit[iFile]<-FALSE
+            if(is.na(linprob[iFile])) linprob[iFile]<-FALSE
           }
           
-          #TODO! Update this to make use of effective N for Genomic SEM!!
           #standardise effect to exposure, as for Genomic SEM latent factor GWAS
+          #This should not use effective N actually as it includes its own ca/co ratio computations!!!
           if(standardiseEffectsToExposure & any(colnames(cSumstats)=="EFFECT")) {
             cat("\nStandardising effect to exposure.")
             ##standardise outcome standardised BETA to exposure as well (fully standardised)
@@ -1719,7 +1734,8 @@ supermunge <- function(
               #Has effect based on a linear estimator for a binary outcome (rather than a logistic model)
               cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Binary, linear"))
               if(any(colnames(cSumstats)=="Z") & any(colnames(cSumstats)=="N")){
-                if(is.invalid(prop[iFile]) | is.na(prop[iFile])) stop("\nCould not perform correction of linear BETA,SE to liability scale because of missing or invalid prop argument!\n")
+                if(is.invalid(prop[iFile])) stop("\nCould not perform correction of linear BETA,SE to liability scale because of missing or invalid prop argument!\n")
+                if(is.na(prop[iFile])) stop("\nCould not perform correction of linear BETA,SE to liability scale because of missing or invalid prop argument!\n")
                 cSumstats[,EFFECT:=Z/sqrt(prop[iFile]*(1-prop[iFile]) * N * VSNP)] #standardisation
                 cSumstats[,SE:=1/sqrt(prop[iFile]*(1-prop[iFile]) * N * VSNP)] #standardisation
                 cSumstats.meta <- rbind(cSumstats.meta,list("EFFECT,SE","Z, N,propCaCo, UVL std => BETA,SE"))
@@ -1967,8 +1983,8 @@ supermunge <- function(
         setkeyv(cSumstats.merged.snp, cols = paste0(ref.keys,"_REF"))
         
         #Select correct LD score if present and among multiple ancestry specific scores
-        if(ancestrySetting!="ANY" & !any(colnames(cSumstats.merged.snp)=="L2_REF")){
-          if(any(grepl(pattern = paste0("L2.",ancestrySetting,"_REF"), x = colnames(cSumstats.merged.snp), fixed = T))){
+        if(ancestrySetting[[iFile]]!="ANY" && !any(colnames(cSumstats.merged.snp)=="L2_REF")){
+          if(any(grepl(pattern = paste0("L2.",ancestrySetting[[iFile]],"_REF"), x = colnames(cSumstats.merged.snp), fixed = T))){
             sAncestryL2<-colnames(cSumstats.merged.snp)[grepl(pattern = "^L2\\..+_REF$", x = colnames(cSumstats.merged.snp))][[1]]
             cSumstats.merged.snp$L2_REF<-cSumstats.merged.snp[,..sAncestryL2]
             cSumstats$L2_REF<-cSumstats[,..sAncestryL2] #set LD column for original sumstats also
@@ -1977,7 +1993,7 @@ supermunge <- function(
         }
         
         #fallback to selecting the first available ld-score if present
-        if(!any(colnames(cSumstats.merged.snp)=="L2_REF") & any(grepl(pattern = "^L2\\.*.*_REF$", x = colnames(cSumstats.merged.snp)))){
+        if(!any(colnames(cSumstats.merged.snp)=="L2_REF") && any(grepl(pattern = "^L2\\.*.*_REF$", x = colnames(cSumstats.merged.snp)))){
           sAncestryL2<-colnames(cSumstats.merged.snp)[grepl(pattern = "^L2\\.*.*_REF$",x = colnames(cSumstats.merged.snp))][[1]]
           cSumstats.merged.snp$L2_REF<-cSumstats.merged.snp[,..sAncestryL2]
           cSumstats$L2_REF<-cSumstats[,..sAncestryL2] #set LD column for original sumstats also
@@ -2054,7 +2070,7 @@ supermunge <- function(
         
         if(length(chrsToImpute)>0){
           for(cCHR in chrsToImpute){
-            #cCHR<-2
+            #cCHR<-1
             cSS<-cSumstats.merged.snp[CHR_REF==eval(cCHR),.(SNP=SNP_REF,BP=BP_REF,BETA,SE,L2=L2_REF,VAR=SE^2,CM=CM_REF)] #Z=EFFECT/SE
             
             if(do.ldimp.cm){
@@ -2145,8 +2161,8 @@ supermunge <- function(
               saveRDS(object = list(cCHR=cCHR,cSumstats=cSumstats), file = file.path(pathDirOutput,paste0(traitNames[iFile],".LDIMP.TEMP.Rds")))
             #}
             cat("I")
-          }
-        }
+          } #for CHR
+        } #if chromosomes
         
         ## Remove failed imputations
         cSumstats<-cSumstats[is.finite(EFFECT) | (is.finite(BETA.I) & is.finite(SE.I)),]
