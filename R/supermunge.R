@@ -18,6 +18,14 @@ return(data.table::fwrite(x = d,file = filePath, append = F,quote = F,sep = "\t"
 
 #tests
 
+##https://opengwas.io format test
+
+# filePaths = file.path(settingProjectFolderPath,"data","within-sibship_gwases","height_ieu-b-4813.vcf.gz")
+# refFilePath = "/Users/jakz/Documents/local_db/SHARED/data/variant_lists/1kgp3.bX.eur.l2.jz2023.gz"
+# traitNames = c("HEIGHTTEST")
+# test = TRUE
+
+
 # #diff test
 # filePaths = list(
 #   "supermunge.mdd.adams.gz",
@@ -361,7 +369,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.8.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.9.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -634,6 +642,10 @@ supermunge <- function(
                 cat("\nFalling back on alternate file reading routine...(i.e. assuming vcf format)")
                 isVCF<-T
                 
+                #vcfR test
+                #cSumstats.VCF<-read.vcfR(cFilePath, verbose = F)
+                #cSumstats.VCF.fix<-as.data.frame(getFIX(cSumstats.VCF))
+                
                 if(nrow(cSumstats)>1000){
                   cSumstats <- NULL
                   #cSumstats <- read.table(cFilePath,header=F, quote="\"",fill=T,na.string=c(".",NA,"NA",""),nrows = 1000, comment.char = '')
@@ -679,22 +691,78 @@ supermunge <- function(
       #readVCF type columns
       #TODO - VCF format check ex. fileformat=VCFv4.2 
       if(isVCF){
+      
+        if(any(colnames(cSumstats)=="INFO")) cSumstats[,VCF.INFO:=INFO][,INFO:=NULL]
+        
         #assume possible GWAS VCF format
         #https://github.com/MRCIEU/gwas-vcf-specification
         
         FORMAT.indices<-which(colnames(cSumstats)=="FORMAT")
         FORMAT.index <- FORMAT.indices[length(FORMAT.indices)] #last
         
-        # if(!is.na(FORMAT.index) && FORMAT.index>1 && length(colnames(cSumstats))>FORMAT.index){
-        #   colnameVALUES<-colnames(cSumstats)[FORMAT.index+1] #assume column with values after FORMAT
-        #   cSumstats$FORMAT.split<-strsplit(cSumstats$FORMAT, split = ":",fixed = T)
-        #   cSumstats$VALUES.split<-strsplit(as.data.frame(cSumstats)[,c(colnameVALUES)], split = ":",fixed = T)
-        #   cSumstats[,ES:=NULL]
-        #   cSumstats[,ES:=(VALUES.split[1])]
-        #   cSumstats[,ES:=FORMAT.split=='ES']
-        #   cSumstats[,ES:=(VALUES.split[FORMAT.split=='ES'])]
-        #   #TODO WIP! HERE!!!!
-        # }
+        if(!is.na(FORMAT.index) && FORMAT.index>1 && length(colnames(cSumstats))>FORMAT.index){
+          colnameVALUES<-colnames(cSumstats)[FORMAT.index+1] #assume column with values after FORMAT
+          cSumstats$FORMAT.split<-strsplit(cSumstats$FORMAT, split = ":",fixed = T)
+          cSumstats$VALUES.split<-strsplit(as.data.frame(cSumstats)[,c(colnameVALUES)], split = ":",fixed = T)
+          
+          #safeValueAtIndex.numeric <- function(x){ifelse(length(x)>=iCFormat,as.numeric(unlist(x)[iCFormat]),NA_real_)}
+          
+          #ES - Effect Size
+          if(any(unlist(cSumstats[1,]$FORMAT.split)=="ES")){
+            iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="ES")[[1]] #use first row as template
+            cSumstats$ES<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+          }
+          
+          #SE - Standard Error
+          if(any(unlist(cSumstats[1,]$FORMAT.split)=="SE")){
+            iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="SE")[[1]] #use first row as template
+            cSumstats$SE<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+          }
+
+          #LP - Log P (-log10 scale)
+          if(any(unlist(cSumstats[1,]$FORMAT.split)=="LP")){
+            iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="LP")[[1]] #use first row as template
+            cSumstats$LP<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+          }
+          
+          #AF - Allele Frequency
+          if(any(unlist(cSumstats[1,]$FORMAT.split)=="AF")){
+            iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="AF")[[1]] #use first row as template
+            cSumstats$AF<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+          }
+          
+          #NS - Sample Size
+          if(any(unlist(cSumstats[1,]$FORMAT.split)=="NS")){
+            iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="NS")[[1]] #use first row as template
+            cSumstats$NS<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+          }
+          
+          #SS - Sample Size (another?)
+          if(any(unlist(cSumstats[1,]$FORMAT.split)=="SS")){
+            iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="SS")[[1]] #use first row as template
+            cSumstats$SS<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+          }
+          
+          #EZ - Z-score
+          if(any(unlist(cSumstats[1,]$FORMAT.split)=="EZ")){
+            iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="EZ")[[1]] #use first row as template
+            cSumstats$EZ<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+          }
+          
+          #ID - This may already be representative as fixed columns - using SNP as ID is a fixed column
+          if(any(unlist(cSumstats[1,]$FORMAT.split)=="ID")){
+            iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="ID")[[1]] #use first row as template
+            cSumstats$SNP<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+          }
+          
+          #SI - This may already be representative as fixed columns - using SNP as ID is a fixed column
+          if(any(unlist(cSumstats[1,]$FORMAT.split)=="SI")){
+            iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="SI")[[1]] #use first row as template
+            cSumstats$INFO<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+          }
+
+          
+        }
         
       }
       
