@@ -369,7 +369,7 @@ supermunge <- function(
   #outputFormat case insensitivity
   outputFormat<-tolower(outputFormat)
   
-  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.9.0\n") #UPDATE DISPLAYED VERSION HERE!!!!
+  cat("\n\n\nS U P E R ★ M U N G E\t\tSHRU package version 1.9.1\n") #UPDATE DISPLAYED VERSION HERE!!!!
   cat("\n",nDatasets,"dataset(s) provided")
   cat("\n--------------------------------\nSettings:")
   
@@ -711,18 +711,21 @@ supermunge <- function(
           if(any(unlist(cSumstats[1,]$FORMAT.split)=="ES")){
             iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="ES")[[1]] #use first row as template
             cSumstats$ES<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+            cat(".")
           }
           
           #SE - Standard Error
           if(any(unlist(cSumstats[1,]$FORMAT.split)=="SE")){
             iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="SE")[[1]] #use first row as template
             cSumstats$SE<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+            cat(".")
           }
 
           #LP - Log P (-log10 scale)
           if(any(unlist(cSumstats[1,]$FORMAT.split)=="LP")){
             iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="LP")[[1]] #use first row as template
             cSumstats$LP<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+            cat(".")
           }
           
           #AF - Allele Frequency
@@ -735,30 +738,35 @@ supermunge <- function(
           if(any(unlist(cSumstats[1,]$FORMAT.split)=="NS")){
             iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="NS")[[1]] #use first row as template
             cSumstats$NS<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+            cat(".")
           }
           
           #SS - Sample Size (another?)
           if(any(unlist(cSumstats[1,]$FORMAT.split)=="SS")){
             iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="SS")[[1]] #use first row as template
             cSumstats$SS<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+            cat(".")
           }
           
           #EZ - Z-score
           if(any(unlist(cSumstats[1,]$FORMAT.split)=="EZ")){
             iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="EZ")[[1]] #use first row as template
             cSumstats$EZ<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+            cat(".")
           }
           
           #ID - This may already be representative as fixed columns - using SNP as ID is a fixed column
           if(any(unlist(cSumstats[1,]$FORMAT.split)=="ID")){
             iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="ID")[[1]] #use first row as template
-            cSumstats$SNP<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+            cSumstats$SNP<-lapply(cSumstats$VALUES.split,function(x){unlist(x)[iCFormat]}) #this is NOT a numeric
+            cat(".")
           }
           
           #SI - This may already be representative as fixed columns - using SNP as ID is a fixed column
           if(any(unlist(cSumstats[1,]$FORMAT.split)=="SI")){
             iCFormat<-which(unlist(cSumstats[1,]$FORMAT.split)=="SI")[[1]] #use first row as template
             cSumstats$INFO<-lapply(cSumstats$VALUES.split,function(x){as.numeric(unlist(x)[iCFormat])})
+            cat(".")
           }
 
           
@@ -825,6 +833,7 @@ supermunge <- function(
         cSumstats.keys<-c(cSumstats.keys,'A2')
       }
   
+      if(any(colnames(cSumstats)=="LP")) cSumstats[,LP:=as.numeric(LP)]
       if(any(colnames(cSumstats)=="P")) cSumstats[,P:=as.numeric(P)]
       if(any(colnames(cSumstats)=="Z")) cSumstats[,Z:=as.numeric(Z)]
       if(any(colnames(cSumstats)=="FRQ")) cSumstats[,FRQ:=as.numeric(FRQ)]
@@ -1636,6 +1645,12 @@ supermunge <- function(
         cat(".")
       }
       
+      #P conversion from LP
+      if(any(colnames(cSumstats)=="LP") && !any(colnames(cSumstats)=="P")){
+        cSumstats[,P:=10^(-LP)]
+      }
+      
+      
       # P validity checks before EFFECT, SE and Z-score calculations
       ### Check the values of the P-column
       if(any(colnames(cSumstats)=="P")) {
@@ -1687,60 +1702,63 @@ supermunge <- function(
           }
           
           ## Determine effect type, test scale of SE
+          ## Requires P!!!!
+          ## May expand this to use other variables instead of P
           sumstats.meta[iFile,c("effect_type")]<-"unknown" #fallback
           sumstats.meta[iFile,c("se_type")]<-"unknown" #fallback
-          if(round(median(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm=T),digits = 1) == 1) {
-            ###is odds ratio
-            sumstats.meta[iFile,c("effect_type")]<-"OR"
-            cSumstats[,P.SEtest:=2*pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4] #JZ: edited to 2*
-            if(sum(cSumstats$P.SEtest.is.same.scale,na.rm = T)>0.75*nrow(cSumstats)){
-              #SE is of an OR
-              sumstats.meta[iFile,c("se_type")]<-"OR"
-            } else {
-              sumstats.meta[iFile,c("se_type")]<-"non_OR"
-            }
-            
-            #cSumstats[,EFFECT_ORIG:=EFFECT] #save original - not needed actually
-            cSumstats[,EFFECT:=log(EFFECT)] #normal calculation
-            
-            #cSumstats[!is.finite(EFFECT),] #check
-            
-            if(sumstats.meta[iFile,c("se_type")]!="OR"){
-              cSumstats[,P.SEtest:=2*pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale2:=abs(P.SEtest-P)<1e-4] #JZ: edited to 2*
-              if(sum(cSumstats$P.SEtest.is.same.scale2,na.rm = T)>0.75*nrow(cSumstats)){
-                #SE is of an ln(OR)
-                sumstats.meta[iFile,c("se_type")]<-"ln_OR"
+          if(any(colnames(cSumstats)=="P")){
+            if(round(median(cSumstats[is.finite(EFFECT),]$EFFECT,na.rm=T),digits = 1) == 1) {
+              ###is odds ratio
+              sumstats.meta[iFile,c("effect_type")]<-"OR"
+              cSumstats[,P.SEtest:=2*pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4] #JZ: edited to 2*
+              if(sum(cSumstats$P.SEtest.is.same.scale,na.rm = T)>0.75*nrow(cSumstats)){
+                #SE is of an OR
+                sumstats.meta[iFile,c("se_type")]<-"OR"
+              } else {
+                sumstats.meta[iFile,c("se_type")]<-"non_OR"
               }
+              
+              #cSumstats[,EFFECT_ORIG:=EFFECT] #save original - not needed actually
+              cSumstats[,EFFECT:=log(EFFECT)] #normal calculation
+              
+              #cSumstats[!is.finite(EFFECT),] #check
+              
+              if(sumstats.meta[iFile,c("se_type")]!="OR"){
+                cSumstats[,P.SEtest:=2*pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale2:=abs(P.SEtest-P)<1e-4] #JZ: edited to 2*
+                if(sum(cSumstats$P.SEtest.is.same.scale2,na.rm = T)>0.75*nrow(cSumstats)){
+                  #SE is of an ln(OR)
+                  sumstats.meta[iFile,c("se_type")]<-"ln_OR"
+                }
+              }
+              
+              if(any(colnames(cSumstats)=="BETA")) {
+                cSumstats.warnings<-c(cSumstats.warnings,"The effect format being an ODDS RATIO may not be compatible with the original variable naming scheme!")
+                sumstats.meta[iFile,c("effect_type_warning")]<-T
+              }
+              
+              #cleanup
+              cSumstats[,P.SEtest:=NULL][,P.SEtest.is.same.scale:=NULL][,P.SEtest.is.same.scale2:=NULL]
+              
+            } else {
+              ###is NOT odds ratio
+              sumstats.meta[iFile,c("effect_type")]<-"non_OR"
+              cSumstats[,P.SEtest:=2*pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4] #JZ: edited to 2*
+              if(sum(cSumstats$P.SEtest.is.same.scale,na.rm = T)>0.75*nrow(cSumstats)){
+                #SE is NOT of an OR
+                sumstats.meta[iFile,c("se_type")]<-"non_OR"
+              }
+              
+              cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","NON OR"))
+              if(any(colnames(cSumstats)=="OR")) {
+                cSumstats.warnings<-c(cSumstats.warnings,"The effect format NOT being an ODDS RATIO may not compatible with the original variable naming scheme!")
+                sumstats.meta[iFile,c("effect_type_warning")]<-T
+              }
+              
+              #cleanup
+              cSumstats[,P.SEtest:=NULL][,P.SEtest.is.same.scale:=NULL]
             }
-            
-            if(any(colnames(cSumstats)=="BETA")) {
-              cSumstats.warnings<-c(cSumstats.warnings,"The effect format being an ODDS RATIO may not be compatible with the original variable naming scheme!")
-              sumstats.meta[iFile,c("effect_type_warning")]<-T
-            }
-            
-            #cleanup
-            cSumstats[,P.SEtest:=NULL][,P.SEtest.is.same.scale:=NULL][,P.SEtest.is.same.scale2:=NULL]
-            
-          } else {
-            ###is NOT odds ratio
-            sumstats.meta[iFile,c("effect_type")]<-"non_OR"
-            cSumstats[,P.SEtest:=2*pnorm(q = abs(EFFECT)/SE, lower.tail = F)][,P.SEtest.is.same.scale:=abs(P.SEtest-P)<1e-4] #JZ: edited to 2*
-            if(sum(cSumstats$P.SEtest.is.same.scale,na.rm = T)>0.75*nrow(cSumstats)){
-              #SE is NOT of an OR
-              sumstats.meta[iFile,c("se_type")]<-"non_OR"
-            }
-            
-            cSumstats.meta<-rbind(cSumstats.meta,list("EFFECT","NON OR"))
-            if(any(colnames(cSumstats)=="OR")) {
-              cSumstats.warnings<-c(cSumstats.warnings,"The effect format NOT being an ODDS RATIO may not compatible with the original variable naming scheme!")
-              sumstats.meta[iFile,c("effect_type_warning")]<-T
-            }
-            
-            #cleanup
-            cSumstats[,P.SEtest:=NULL][,P.SEtest.is.same.scale:=NULL]
+            cat(".")
           }
-          cat(".")
-          
           
           #Recommend parameter settings for Genomic SEM sumstats function
           if(sumstats.meta[iFile,c("effect_type")]=="OR" | sumstats.meta[iFile,c("se_type")]=="OR"){
@@ -1941,71 +1959,6 @@ supermunge <- function(
       
       if(is.invalid(changeEffectDirectionOnAlleleFlip)) changeEffectDirectionOnAlleleFlip<-T
       
-      #compare hypothesised inverted allele effects with non-inverted allele effects for validation
-      #use weighting because uncertain associations tend to skew the mean effect towards a negative value
-      # if(any(colnames(cSumstats)=="EFFECT") & any(colnames(cSumstats)=="SE") & any(colnames(cSumstats)=="cond.invertedAlleleOrder")){
-      #   if(any(cSumstats$cond.invertedAlleleOrder) & any(is.finite(cSumstats$EFFECT)) & any(is.finite(cSumstats$SE))){
-      #     sumstats.meta[iFile,c("Inverted allele order variants")]<-sum(cSumstats$cond.invertedAlleleOrder)
-      #     
-      #     cSumstats[,WEFFECT:=EFFECT/(SE^2)]
-      #     
-      #     nFlipReference<-nrow(cSumstats[!(cond.invertedAlleleOrder),])
-      #     nFlipCandiate<-nrow(cSumstats[(cond.invertedAlleleOrder),])
-      #     
-      #     meffects.reference<-sum(cSumstats[is.finite(WEFFECT) & !(cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(1/(cSumstats[is.finite(SE) & !(cond.invertedAlleleOrder),]$SE^2),na.rm = T)
-      #     meffects.candidate<-sum(cSumstats[is.finite(WEFFECT) & (cond.invertedAlleleOrder),]$WEFFECT,na.rm = T)/sum(1/(cSumstats[is.finite(SE) & (cond.invertedAlleleOrder),]$SE^2),na.rm = T)
-      #     
-      #     
-      #     meffects.candidate.inverted<-meffects.candidate*-1
-      #     meffects.reference.inverted<-meffects.reference*-1
-      #     
-      #     sdeffects.reference<-sd(cSumstats[is.finite(EFFECT) & !(cond.invertedAlleleOrder),]$EFFECT,na.rm = T)
-      #     sdeffects.candidate<-sd(cSumstats[is.finite(EFFECT) & (cond.invertedAlleleOrder),]$EFFECT,na.rm = T)
-      #     cSumstats.meta<-rbind(cSumstats.meta,list("Number variants, reference, candidate:",paste0(as.character(nFlipReference),",",as.character(nFlipCandiate))))
-      #     cSumstats.meta<-rbind(cSumstats.meta,list("Mean reference effect (sd)",paste0(as.character(round(meffects.reference,digits = 5))," (",round(sdeffects.reference,digits = 4),")")))
-      #     cSumstats.meta<-rbind(cSumstats.meta,list("Mean candidate effect (sd)",paste0(as.character(round(meffects.candidate,digits = 5))," (",round(sdeffects.candidate,digits = 4),")")))
-      #     
-      #     
-      #     sumstats.meta[iFile,c("Reference variants")]<-nFlipReference
-      #     sumstats.meta[iFile,c("Candidate variants")]<-nFlipCandiate
-      #     
-      #     sumstats.meta[iFile,c("Mean reference effect")]<-round(meffects.reference,digits = 5)
-      #     sumstats.meta[iFile,c("Mean reference effect sd")]<-round(sdeffects.reference,digits = 4)
-      #     sumstats.meta[iFile,c("Mean candidate effect")]<-round(meffects.candidate,digits = 4)
-      #     sumstats.meta[iFile,c("Mean candidate effect sd")]<-round(sdeffects.candidate,digits = 5)
-      #     
-      #     if(nFlipCandiate>nFlipReference){
-      #       cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","interpreting candidate variants as reference as they are more numerous"))
-      #     }
-      #     
-      #     if(is.finite(nFlipReference) & is.finite(nFlipCandiate) & is.finite(meffects.reference) & is.finite(meffects.candidate)) { #safety check so the conditions below do not crash in case of all reference/candidates
-      #       
-      #     #This is just for notifications, the real flip comes below!
-      #       if(
-      #         (nFlipCandiate <= nFlipReference & abs(meffects.candidate.inverted - meffects.reference) > (abs(meffects.candidate - meffects.reference) + 1*sdeffects.reference)) |
-      #         (nFlipCandiate > nFlipReference & abs(meffects.reference.inverted - meffects.candidate) > (abs(meffects.reference - meffects.candidate) + 1*sdeffects.candidate))
-      #         ){
-      #         cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect","inverted > plain+1sd"))
-      #         sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-T
-      #         if(is.invalid(changeEffectDirectionOnAlleleFlip)){
-      #           changeEffectDirectionOnAlleleFlip<-F #inactivate the correction of effect direction on allele flip because of less credible new effect mean.
-      #         } else if(changeEffectDirectionOnAlleleFlip){
-      #           cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip specified, but the mean effect difference between plain and inverted variants is much larger than between plain and non-inverted, indicating that inverted effects may be invalid.")
-      #         }
-      #         
-      #       } else {
-      #         cSumstats.meta<-rbind(cSumstats.meta,list("Delta effect, relationship","inverted < plain+1sd"))
-      #         sumstats.meta[iFile,c("Delta effect, inverted > plain+1sd")]<-F
-      #         if(!is.invalid(changeEffectDirectionOnAlleleFlip)){
-      #           if(!changeEffectDirectionOnAlleleFlip) cSumstats.warnings<-c(cSumstats.warnings,"\nChange effect direction on allele flip inactivated, but the mean effect difference between untouched and inverted variants is much smaller than between untouched and non-inverted, indicating that inverted effects for these variants may still be valid.")
-      #         }
-      #       }
-      #     
-      #     }
-      #     
-      #   }
-      # }
-      # cat(".")
       
       ## EFFECT direction
       ##invert effect if inverted allele order

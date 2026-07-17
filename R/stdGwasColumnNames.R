@@ -251,7 +251,7 @@ stdGwasColumnNames <- function(
   
   
   
-  #rename duplicte columns
+  #rename duplicate columns
   
   if(c.SNP[1] %in% columnNames){
     columnNames.sorted<-columnNames[c.SNP]
@@ -322,6 +322,15 @@ stdGwasColumnNames <- function(
     if(length(columnNames.sorted)>1){
       columnNames.sorted<-columnNames.sorted[2:length(columnNames.sorted)]
       columnNames[names(columnNames.sorted)]<-paste0("X",c.FRQ[1])
+    }
+  }
+  
+  if(c.N[1] %in% columnNames){
+    columnNames.sorted<-columnNames[c.N]
+    columnNames.sorted<-columnNames.sorted[!is.na(columnNames.sorted)]
+    if(length(columnNames.sorted)>1){
+      columnNames.sorted<-columnNames.sorted[2:length(columnNames.sorted)]
+      columnNames[names(columnNames.sorted)]<-paste0("X",c.N[1])
     }
   }
   
