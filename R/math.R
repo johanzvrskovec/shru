@@ -261,7 +261,7 @@ difftest.matrix <- function(
     #this has now been corrected to correspond to the derived formula from the supplement
     
     tVar <- (mStandard_errors1^2)-(mStandard_errors2^2)
-    vare <- df1*(mStandard_errors1^2) + df2*(mStandard_errors2^2) - 2*sqrt(2*df1*(mStandard_errors1^2))*sqrt(2*df2*(mStandard_errors2^2))*mCorrelationEstimate.standard_errors #this is simplified and approximates df-1~df to avoid weird behaviour at large df
+    vare <- mStandard_errors1^2 + mStandard_errors2^2 - 2*mStandard_errors1*mStandard_errors2*mCorrelationEstimate.standard_errors #this is simplified and approximates df-1~df to avoid weird behaviour at large df
 
     #old
     # var_bar <-(mStandard_errors1^2+mStandard_errors2^2)/2
