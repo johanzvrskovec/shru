@@ -80,7 +80,7 @@ p.adjust2 <- function (p.mat, method = p.adjust.methods, n = NULL, isSymmetric=F
     pmin(1, cummin(q * n/i * p[o]))[ro]
   }, none = p)
   
-  p0 <- ifelse(p0 < p, p, p0) #+++JZ: Added this to avoid any p0 < p when using small n
+  p0[nna] <- ifelse(p0[nna] < p, p, p0[nna]) #+++JZ: Added this to avoid any p0 < p when using small n
   
   #+++JZ: this is an added part for dealing with matrices and symmetry
   if(is.matrix(p.mat)){
